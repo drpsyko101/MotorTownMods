@@ -2,6 +2,7 @@ local UEHelpers = require("UEHelpers")
 
 local modName = "MotorTownMods"
 
+require("EventManager")
 require("PlayerLocation")
 
 ---Print a message to the console
@@ -15,3 +16,5 @@ function LogMsg(message, severity)
   end
   print(string.format("[%s] %s: %s\n", modName, severity, message))
 end
+
+LogMsg("Mod loaded")
