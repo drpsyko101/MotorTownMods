@@ -2,7 +2,6 @@ local UEHelpers = require("UEHelpers")
 
 local modName = "MotorTownMods"
 
-require("EventManager")
 require("PlayerLocation")
 
 ---Print a message to the console
