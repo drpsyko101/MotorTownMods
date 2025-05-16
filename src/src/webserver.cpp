@@ -76,8 +76,11 @@ void Webserver::run_server(unsigned short port) {
 
 // Function to handle incoming HTTP requests
 void Webserver::handle_request(http::request<http::string_body> req, http::response<http::string_body>& res) {
-	std::string foo = "a";
-	Output::send<LogLevel::Verbose>(STR("Processing {} request {} {}\n"), &foo);
+	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+	Output::send<LogLevel::Verbose>(
+		STR("Processing {} request {}\n"), 
+		converter.from_bytes(req.method_string().data()),
+		converter.from_bytes(req.target().data()));
 
 	json::object response_json;
 
