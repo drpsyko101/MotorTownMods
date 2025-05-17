@@ -23,12 +23,12 @@ Webserver::Webserver() {
 		Port = static_cast<int>(*val);
 	}
 
-	responses.push_back(new PlayerManager());
+	responses.push_back(std::make_shared<PlayerManager>());
 
 	serverThread = boost::thread(&Webserver::run_server, this, Port);
 	serverThread.detach();
 
-	Output::send<LogLevel::Verbose>(STR("{} API server listening at {}\n"), *ModName, Port);
+	Output::send<LogLevel::Verbose>(STR("[{}] API server listening at {}\n"), ModName, Port);
 }
 
 Webserver::~Webserver() {
@@ -36,11 +36,6 @@ Webserver::~Webserver() {
 
 	free(_localServer);
 	_localServer = NULL;
-
-	for (int i = 0; i < responses.size(); i++)
-	{
-		free(responses[i]);
-	}
 }
 
 Webserver* Webserver::Get() {
@@ -68,40 +63,42 @@ void Webserver::run_server(unsigned short port) {
 		http::read(socket, buffer, req);
 
 		http::response<http::string_body> res;
-		handle_request(req, res);
+		res.body() = handle_request(req, res);
 
+		res.set(http::field::content_type, "application/json");
+		res.prepare_payload();
 		http::write(socket, res);
 	}
 }
 
 // Function to handle incoming HTTP requests
-void Webserver::handle_request(http::request<http::string_body> req, http::response<http::string_body>& res) {
-	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+std::string Webserver::handle_request(http::request<http::string_body> req, http::response<http::string_body>& res) {
 	Output::send<LogLevel::Verbose>(
-		STR("Processing {} request {}\n"), 
-		converter.from_bytes(req.method_string().data()),
-		converter.from_bytes(req.target().data()));
+		STR("[{}] Processing {} request {}\n"),
+		ModName,
+		to_wstring(req.method_string()),
+		to_wstring(req.target()));
+
 
 	json::object response_json;
 
-	for (int i = 0; i < responses.size(); i++)
+	for (auto response : responses)
 	{
-		if (responses[i]->is_request_match(req)) {
-			response_json = responses[i]->get_response(req);
+		if (response->is_request_match(req)) {
+			response_json = response->get_response(req);
+			res.result(http::status::ok);
+			return json::serialize(response_json);
 		}
 	}
 
-	if (response_json.empty()) {
-		response_json["error"] = std::format("Unknown endpoint {}", std::string(req.target()));
+	if (req.target() == "/status") {
+		response_json["message"] = "Server is running";
+		res.result(http::status::ok);
+		return json::serialize(response_json);
 	}
 
-	res.result(http::status::ok);
-	res.set(http::field::content_type, "application/json");
-	res.body() = json::serialize(response_json);
-	res.prepare_payload();
+	response_json["error"] = std::format("Unknown endpoint {}", std::string(req.target()));
+	res.result(http::status::bad_request);
+	return json::serialize(response_json);
 }
 
-void Webserver::add_response(Route* response)
-{
-	responses.push_back(response);
-}

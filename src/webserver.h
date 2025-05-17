@@ -5,19 +5,23 @@
 #pragma pop_macro("check")
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
+#include <list>
+#include <memory>
 
 namespace asio = boost::asio;
 namespace beast = boost::beast;
 namespace http = beast::http;
 
+class Route;
+
 // Simple HTTP server with threading
 class Webserver
 {
-	const char* ModName = nullptr;
+	std::wstring ModName;
 	int Port = 5000;
 	asio::io_context ioc;
 	boost::thread serverThread;
-	std::vector<class Route*> responses;
+	std::list<std::shared_ptr<Route>> responses;
 
 public:
 	Webserver();
@@ -34,7 +38,5 @@ private:
 	void run_server(unsigned short port);
 
 	// Function to handle incoming HTTP requests
-	void handle_request(http::request<http::string_body> req, http::response<http::string_body>& res);
-
-	void add_response(Route* response);
+	std::string handle_request(http::request<http::string_body> req, http::response<http::string_body>& res);
 };
