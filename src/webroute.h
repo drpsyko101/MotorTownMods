@@ -1,3 +1,5 @@
+#pragma once
+
 // Workaround against multiple check definitions
 #pragma push_macro("check")
 #undef check

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <Unreal/UnrealCoreStructs.hpp>
 #include "webroute.h"
 #include <memory>
@@ -8,11 +10,11 @@ using namespace std;
 
 struct MotorTownPlayerState {
 	std::wstring PlayerName = L"";
-	int32 GridIndex = -1;
+	int32_t GridIndex = -1;
 	bool IsHost = false;
 	bool IsAdmin = false;
 	float BestLapTime = 0.0f;
-	std::vector<int32> Levels = { 0,0,0,0,0 };
+	std::vector<int32_t> Levels = { 0,0,0,0,0 };
 	double CustomDestinationAbsoluteLocation[3] = { 0.f, 0.f, 0.f };
 	double Location[3] = { 0.f, 0.f, 0.f };
 	std::string VehicleKey = "";

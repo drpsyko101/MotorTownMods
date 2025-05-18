@@ -3,6 +3,7 @@
 #include <Unreal/UObjectGlobals.hpp>
 #include "statics.h"
 #include "playermanager.h"
+#include "events.h"
 
 // Workaround against multiple check definitions
 #pragma push_macro("check")
@@ -24,6 +25,7 @@ Webserver::Webserver() {
 	}
 
 	responses.push_back(std::make_shared<PlayerManager>());
+	responses.push_back(std::make_shared<EventManager>());
 
 	serverThread = boost::thread(&Webserver::run_server, this, Port);
 	serverThread.detach();
