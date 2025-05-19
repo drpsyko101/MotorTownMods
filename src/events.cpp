@@ -86,6 +86,28 @@ EventManager::EventManager()
 			nullptr);
 	}
 
+	if (UFunction* serverChangeEvent = UObjectGlobals::StaticFindObject<UFunction*>(
+		nullptr,
+		nullptr,
+		STR("/Script/MotorTown.MotorTownPlayerController:ServerChangeEventState")))
+	{
+		UObjectGlobals::RegisterHook(
+			serverChangeEvent,
+			[](...) {},
+			[&](UnrealScriptFunctionCallableContext& context, void* contextData) {
+				// Skip on machines that runs on wine
+				if (const char* wineEnv = getenv("WINEDLLOVERRIDES"))
+				{
+					return;
+				}
+
+				if (FStructProperty* event = static_cast<FStructProperty*>(
+					context.TheStack.Node()->GetPropertyByNameInChain(STR("EventState"))))
+				{
+				}
+			},
+			nullptr);
+	}
 }
 
 bool EventManager::IsMatchingRequest(http::request<http::string_body> req)
@@ -114,24 +136,47 @@ json::object EventManager::GetResponseJson(http::request<http::string_body> req)
 	return res;
 }
 
+static uint8* GetData(FScriptArray* ScriptArray, int32 ElementSize, int32 Index)
+{
+	return static_cast<uint8*>(ScriptArray->GetData()) + Index * ElementSize;
+}
+
 std::vector<FMTEvent> EventManager::GetEvents()
 {
-	std::vector<FMTEvent> events;
+	std::vector<FMTEvent> out_events;
 	std::vector<UObject*> objs;
 	UObjectGlobals::FindAllOf(STR("MTEventSystem"), objs);
 	for (UObject* obj : objs)
 	{
 		Output::send<LogLevel::Verbose>(STR("Processing {}\n"), obj->GetFullName());
-		if (FScriptArray* props = obj->GetValuePtrByPropertyNameInChain<FScriptArray>(STR("Events")))
+		if (auto props = obj->GetValuePtrByPropertyNameInChain<FScriptArray>(STR("Net_Events")))
 		{
-			auto arr = StaticCast<FArrayProperty*>(obj->GetPropertyByNameInChain(STR("Events")));
+			auto arr = StaticCast<FArrayProperty*>(obj->GetPropertyByNameInChain(STR("Net_Events")));
+			const int32 ElementSize = arr->GetInner()->GetElementSize();
+			Output::send<LogLevel::Verbose>(STR("NumEvents: {}\n"), props->Num());
 			for (int32_t i = 0; i < props->Num(); i++)
 			{
+				const int32 offset = i * ElementSize;
+				auto elem = static_cast<uint8*>(props->GetData()) + offset;
+				auto test = std::bit_cast<FMTEvent*>(elem);
+				Output::send<LogLevel::Verbose>(STR("EventName: {}\n"), test->EventName.GetCharArray());
+				out_events.push_back(*test);
+
+				Output::send<LogLevel::Verbose>(STR("Players: {}\n"), test->Players.Num());
 			}
 		}
+		//if (TArray<FMTEvent>* events = obj->GetValuePtrByPropertyNameInChain<TArray<FMTEvent>>(
+		//	STR("Net_Events")))
+		//{
+		//	Output::send<LogLevel::Verbose>(STR("EventNum: {}\n"), events->Num());
+		//	for (const FMTEvent event : *events)
+		//	{
+		//		out_events.push_back(event);
+		//	}
+		//}
 	}
 
-	return events;
+	return out_events;
 }
 
 FMTEvent::FMTEvent()
