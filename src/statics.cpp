@@ -68,3 +68,8 @@ boost::json::object ModStatics::RouteToJson(const FMTRoute route)
     obj["Waypoints"] = arr;
     return obj;
 }
+
+const char* ModStatics::GetWebhookUrl()
+{
+    return getenv("API_WEBHOOK_URL");
+}

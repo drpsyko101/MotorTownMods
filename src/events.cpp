@@ -123,31 +123,37 @@ EventManager::EventManager()
 			serverAddEvent,
 			[](...) {},
 			[](UnrealScriptFunctionCallableContext& context, void* data) {
+				// Skip on machines that runs on wine
+				if (const char* wineEnv = getenv("WINEDLLOVERRIDES"))
+				{
+					return;
+				}
+
 				// TODO: Broadcast new event to webhook
-				//Output::send<LogLevel::Verbose>(STR("Getting event property...\n"));
-				//if (FStructProperty* event = static_cast<FStructProperty*>(
-				//	context.TheStack.Node()->GetPropertyByNameInChain(STR("Event"))))
-				//{
-				//	Output::send<LogLevel::Verbose>(STR("Getting event struct...\n"));
-				//	if (UStruct* eventStruct = event->GetStruct())
-				//	{
-				//		Output::send<LogLevel::Verbose>(STR("Getting event data...\n"));
-				//		if (void* a = event->ContainerPtrToValuePtr<void>(data))
-				//		{
-				//			Output::send<LogLevel::Verbose>(STR("Getting event name property...\n"));
-				//			if (FProperty* name = eventStruct->GetPropertyByNameInChain(STR("EventName")))
-				//			{
-				//				Output::send<LogLevel::Verbose>(STR("Getting event name value...\n"));
-				//				if (FString* eventName = name->ContainerPtrToValuePtr<FString>(a))
-				//				{
-				//					Output::send<LogLevel::Verbose>(
-				//						STR("New event {} created\n"),
-				//						eventName->GetCharArray());
-				//				}
-				//			}
-				//		}
-				//	}
-				//}
+				Output::send<LogLevel::Verbose>(STR("Getting event property...\n"));
+				if (FStructProperty* event = static_cast<FStructProperty*>(
+					context.TheStack.Node()->GetPropertyByNameInChain(STR("Event"))))
+				{
+					Output::send<LogLevel::Verbose>(STR("Getting event struct...\n"));
+					if (UStruct* eventStruct = event->GetStruct())
+					{
+						Output::send<LogLevel::Verbose>(STR("Getting event data...\n"));
+						if (void* a = event->ContainerPtrToValuePtr<void>(context.TheStack.Locals()))
+						{
+							Output::send<LogLevel::Verbose>(STR("Getting event name property...\n"));
+							if (FProperty* name = eventStruct->GetPropertyByNameInChain(STR("EventName")))
+							{
+								Output::send<LogLevel::Verbose>(STR("Getting event name value...\n"));
+								if (FString* eventName = name->ContainerPtrToValuePtr<FString>(a))
+								{
+									Output::send<LogLevel::Verbose>(
+										STR("New event {} created\n"),
+										eventName->GetCharArray());
+								}
+							}
+						}
+					}
+				}
 			},
 			nullptr);
 	}

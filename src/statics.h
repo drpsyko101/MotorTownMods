@@ -53,4 +53,6 @@ public:
 	static boost::json::object CharacterIdToJson(const FMTCharacterId charactedId);
 	static boost::json::object ShadowedIntToJson(const FMTShadowedInt64 shadowedInt);
 	static boost::json::object RouteToJson(const FMTRoute route);
+
+	static const char* GetWebhookUrl();
 };
