@@ -2,6 +2,8 @@
 #include "Helpers/String.hpp"
 #include <boost/uuid/uuid_io.hpp>
 #include <Unreal/Rotator.hpp>
+#include <Unreal/UStruct.hpp>
+#include <Unreal/FProperty.hpp>
 
 static boost::json::object vector_to_json(FVector vector)
 {
@@ -40,36 +42,69 @@ std::string ModStatics::GuidToString(const FGuid Guid)
     return std::format("{}{}{}{}", Guid.A, Guid.B, Guid.C, Guid.D);
 }
 
-boost::json::object ModStatics::CharacterIdToJson(const FMTCharacterId charactedId)
+const char* ModStatics::GetWebhookUrl()
+{
+    return getenv("API_WEBHOOK_URL");
+}
+
+FMTCharacterId::FMTCharacterId()
+{
+}
+
+FMTCharacterId::FMTCharacterId(UStruct* propertyStruct, void* data)
+    : FMTCharacterId()
+{
+    if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("UniqueNetId")))
+    {
+        UniqueNetId = *name->ContainerPtrToValuePtr<FString>(data);
+    }
+    if (FProperty* guid = propertyStruct->GetPropertyByNameInChain(STR("CharacterGuid")))
+    {
+        CharacterGuid = *guid->ContainerPtrToValuePtr<FGuid>(data);
+    }
+}
+
+boost::json::object FMTCharacterId::ToJson() const
 {
     boost::json::object obj;
-    obj["UniqueNetId"] = RC::to_string(charactedId.UniqueNetId.GetCharArray());
-    obj["CharacterGuid"] = ModStatics::GuidToString(charactedId.CharacterGuid);
+    obj["UniqueNetId"] = RC::to_string(UniqueNetId.GetCharArray());
+    obj["CharacterGuid"] = ModStatics::GuidToString(CharacterGuid);
     return obj;
 }
 
-boost::json::object ModStatics::ShadowedIntToJson(const FMTShadowedInt64 shadowedInt)
+boost::json::object FMTShadowedInt64::ToJson() const
 {
     boost::json::object obj;
-    obj["BaseValue"] = shadowedInt.BaseValue;
-    obj["ShadowedValue"] = shadowedInt.ShadowedValue;
+    obj["BaseValue"] = BaseValue;
+    obj["ShadowedValue"] = ShadowedValue;
     return obj;
 }
 
-boost::json::object ModStatics::RouteToJson(const FMTRoute route)
+FMTRoute::FMTRoute()
+{
+}
+
+FMTRoute::FMTRoute(UStruct* propertyStruct, void* data)
+{
+    if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("RouteName")))
+    {
+        RouteName = *name->ContainerPtrToValuePtr<FString>(data);
+    }
+    if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("Waypoints")))
+    {
+        Waypoints = *name->ContainerPtrToValuePtr<TArray<FTransform>>(data);
+    }
+}
+
+boost::json::object FMTRoute::ToJson() const
 {
     boost::json::object obj;
-    obj["RouteName"] = RC::to_string(route.RouteName.GetCharArray());
+    obj["RouteName"] = RC::to_string(RouteName.GetCharArray());
     boost::json::array arr;
-    for (const FTransform& transform : route.Waypoints)
+    for (const FTransform& transform : Waypoints)
     {
         arr.push_back(transform_to_json(transform));
     }
     obj["Waypoints"] = arr;
     return obj;
-}
-
-const char* ModStatics::GetWebhookUrl()
-{
-    return getenv("API_WEBHOOK_URL");
 }

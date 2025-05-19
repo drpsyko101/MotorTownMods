@@ -38,6 +38,8 @@ struct FMTEventPlayer
 	float BestLapTime;
 	int32 Reward_RacingExp;
 	FMTShadowedInt64 Reward_Money;
+
+	json::object ToJson() const;
 };
 
 struct FMTRaceEventSetup
@@ -46,6 +48,11 @@ struct FMTRaceEventSetup
 	int32 NumLaps;
 	TArray<FName> VehicleKeys;
 	TArray<FName> EngineKeys;
+
+	FMTRaceEventSetup();
+	FMTRaceEventSetup(UStruct* propertyStruct, void* data);
+
+	json::object ToJson() const;
 };
 
 // Basic struct for initial parse
@@ -56,9 +63,16 @@ struct FMTEvent
 	EMTEventType EventType;
 	EMTEventState State;
 	bool bInCountdown;
-	//FMTCharacterId OwnerCharacterId;
-	//TArray<FMTEventPlayer> Players;
-	//FMTRaceEventSetup RaceSetup;
+	FMTCharacterId OwnerCharacterId;
+	TArray<FMTEventPlayer> Players;
+	FMTRaceEventSetup RaceSetup;
+
+	FMTEvent();
+	FMTEvent(const FMTEvent& data);
+	// ThreadSafe overload to use in GameThread
+	FMTEvent(UStruct* propertyStruct, void* data);
+
+	json::object ToJson() const;
 };
 
 struct FMTEventArray
@@ -68,11 +82,12 @@ struct FMTEventArray
 
 class EventManager : public Route
 {
+	FMTEvent ev;
 public:
 	EventManager();
-	virtual bool is_request_match(http::request<http::string_body> req) override;
-	virtual json::object get_response(http::request<http::string_body> req) override;
+	virtual bool IsMatchingRequest(http::request<http::string_body> req) override;
+	virtual json::object GetResponseJson(http::request<http::string_body> req) override;
 
 private:
-	std::vector<FMTEvent> get_events();
+	std::vector<FMTEvent> GetEvents();
 };

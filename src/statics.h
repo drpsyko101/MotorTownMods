@@ -20,18 +20,30 @@ struct FMTCharacterId
 {
 	FString UniqueNetId;
 	FGuid CharacterGuid;
+
+	FMTCharacterId();
+	FMTCharacterId(UStruct* propertyStruct, void* data);
+
+	boost::json::object ToJson() const;
 };
 
 struct FMTShadowedInt64
 {
 	int64 BaseValue;
 	int64 ShadowedValue;
+
+	boost::json::object ToJson() const;
 };
 
 struct FMTRoute
 {
 	FString RouteName;
 	TArray<FTransform> Waypoints;
+
+	FMTRoute();
+	FMTRoute(UStruct* propertyStruct, void* data);
+
+	boost::json::object ToJson() const;
 };
 
 class ModStatics
@@ -49,10 +61,6 @@ public:
 	static std::wstring ParseJsonObject(boost::json::object object);
 
 	static std::string GuidToString(const FGuid Guid);
-
-	static boost::json::object CharacterIdToJson(const FMTCharacterId charactedId);
-	static boost::json::object ShadowedIntToJson(const FMTShadowedInt64 shadowedInt);
-	static boost::json::object RouteToJson(const FMTRoute route);
 
 	static const char* GetWebhookUrl();
 };

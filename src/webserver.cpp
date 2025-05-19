@@ -86,8 +86,8 @@ std::string Webserver::handle_request(http::request<http::string_body> req, http
 
 	for (auto response : responses)
 	{
-		if (response->is_request_match(req)) {
-			response_json = response->get_response(req);
+		if (response->IsMatchingRequest(req)) {
+			response_json = response->GetResponseJson(req);
 			res.result(http::status::ok);
 			return json::serialize(response_json);
 		}

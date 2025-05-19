@@ -21,6 +21,6 @@ public:
 	Route();
 	virtual ~Route() {};
 
-	virtual bool is_request_match(http::request<http::string_body> req);
-	virtual json::object get_response(http::request<http::string_body> req);
+	virtual bool IsMatchingRequest(http::request<http::string_body> req);
+	virtual json::object GetResponseJson(http::request<http::string_body> req);
 };

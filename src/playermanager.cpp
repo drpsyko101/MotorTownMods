@@ -15,7 +15,7 @@ PlayerManager::PlayerManager()
 {
 }
 
-bool PlayerManager::is_request_match(http::request<http::string_body> req)
+bool PlayerManager::IsMatchingRequest(http::request<http::string_body> req)
 {
 	if (req.method() == http::verb::get && req.target() == "/players")
 	{
@@ -24,7 +24,7 @@ bool PlayerManager::is_request_match(http::request<http::string_body> req)
 	return false;
 }
 
-json::object PlayerManager::get_response(http::request<http::string_body> req)
+json::object PlayerManager::GetResponseJson(http::request<http::string_body> req)
 {
 	json::object response_json;
 	if (req.method() == http::verb::get && req.target().starts_with("/players"))
@@ -33,9 +33,9 @@ json::object PlayerManager::get_response(http::request<http::string_body> req)
 		if (req.target() == "/players")
 		{
 			json::array arr;
-			for (const auto& data : get_player_locations())
+			for (const auto& data : GetPlayerLocations())
 			{
-				arr.push_back(data.create_json_object());
+				arr.push_back(data.CreateJson());
 			}
 			response_json["data"] = arr;
 		}
@@ -45,7 +45,7 @@ json::object PlayerManager::get_response(http::request<http::string_body> req)
 	return response_json;
 }
 
-std::list<MotorTownPlayerState> PlayerManager::get_player_locations()
+std::list<MotorTownPlayerState> PlayerManager::GetPlayerLocations()
 {
 	std::list<MotorTownPlayerState> playerStates;
 	map<std::wstring, FVector> locs;
@@ -124,7 +124,7 @@ std::list<MotorTownPlayerState> PlayerManager::get_player_locations()
 	return playerStates;
 }
 
-json::object MotorTownPlayerState::create_json_object() const
+json::object MotorTownPlayerState::CreateJson() const
 {
 	json::object elem;
 	elem["PlayerName"] = to_string(PlayerName);

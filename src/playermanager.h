@@ -19,16 +19,16 @@ struct MotorTownPlayerState {
 	double Location[3] = { 0.f, 0.f, 0.f };
 	std::string VehicleKey = "";
 
-	json::object create_json_object() const;
+	json::object CreateJson() const;
 };
 
 class PlayerManager : public Route
 {
 public:
 	PlayerManager();
-	virtual bool is_request_match(http::request<http::string_body> req) override;
-	virtual json::object get_response(http::request<http::string_body> req) override;
+	virtual bool IsMatchingRequest(http::request<http::string_body> req) override;
+	virtual json::object GetResponseJson(http::request<http::string_body> req) override;
 
 private:
-	std::list<MotorTownPlayerState> get_player_locations();
+	std::list<MotorTownPlayerState> GetPlayerLocations();
 };
