@@ -1,4 +1,4 @@
-#include "events.h"
+#include "eventManager.h"
 
 #include <Unreal/UObjectGlobals.hpp>
 #include <Unreal/UFunction.hpp>
@@ -13,8 +13,6 @@
 #include <Unreal/Script.hpp>
 #include <Unreal/Core/Containers/ScriptArray.hpp>
 #include <DynamicOutput/DynamicOutput.hpp>
-#include <boost/uuid/uuid_io.hpp>
-#include <bit>
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -57,10 +55,7 @@ EventManager::EventManager()
 			[](...) {},
 			[&](UnrealScriptFunctionCallableContext& context, void* contextData) {
 				// Skip on machines that runs on wine
-				if (const char* wineEnv = getenv("WINEDLLOVERRIDES"))
-				{
-					return;
-				}
+				if (ModStatics::IsRunningOnWine()) return;
 
 				if (FStructProperty* event = static_cast<FStructProperty*>(
 					context.TheStack.Node()->GetPropertyByNameInChain(STR("Event"))))
@@ -96,10 +91,7 @@ EventManager::EventManager()
 			[](...) {},
 			[&](UnrealScriptFunctionCallableContext& context, void* contextData) {
 				// Skip on machines that runs on wine
-				if (const char* wineEnv = getenv("WINEDLLOVERRIDES"))
-				{
-					return;
-				}
+				if (ModStatics::IsRunningOnWine()) return;
 
 				FGuid* eventGuid = context.TheStack.Node()->GetValuePtrByPropertyNameInChain<FGuid>(
 					STR("EventGuid"));
@@ -132,10 +124,7 @@ EventManager::EventManager()
 			[](...) {},
 			[&](UnrealScriptFunctionCallableContext& context, void* contextData) {
 				// Skip on machines that runs on wine
-				if (const char* wineEnv = getenv("WINEDLLOVERRIDES"))
-				{
-					return;
-				}
+				if (ModStatics::IsRunningOnWine()) return;
 
 				if (FGuid* eventGuid = context.TheStack.Node()->GetValuePtrByPropertyNameInChain<FGuid>(
 					STR("EventGuid")))
@@ -176,6 +165,7 @@ json::object EventManager::GetResponseJson(http::request<http::string_body> req)
 			arr.push_back(event.ToJson());
 		}
 		res["data"] = arr;
+		return res;
 	}
 	return res;
 }
@@ -192,9 +182,11 @@ std::vector<FMTEvent> EventManager::GetEvents()
 	UObjectGlobals::FindAllOf(STR("MTEventSystem"), objs);
 	for (UObject* obj : objs)
 	{
-		if (auto props = obj->GetValuePtrByPropertyNameInChain<FScriptArray>(STR("Net_Events")))
+		if (auto props = obj->GetValuePtrByPropertyNameInChain<FScriptArray>(
+			STR("Net_Events")))
 		{
-			auto arr = StaticCast<FArrayProperty*>(obj->GetPropertyByNameInChain(STR("Net_Events")));
+			auto arr = StaticCast<FArrayProperty*>(
+				obj->GetPropertyByNameInChain(STR("Net_Events")));
 			const int32 elementSize = arr->GetInner()->GetElementSize();
 			auto str = static_cast<FStructProperty*>(arr->GetInner());
 			for (int32_t i = 0; i < props->Num(); i++)

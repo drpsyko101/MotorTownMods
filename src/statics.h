@@ -85,6 +85,9 @@ public:
 
 	static boost::json::object TransformToJson(FTransform transform);
 
+	// Check if mod is running on wine
+	static bool IsRunningOnWine();
+
 	// Get webhook URL for external callback
 	static const char* GetWebhookUrl();
 };

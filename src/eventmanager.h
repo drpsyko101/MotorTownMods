@@ -9,12 +9,14 @@
 using namespace RC;
 using namespace RC::Unreal;
 
-enum class EMTEventType {
+enum class EMTEventType : uint8
+{
 	None,
 	Race,
 };
 
-enum class EMTEventState {
+enum class EMTEventState : uint8
+{
 	None,
 	Ready,
 	InProgress,
