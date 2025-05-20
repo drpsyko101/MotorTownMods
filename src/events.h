@@ -10,53 +10,55 @@ using namespace RC;
 using namespace RC::Unreal;
 
 enum class EMTEventType {
-	None = 0,
+	None,
 	Race,
 };
 
 enum class EMTEventState {
-	None = 0,
+	None,
 	Ready,
 	InProgress,
 	Finished,
 };
 
-struct FMTEventPlayer
+struct FMTEventPlayer : public FStructBase
 {
 	FMTCharacterId CharacterId;
 	FString PlayerName;
-	void* PC;
-	int32 Rank;
-	int32 SectionIndex;
-	int32 Laps;
-	bool bDisqualified;
-	bool bFinished;
-	bool bWrongVehicle;
-	bool bWrongEngine;
-	float LastSectionTotalTimeSeconds;
+	int32 Rank = -1;
+	int32 SectionIndex = -1;
+	int32 Laps = 0;
+	bool bDisqualified = false;
+	bool bFinished = false;
+	bool bWrongVehicle = false;
+	bool bWrongEngine = false;
+	float LastSectionTotalTimeSeconds = 0.f;
 	TArray<float> LapTimes;
-	float BestLapTime;
-	int32 Reward_RacingExp;
+	float BestLapTime = 0.f;
+	int32 Reward_RacingExp = 0;
 	FMTShadowedInt64 Reward_Money;
 
-	json::object ToJson() const;
+	FMTEventPlayer();
+	FMTEventPlayer(UStruct* propertyStruct, void* data);
+
+	virtual json::object ToJson() const override;
 };
 
-struct FMTRaceEventSetup
+struct FMTRaceEventSetup : public FStructBase
 {
 	FMTRoute Route;
-	int32 NumLaps;
+	int32 NumLaps = 0;
 	TArray<FName> VehicleKeys;
 	TArray<FName> EngineKeys;
 
 	FMTRaceEventSetup();
 	FMTRaceEventSetup(UStruct* propertyStruct, void* data);
 
-	json::object ToJson() const;
+	virtual json::object ToJson() const override;
 };
 
 // Basic struct for initial parse
-struct FMTEvent
+struct FMTEvent : public FStructBase
 {
 	FString EventName;
 	FGuid EventGuid;
@@ -72,12 +74,7 @@ struct FMTEvent
 	// ThreadSafe overload to use in GameThread
 	FMTEvent(UStruct* propertyStruct, void* data);
 
-	json::object ToJson() const;
-};
-
-struct FMTEventArray
-{
-	TArray<FMTEvent> Events;
+	virtual json::object ToJson() const override;
 };
 
 class EventManager : public Route

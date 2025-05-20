@@ -7,16 +7,27 @@
 #pragma pop_macro("check")
 
 #include <string>
-#include <boost/uuid/uuid.hpp>
 #include <Unreal/FString.hpp>
 #include <Unreal/Transform.hpp>
 #include <Unreal/UnrealCoreStructs.hpp>
 
-using namespace boost::uuids;
 using namespace RC;
 using namespace RC::Unreal;
 
-struct FMTCharacterId
+// Unreal struct base
+// Structs inherited from this base should not be used to infer
+// value from container/property directy, as the base game
+// might change the struct at any time.
+struct FStructBase
+{
+	FStructBase() {};
+	FStructBase(UStruct* propertyStruct, void* data);
+	virtual ~FStructBase() {};
+
+	virtual boost::json::object ToJson() const;
+};
+
+struct FMTCharacterId : public FStructBase
 {
 	FString UniqueNetId;
 	FGuid CharacterGuid;
@@ -24,18 +35,21 @@ struct FMTCharacterId
 	FMTCharacterId();
 	FMTCharacterId(UStruct* propertyStruct, void* data);
 
-	boost::json::object ToJson() const;
+	virtual boost::json::object ToJson() const override;
 };
 
-struct FMTShadowedInt64
+struct FMTShadowedInt64 : public FStructBase
 {
 	int64 BaseValue;
 	int64 ShadowedValue;
 
-	boost::json::object ToJson() const;
+	FMTShadowedInt64();
+	FMTShadowedInt64(UStruct* propertyStruct, void* data);
+
+	virtual boost::json::object ToJson() const override;
 };
 
-struct FMTRoute
+struct FMTRoute : public FStructBase
 {
 	FString RouteName;
 	TArray<FTransform> Waypoints;
@@ -43,7 +57,7 @@ struct FMTRoute
 	FMTRoute();
 	FMTRoute(UStruct* propertyStruct, void* data);
 
-	boost::json::object ToJson() const;
+	virtual boost::json::object ToJson() const override;
 };
 
 class ModStatics
@@ -60,7 +74,17 @@ public:
 
 	static std::wstring ParseJsonObject(boost::json::object object);
 
+	// Convert FGuid to hexadecimal string
 	static std::string GuidToString(const FGuid Guid);
 
+	static boost::json::object VectorToJson(const FVector vector);
+
+	static boost::json::object RotatorToJson(const FRotator rotation);
+
+	static boost::json::object QuatToJson(const FQuat rotation);
+
+	static boost::json::object TransformToJson(FTransform transform);
+
+	// Get webhook URL for external callback
 	static const char* GetWebhookUrl();
 };

@@ -5,32 +5,11 @@
 #include <Unreal/UStruct.hpp>
 #include <Unreal/FProperty.hpp>
 
-static boost::json::object vector_to_json(FVector vector)
-{
-    boost::json::object vec;
-    vec["X"] = vector.GetX();
-    vec["Y"] = vector.GetY();
-    vec["Z"] = vector.GetZ();
-    return vec;
-}
-
-static boost::json::object rotator_to_json(FQuat rotation)
-{
-    boost::json::object vec;
-    vec["X"] = rotation.GetX();
-    vec["Y"] = rotation.GetY();
-    vec["Z"] = rotation.GetZ();
-    return vec;
-}
-
-static boost::json::object transform_to_json(FTransform transform)
-{
-    boost::json::object obj;
-    obj["Translation"] = vector_to_json(transform.GetTranslation());
-    obj["Rotation"] = rotator_to_json(transform.GetRotation());
-    obj["Scale"] = vector_to_json(transform.GetScale3D());
-    return obj;
-}
+// Workaround against multiple check definitions
+#pragma push_macro("check")
+#undef check
+#include <boost/algorithm/string.hpp>
+#pragma pop_macro("check")
 
 std::wstring ModStatics::ParseJsonObject(boost::json::object object)
 {
@@ -39,7 +18,50 @@ std::wstring ModStatics::ParseJsonObject(boost::json::object object)
 
 std::string ModStatics::GuidToString(const FGuid Guid)
 {
-    return std::format("{}{}{}{}", Guid.A, Guid.B, Guid.C, Guid.D);
+    uint32_t dec[4] = { Guid.A, Guid.B, Guid.C, Guid.D };
+    std::stringstream ss;
+    for (auto elem : dec)
+    {
+        ss << std::hex << elem;
+    }
+
+    return boost::to_upper_copy<std::string>(ss.str());
+}
+
+boost::json::object ModStatics::VectorToJson(const FVector vector)
+{
+    boost::json::object vec;
+    vec["X"] = vector.X();
+    vec["Y"] = vector.Y();
+    vec["Z"] = vector.Z();
+    return vec;
+}
+
+boost::json::object ModStatics::RotatorToJson(const FRotator rotation)
+{
+    boost::json::object vec;
+    vec["X"] = rotation.GetRoll();
+    vec["Y"] = rotation.GetPitch();
+    vec["Z"] = rotation.GetYaw();
+    return vec;
+}
+
+boost::json::object ModStatics::QuatToJson(const FQuat rotation)
+{
+    boost::json::object vec;
+    vec["X"] = rotation.GetX();
+    vec["Y"] = rotation.GetY();
+    vec["Z"] = rotation.GetZ();
+    return vec;
+}
+
+boost::json::object ModStatics::TransformToJson(FTransform transform)
+{
+    boost::json::object obj;
+    obj["Translation"] = VectorToJson(transform.GetTranslation());
+    obj["Rotation"] = QuatToJson(transform.GetRotation());
+    obj["Scale"] = VectorToJson(transform.GetScale3D());
+    return obj;
 }
 
 const char* ModStatics::GetWebhookUrl()
@@ -70,6 +92,23 @@ boost::json::object FMTCharacterId::ToJson() const
     obj["UniqueNetId"] = RC::to_string(UniqueNetId.GetCharArray());
     obj["CharacterGuid"] = ModStatics::GuidToString(CharacterGuid);
     return obj;
+}
+
+FMTShadowedInt64::FMTShadowedInt64()
+{
+}
+
+FMTShadowedInt64::FMTShadowedInt64(UStruct* propertyStruct, void* data)
+    : FMTShadowedInt64()
+{
+    if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("BaseValue")))
+    {
+        BaseValue = *name->ContainerPtrToValuePtr<int64>(data);
+    }
+    if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("ShadowedValue")))
+    {
+        ShadowedValue = *name->ContainerPtrToValuePtr<int64>(data);
+    }
 }
 
 boost::json::object FMTShadowedInt64::ToJson() const
@@ -103,8 +142,18 @@ boost::json::object FMTRoute::ToJson() const
     boost::json::array arr;
     for (const FTransform& transform : Waypoints)
     {
-        arr.push_back(transform_to_json(transform));
+        arr.push_back(ModStatics::TransformToJson(transform));
     }
     obj["Waypoints"] = arr;
     return obj;
+}
+
+FStructBase::FStructBase(UStruct* propertyStruct, void* data)
+    : FStructBase()
+{
+}
+
+boost::json::object FStructBase::ToJson() const
+{
+    return boost::json::object();
 }

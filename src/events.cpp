@@ -101,9 +101,53 @@ EventManager::EventManager()
 					return;
 				}
 
-				if (FStructProperty* event = static_cast<FStructProperty*>(
-					context.TheStack.Node()->GetPropertyByNameInChain(STR("EventState"))))
+				FGuid* eventGuid = context.TheStack.Node()->GetValuePtrByPropertyNameInChain<FGuid>(
+					STR("EventGuid"));
+
+				EMTEventState* eventState = context.TheStack.Node()->GetValuePtrByPropertyNameInChain<EMTEventState>(
+					STR("EventState"));
+				if (eventGuid && eventState)
 				{
+					Output::send<LogLevel::Verbose>(STR("[{}] Event {} state changed to {}\n"),
+						ModStatics::GetModName(),
+						to_wstring(ModStatics::GuidToString(*eventGuid)),
+						to_wstring(event_state_to_string(*eventState)));
+
+					if (const char* url = ModStatics::GetWebhookUrl())
+					{
+						// TODO: Broadcast new event to webhook
+					}
+				}
+			},
+			nullptr);
+	}
+
+	if (UFunction* serverChangeEvent = UObjectGlobals::StaticFindObject<UFunction*>(
+		nullptr,
+		nullptr,
+		STR("/Script/MotorTown.MotorTownPlayerController:ServerRemoveEvent")))
+	{
+		UObjectGlobals::RegisterHook(
+			serverChangeEvent,
+			[](...) {},
+			[&](UnrealScriptFunctionCallableContext& context, void* contextData) {
+				// Skip on machines that runs on wine
+				if (const char* wineEnv = getenv("WINEDLLOVERRIDES"))
+				{
+					return;
+				}
+
+				if (FGuid* eventGuid = context.TheStack.Node()->GetValuePtrByPropertyNameInChain<FGuid>(
+					STR("EventGuid")))
+				{
+					Output::send<LogLevel::Verbose>(STR("[{}] Event {} state ended\n"),
+						ModStatics::GetModName(),
+						to_wstring(ModStatics::GuidToString(*eventGuid)));
+
+					if (const char* url = ModStatics::GetWebhookUrl())
+					{
+						// TODO: Broadcast new event to webhook
+					}
 				}
 			},
 			nullptr);
@@ -148,32 +192,19 @@ std::vector<FMTEvent> EventManager::GetEvents()
 	UObjectGlobals::FindAllOf(STR("MTEventSystem"), objs);
 	for (UObject* obj : objs)
 	{
-		Output::send<LogLevel::Verbose>(STR("Processing {}\n"), obj->GetFullName());
 		if (auto props = obj->GetValuePtrByPropertyNameInChain<FScriptArray>(STR("Net_Events")))
 		{
 			auto arr = StaticCast<FArrayProperty*>(obj->GetPropertyByNameInChain(STR("Net_Events")));
-			const int32 ElementSize = arr->GetInner()->GetElementSize();
-			Output::send<LogLevel::Verbose>(STR("NumEvents: {}\n"), props->Num());
+			const int32 elementSize = arr->GetInner()->GetElementSize();
+			auto str = static_cast<FStructProperty*>(arr->GetInner());
 			for (int32_t i = 0; i < props->Num(); i++)
 			{
-				const int32 offset = i * ElementSize;
+				const int32 offset = i * elementSize;
 				auto elem = static_cast<uint8*>(props->GetData()) + offset;
-				auto test = std::bit_cast<FMTEvent*>(elem);
-				Output::send<LogLevel::Verbose>(STR("EventName: {}\n"), test->EventName.GetCharArray());
-				out_events.push_back(*test);
-
-				Output::send<LogLevel::Verbose>(STR("Players: {}\n"), test->Players.Num());
+				FMTEvent event(str->GetStruct(), elem);
+				out_events.push_back(event);
 			}
 		}
-		//if (TArray<FMTEvent>* events = obj->GetValuePtrByPropertyNameInChain<TArray<FMTEvent>>(
-		//	STR("Net_Events")))
-		//{
-		//	Output::send<LogLevel::Verbose>(STR("EventNum: {}\n"), events->Num());
-		//	for (const FMTEvent event : *events)
-		//	{
-		//		out_events.push_back(event);
-		//	}
-		//}
 	}
 
 	return out_events;
@@ -225,21 +256,18 @@ FMTEvent::FMTEvent(UStruct* propertyStruct, void* data)
 		void* ownerData = owner->ContainerPtrToValuePtr<void>(data);
 		OwnerCharacterId = FMTCharacterId(owner->GetStruct(), ownerData);
 	}
-	if (FArrayProperty* playersProp = StaticCast<FArrayProperty*>(
-		propertyStruct->GetPropertyByNameInChain(STR("Players"))))
+	if (FScriptArray* structArr = propertyStruct->GetValuePtrByPropertyNameInChain<FScriptArray>(
+		STR("Players")))
 	{
-		void* playersData = playersProp->ContainerPtrToValuePtr<void>(data);
-		if (auto players = playersProp->ContainerPtrToValuePtr<TArray<UStruct*>>(data))
+		FArrayProperty* arr = StaticCast<FArrayProperty*>(
+			propertyStruct->GetPropertyByNameInChain(STR("Players")));
+		const int32 elemSize = arr->GetInner()->GetElementSize();
+		auto str = static_cast<FStructProperty*>(arr->GetInner());
+		for (int32_t i = 0; i < structArr->Num(); i++)
 		{
-			Output::send<LogLevel::Verbose>(STR("Found {} player(s)\n"), players->Num());
-			for (auto* player : *players)
-			{
-				if (auto playerName = player->GetPropertyByNameInChain(STR("PlayerName")))
-				{
-					auto name = playerName->ContainerPtrToValuePtr<FString>(playersData);
-					Output::send<LogLevel::Verbose>(STR("PlayerName: {}\n"), name->GetCharArray());
-				}
-			}
+			const int32 offset = i * elemSize;
+			auto elem = static_cast<uint8*>(structArr->GetData()) + offset;
+			Players.Emplace(str->GetStruct(), elem);
 		}
 	}
 	if (FStructProperty* race = StaticCast<FStructProperty*>(
@@ -269,6 +297,75 @@ json::object FMTEvent::ToJson() const
 	obj["RaceSetup"] = RaceSetup.ToJson();
 
 	return obj;
+}
+
+FMTEventPlayer::FMTEventPlayer()
+{
+}
+
+FMTEventPlayer::FMTEventPlayer(UStruct* propertyStruct, void* data)
+	: FMTEventPlayer()
+{
+	if (FStructProperty* owner = StaticCast<FStructProperty*>(
+		propertyStruct->GetPropertyByNameInChain(STR("CharacterId"))))
+	{
+		void* ownerData = owner->ContainerPtrToValuePtr<void>(data);
+		CharacterId = FMTCharacterId(owner->GetStruct(), ownerData);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("PlayerName")))
+	{
+		PlayerName = *name->ContainerPtrToValuePtr<FString>(data);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("Rank")))
+	{
+		Rank = *name->ContainerPtrToValuePtr<int32>(data);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("SectionIndex")))
+	{
+		SectionIndex = *name->ContainerPtrToValuePtr<int32>(data);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("Laps")))
+	{
+		Laps = *name->ContainerPtrToValuePtr<int32>(data);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("bDisqualified")))
+	{
+		bDisqualified = *name->ContainerPtrToValuePtr<bool>(data);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("bFinished")))
+	{
+		bFinished = *name->ContainerPtrToValuePtr<bool>(data);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("bWrongVehicle")))
+	{
+		bWrongVehicle = *name->ContainerPtrToValuePtr<bool>(data);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("bWrongEngine")))
+	{
+		bWrongEngine = *name->ContainerPtrToValuePtr<bool>(data);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("LastSectionTotalTimeSeconds")))
+	{
+		LastSectionTotalTimeSeconds = *name->ContainerPtrToValuePtr<float>(data);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("LapTimes")))
+	{
+		LapTimes = *name->ContainerPtrToValuePtr<TArray<float>>(data);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("BestLapTime")))
+	{
+		BestLapTime = *name->ContainerPtrToValuePtr<float>(data);
+	}
+	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("Reward_RacingExp")))
+	{
+		Reward_RacingExp = *name->ContainerPtrToValuePtr<int32>(data);
+	}
+	if (FStructProperty* reward = StaticCast<FStructProperty*>(
+		propertyStruct->GetPropertyByNameInChain(STR("Reward_Money"))))
+	{
+		void* rewardData = reward->ContainerPtrToValuePtr<void>(data);
+		Reward_Money = FMTShadowedInt64(reward->GetStruct(), rewardData);
+	}
 }
 
 json::object FMTEventPlayer::ToJson() const

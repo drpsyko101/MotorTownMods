@@ -35,7 +35,7 @@ json::object PlayerManager::GetResponseJson(http::request<http::string_body> req
 			json::array arr;
 			for (const auto& data : GetPlayerLocations())
 			{
-				arr.push_back(data.CreateJson());
+				arr.push_back(data.ToJson());
 			}
 			response_json["data"] = arr;
 		}
@@ -61,16 +61,13 @@ std::list<MotorTownPlayerState> PlayerManager::GetPlayerLocations()
 		if (UFunction* getPlayerName = obj->GetFunctionByNameInChain(
 			STR("GetPlayerName")))
 		{
-			obj->ProcessEvent(getPlayerName, &playerName);
-			playerState.PlayerName = playerName.GetCharArray();
+			obj->ProcessEvent(getPlayerName, &playerState.PlayerName);
 		}
 
 		if (FVector* location = obj->GetValuePtrByPropertyNameInChain<FVector>(
 			STR("Location")))
 		{
-			playerState.Location[0] = location->X();
-			playerState.Location[1] = location->Y();
-			playerState.Location[2] = location->Z();
+			playerState.Location = *location;
 		}
 
 		if (int32* grid = obj->GetValuePtrByPropertyNameInChain<int32>(
@@ -100,17 +97,13 @@ std::list<MotorTownPlayerState> PlayerManager::GetPlayerLocations()
 		if (TArray<int32>* levels = obj->GetValuePtrByPropertyNameInChain<TArray<int32>>(
 			STR("Levels")))
 		{
-			playerState.Levels.clear();
-			for (const auto& a : *levels)
-			{
-				playerState.Levels.push_back(a);
-			}
+			playerState.Levels = *levels;
 		}
 
 		if (FName* key = obj->GetValuePtrByPropertyNameInChain<FName>(
 			STR("VehicleKey")))
 		{
-			playerState.VehicleKey = to_string(key->ToString());
+			playerState.VehicleKey = *key;
 		}
 
 		playerStates.push_back(playerState);
@@ -124,10 +117,10 @@ std::list<MotorTownPlayerState> PlayerManager::GetPlayerLocations()
 	return playerStates;
 }
 
-json::object MotorTownPlayerState::CreateJson() const
+json::object MotorTownPlayerState::ToJson() const
 {
 	json::object elem;
-	elem["PlayerName"] = to_string(PlayerName);
+	elem["PlayerName"] = to_string(PlayerName.GetCharArray());
 	elem["GridIndex"] = GridIndex;
 	elem["IsHost"] = IsHost;
 	elem["IsAdmin"] = IsAdmin;
@@ -138,11 +131,7 @@ json::object MotorTownPlayerState::CreateJson() const
 		arr.push_back(lvl);
 	}
 	elem["Levels"] = arr;
-	json::object vec;
-	vec["X"] = Location[0];
-	vec["Y"] = Location[1];
-	vec["Z"] = Location[2];
-	elem["Location"] = vec;
-	elem["VehicleKey"] = VehicleKey;
+	elem["Location"] = ModStatics::VectorToJson(Location);
+	elem["VehicleKey"] = to_string(VehicleKey.ToString());
 	return elem;
 }
