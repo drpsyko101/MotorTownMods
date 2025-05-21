@@ -23,4 +23,7 @@ public:
 
 	virtual bool IsMatchingRequest(http::request<http::string_body> req);
 	virtual json::object GetResponseJson(http::request<http::string_body> req);
+
+protected:
+	virtual void SendWebhookEvent(const json::object payload);
 };

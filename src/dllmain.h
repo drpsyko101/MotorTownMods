@@ -12,6 +12,12 @@ public:
 	auto on_update() -> void override {};
 
 	auto on_unreal_init() -> void override;
+
+	auto on_lua_start(
+		LuaMadeSimple::Lua& lua,
+		LuaMadeSimple::Lua& main_lua,
+		LuaMadeSimple::Lua& async_lua,
+		std::vector<LuaMadeSimple::Lua*>& hook_luas) -> void override;
 };
 
 #define MOTOR_TOWN_MODS_API __declspec(dllexport)

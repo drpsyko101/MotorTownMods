@@ -40,8 +40,8 @@ struct FMTCharacterId : public FStructBase
 
 struct FMTShadowedInt64 : public FStructBase
 {
-	int64 BaseValue;
-	int64 ShadowedValue;
+	int64 BaseValue = 0;
+	int64 ShadowedValue = 0;
 
 	FMTShadowedInt64();
 	FMTShadowedInt64(UStruct* propertyStruct, void* data);
@@ -89,5 +89,5 @@ public:
 	static bool IsRunningOnWine();
 
 	// Get webhook URL for external callback
-	static const char* GetWebhookUrl();
+	static const std::string GetWebhookUrl();
 };

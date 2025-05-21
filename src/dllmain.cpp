@@ -1,9 +1,12 @@
 #include "dllmain.h"
+
 #include <Mod/CppUserModBase.hpp>
 #include <DynamicOutput/DynamicOutput.hpp>
 #include <Unreal/UObjectGlobals.hpp>
 #include <Unreal/UObject.hpp>
 #include <Unreal/AGameModeBase.hpp>
+#include <LuaMadeSimple/LuaMadeSimple.hpp>
+
 #include "webserver.h"
 #include "statics.h"
 
@@ -24,12 +27,16 @@ MotorTownMods::MotorTownMods()
 	Output::send<LogLevel::Verbose>(STR("[{}] mod loaded\n"), ModName);
 }
 
-auto MotorTownMods::on_unreal_init() -> void 
+auto MotorTownMods::on_unreal_init() -> void
 {
-	// You are allowed to use the 'Unreal' namespace in this function and anywhere else after this function has fired.
-	auto Object = UObjectGlobals::StaticFindObject<UObject*>(nullptr, nullptr, STR("/Script/CoreUObject.Object"));
-	Output::send<LogLevel::Verbose>(STR("Object Name: {}\n"), Object->GetFullName());
-
 	// Init API server
-	Webserver* server = Webserver::Get();
+	auto server = Webserver::Get();
+}
+
+auto MotorTownMods::on_lua_start(
+	LuaMadeSimple::Lua& lua,
+	LuaMadeSimple::Lua& main_lua,
+	LuaMadeSimple::Lua& async_lua,
+	std::vector<LuaMadeSimple::Lua*>& hook_luas) -> void
+{
 }

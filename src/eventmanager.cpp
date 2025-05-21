@@ -45,6 +45,7 @@ static const char* event_state_to_string(EMTEventState eventState)
 
 EventManager::EventManager()
 {
+	// Handle new event creation
 	if (UFunction* serverAddEvent = UObjectGlobals::StaticFindObject<UFunction*>(
 		nullptr,
 		nullptr,
@@ -64,16 +65,14 @@ EventManager::EventManager()
 					{
 						if (void* data = event->ContainerPtrToValuePtr<void>(context.TheStack.Locals()))
 						{
-							FMTEvent newEvent(eventStruct, data);
+							const FMTEvent newEvent(eventStruct, data);
 							Output::send<LogLevel::Verbose>(
 								STR("[{}] New event {} created\n"),
 								ModStatics::GetModName(),
-								newEvent.EventName.GetCharArray());
+								to_wstring(ModStatics::GuidToString(newEvent.EventGuid)));
 
-							if (const char* url = ModStatics::GetWebhookUrl())
-							{
-								// TODO: Broadcast new event to webhook
-							}
+							// TODO: Fix broadcast webhook struct failure
+							//SendWebhookEvent(newEvent.ToJson());
 						}
 					}
 				}
@@ -81,6 +80,7 @@ EventManager::EventManager()
 			nullptr);
 	}
 
+	// Handle event state change
 	if (UFunction* serverChangeEvent = UObjectGlobals::StaticFindObject<UFunction*>(
 		nullptr,
 		nullptr,
@@ -105,15 +105,13 @@ EventManager::EventManager()
 						to_wstring(ModStatics::GuidToString(*eventGuid)),
 						to_wstring(event_state_to_string(*eventState)));
 
-					if (const char* url = ModStatics::GetWebhookUrl())
-					{
-						// TODO: Broadcast new event to webhook
-					}
+					// TODO: Broadcast webhook
 				}
 			},
 			nullptr);
 	}
 
+	// Handle event deletion
 	if (UFunction* serverChangeEvent = UObjectGlobals::StaticFindObject<UFunction*>(
 		nullptr,
 		nullptr,
@@ -129,14 +127,11 @@ EventManager::EventManager()
 				if (FGuid* eventGuid = context.TheStack.Node()->GetValuePtrByPropertyNameInChain<FGuid>(
 					STR("EventGuid")))
 				{
-					Output::send<LogLevel::Verbose>(STR("[{}] Event {} state ended\n"),
+					Output::send<LogLevel::Verbose>(STR("[{}] Event {} removed\n"),
 						ModStatics::GetModName(),
 						to_wstring(ModStatics::GuidToString(*eventGuid)));
 
-					if (const char* url = ModStatics::GetWebhookUrl())
-					{
-						// TODO: Broadcast new event to webhook
-					}
+					// TODO: Broadcast to webhook
 				}
 			},
 			nullptr);
@@ -165,6 +160,23 @@ json::object EventManager::GetResponseJson(http::request<http::string_body> req)
 			arr.push_back(event.ToJson());
 		}
 		res["data"] = arr;
+		return res;
+	}
+	if (req.method() == http::verb::patch && req.target().starts_with("/events/"))
+	{
+		json::value val = json::parse(req.body());
+
+		if (!val.is_object()) 
+		{
+			Output::send<LogLevel::Error>(STR("[{}] Invalid payload for {}\n"),
+				ModStatics::GetModName(),
+				to_wstring(req.target()));
+			return res;
+		}
+
+		json::object obj = val.as_object();
+		// TODO: make modification
+
 		return res;
 	}
 	return res;
@@ -298,6 +310,7 @@ FMTEventPlayer::FMTEventPlayer()
 FMTEventPlayer::FMTEventPlayer(UStruct* propertyStruct, void* data)
 	: FMTEventPlayer()
 {
+	if (propertyStruct == nullptr || data == nullptr) return;
 	if (FStructProperty* owner = StaticCast<FStructProperty*>(
 		propertyStruct->GetPropertyByNameInChain(STR("CharacterId"))))
 	{
@@ -355,8 +368,10 @@ FMTEventPlayer::FMTEventPlayer(UStruct* propertyStruct, void* data)
 	if (FStructProperty* reward = StaticCast<FStructProperty*>(
 		propertyStruct->GetPropertyByNameInChain(STR("Reward_Money"))))
 	{
-		void* rewardData = reward->ContainerPtrToValuePtr<void>(data);
-		Reward_Money = FMTShadowedInt64(reward->GetStruct(), rewardData);
+		if (void* rewardData = reward->ContainerPtrToValuePtr<void>(data))
+		{
+			Reward_Money = FMTShadowedInt64(reward->GetStruct(), rewardData);
+		}
 	}
 }
 

@@ -84,9 +84,10 @@ bool ModStatics::IsRunningOnWine()
 	return false;
 }
 
-const char* ModStatics::GetWebhookUrl()
+const std::string ModStatics::GetWebhookUrl()
 {
-	return getenv("API_WEBHOOK_URL");
+	std::string test = getenv("MOD_WEBHOOK_URL");
+	return getenv("MOD_WEBHOOK_URL");
 }
 
 FMTCharacterId::FMTCharacterId()
@@ -96,6 +97,7 @@ FMTCharacterId::FMTCharacterId()
 FMTCharacterId::FMTCharacterId(UStruct* propertyStruct, void* data)
 	: FMTCharacterId()
 {
+	if (propertyStruct == nullptr || data == nullptr) return;
 	if (FProperty* name = propertyStruct->GetPropertyByNameInChain(STR("UniqueNetId")))
 	{
 		UniqueNetId = *name->ContainerPtrToValuePtr<FString>(data);
