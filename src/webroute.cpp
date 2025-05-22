@@ -81,10 +81,9 @@ void Route::SendWebhookEvent(const json::object payload)
 
 				Output::send<LogLevel::Verbose>(STR("[{}] Successfully sent webhook {}\n"),
 					ModStatics::GetModName(),
-					to_wstring(uri.encoded_path()));
+					to_wstring(uri.path()));
 			}
 		);
-
 	}
 	catch (std::exception& e) {
 		OnReqFail(e.what());

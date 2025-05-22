@@ -62,19 +62,20 @@ struct FMTRaceEventSetup : public FStructBase
 // Basic struct for initial parse
 struct FMTEvent : public FStructBase
 {
-	FString EventName;
-	FGuid EventGuid;
-	EMTEventType EventType;
-	EMTEventState State;
-	bool bInCountdown;
-	FMTCharacterId OwnerCharacterId;
-	TArray<FMTEventPlayer> Players;
-	FMTRaceEventSetup RaceSetup;
+	FString EventName;					// 0x0000 (size: 0x10)
+	FGuid EventGuid;					// 0x0010 (size: 0x10)
+	EMTEventType EventType;				// 0x0020 (size: 0x1)
+	EMTEventState State;				// 0x0021 (size: 0x1)
+	bool bInCountdown = false;			// 0x0022 (size: 0x1)
+	uint8 _pad1[5] = {};
+	FMTCharacterId OwnerCharacterId;	// 0x0028 (size: 0x20)
+	TArray<FMTEventPlayer> Players;		// 0x0048 (size: 0x10)
+	FMTRaceEventSetup RaceSetup;		// 0x0058 (size: 0x48)
 
 	FMTEvent();
-	FMTEvent(const FMTEvent& data);
-	// ThreadSafe overload to use in GameThread
+	FMTEvent(std::string eventName);
 	FMTEvent(UStruct* propertyStruct, void* data);
+	FMTEvent(const json::object object);
 
 	virtual json::object ToJson() const override;
 };
@@ -89,4 +90,5 @@ public:
 
 private:
 	std::vector<FMTEvent> GetEvents();
+	bool CreateNewEvent(FMTEvent& Event);
 };

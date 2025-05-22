@@ -13,6 +13,7 @@
 #include <Unreal/Script.hpp>
 #include <Unreal/Core/Containers/ScriptArray.hpp>
 #include <DynamicOutput/DynamicOutput.hpp>
+#include <regex>
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -151,22 +152,52 @@ bool EventManager::IsMatchingRequest(http::request<http::string_body> req)
 json::object EventManager::GetResponseJson(http::request<http::string_body> req)
 {
 	json::object res;
-	// Return all events
-	if (req.method() == http::verb::get && req.target() == "/events")
+	if (req.target() == "/events")
 	{
-		json::array arr;
-		for (const FMTEvent& event : GetEvents())
+		switch (req.method())
 		{
-			arr.push_back(event.ToJson());
+		case http::verb::get: // handle GET all events
+		{
+			json::array arr;
+			for (const auto& event : GetEvents())
+			{
+				arr.push_back(event.ToJson());
+			}
+			res["data"] = arr;
+			return res;
 		}
-		res["data"] = arr;
-		return res;
+		case http::verb::post: // handle POST a new event
+		{
+			return res;
+			// TODO: Fix create event
+			try
+			{
+				json::value val = json::parse(req.body());
+				if (!val.is_object())
+				{
+					throw std::invalid_argument("parse: invalid object type received");
+				}
+				FMTEvent event(val.as_object());
+				if (CreateNewEvent(event)) res["data"] = event.ToJson();
+			}
+			catch (const std::exception& e)
+			{
+				Output::send<LogLevel::Error>(STR("[{}] Failed to create a new event: {}"),
+					ModStatics::GetModName(),
+					to_wstring(e.what()));
+			}
+			return res;
+		}
+		default:
+			return res;
+		}
 	}
-	if (req.method() == http::verb::patch && req.target().starts_with("/events/"))
+	std::regex reg("^/events/");
+	if (req.method() == http::verb::patch && std::regex_match(std::string(req.target()), reg))
 	{
 		json::value val = json::parse(req.body());
 
-		if (!val.is_object()) 
+		if (!val.is_object())
 		{
 			Output::send<LogLevel::Error>(STR("[{}] Invalid payload for {}\n"),
 				ModStatics::GetModName(),
@@ -190,45 +221,51 @@ static uint8* GetData(FScriptArray* ScriptArray, int32 ElementSize, int32 Index)
 std::vector<FMTEvent> EventManager::GetEvents()
 {
 	std::vector<FMTEvent> out_events;
-	std::vector<UObject*> objs;
-	UObjectGlobals::FindAllOf(STR("MTEventSystem"), objs);
-	for (UObject* obj : objs)
+	UObject* obj = UObjectGlobals::FindFirstOf(STR("MTEventSystem"));
+	if (auto props = obj->GetValuePtrByPropertyNameInChain<FScriptArray>(
+		STR("Net_Events")))
 	{
-		if (auto props = obj->GetValuePtrByPropertyNameInChain<FScriptArray>(
-			STR("Net_Events")))
+		auto arr = StaticCast<FArrayProperty*>(
+			obj->GetPropertyByNameInChain(STR("Net_Events")));
+		const int32 elementSize = arr->GetInner()->GetElementSize();
+		auto str = static_cast<FStructProperty*>(arr->GetInner());
+		for (int32_t i = 0; i < props->Num(); i++)
 		{
-			auto arr = StaticCast<FArrayProperty*>(
-				obj->GetPropertyByNameInChain(STR("Net_Events")));
-			const int32 elementSize = arr->GetInner()->GetElementSize();
-			auto str = static_cast<FStructProperty*>(arr->GetInner());
-			for (int32_t i = 0; i < props->Num(); i++)
-			{
-				const int32 offset = i * elementSize;
-				auto elem = static_cast<uint8*>(props->GetData()) + offset;
-				FMTEvent event(str->GetStruct(), elem);
-				out_events.push_back(event);
-			}
+			const int32 offset = i * elementSize;
+			auto elem = static_cast<uint8*>(props->GetData()) + offset;
+			out_events.emplace_back(str->GetStruct(), elem);
 		}
 	}
-
 	return out_events;
+}
+
+bool EventManager::CreateNewEvent(FMTEvent& Event)
+{
+	if (auto func = UObjectGlobals::StaticFindObject<UFunction*>(
+		nullptr,
+		nullptr,
+		STR("/Script/MotorTown.MotorTownPlayerController:ServerAddEvent")))
+	{
+		if (auto PC = static_cast<AActor*>(
+			UObjectGlobals::FindFirstOf(STR("MotorTownPlayerController"))))
+		{
+			PC->ProcessEvent(func, &Event);
+			return true;
+		}
+	}
+	return false;
 }
 
 FMTEvent::FMTEvent()
 	: EventType(EMTEventType::None)
 	, State(EMTEventState::None)
-	, bInCountdown(false)
 {
 }
 
-FMTEvent::FMTEvent(const FMTEvent& data)
+FMTEvent::FMTEvent(std::string eventName)
 	: FMTEvent()
 {
-	EventName = data.EventName;
-	EventGuid = data.EventGuid;
-	EventType = data.EventType;
-	State = data.State;
-	bInCountdown = data.bInCountdown;
+	EventName = FString(TEXT("TestName"));
 }
 
 FMTEvent::FMTEvent(UStruct* propertyStruct, void* data)
@@ -250,11 +287,11 @@ FMTEvent::FMTEvent(UStruct* propertyStruct, void* data)
 	{
 		State = *state->ContainerPtrToValuePtr<EMTEventState>(data);
 	}
-	if (FProperty* cd = propertyStruct->GetPropertyByNameInChain(STR("State")))
+	if (FProperty* cd = propertyStruct->GetPropertyByNameInChain(STR("bInCountdown")))
 	{
 		bInCountdown = *cd->ContainerPtrToValuePtr<bool>(data);
 	}
-	if (FStructProperty* owner = StaticCast<FStructProperty*>(
+	if (FStructProperty* owner = static_cast<FStructProperty*>(
 		propertyStruct->GetPropertyByNameInChain(STR("OwnerCharacterId"))))
 	{
 		void* ownerData = owner->ContainerPtrToValuePtr<void>(data);
@@ -280,6 +317,11 @@ FMTEvent::FMTEvent(UStruct* propertyStruct, void* data)
 		void* raceData = race->ContainerPtrToValuePtr<void>(data);
 		RaceSetup = FMTRaceEventSetup(race->GetStruct(), raceData);
 	}
+}
+
+FMTEvent::FMTEvent(const json::object object)
+	: FMTEvent()
+{
 }
 
 json::object FMTEvent::ToJson() const
