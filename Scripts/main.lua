@@ -1,10 +1,7 @@
 local UEHelpers = require("UEHelpers")
 local modName = "MotorTownMods"
 
-Webserver = nil ---@class Webserver
-
-require("PlayerLocation")
-require("ServerAutoFps")
+-- require("PlayerLocation")
 
 ---Print a message to the console
 ---@param message string
@@ -19,9 +16,18 @@ function LogMsg(message, severity)
 end
 
 local function LoadWebserver()
-  Webserver = require("Webserver")
-  Webserver.run("*", 8080)
+  local status, err = pcall(function()
+    Webserver = require("Webserver")
+    Webserver.registerHandler("/status", "GET", function(session)
+      Webserver.sendOKResponse(session, '{"status":"ok"}', "application/json")
+    end)
+    Webserver.run("*", 5001)
+  end)
+  if err then
+    LogMsg("Failed to start webserver: error code " .. err.code, "ERROR")
+  end
+  return not status
 end
 
-pcall(LoadWebserver)
+LoopAsync(5000, LoadWebserver)
 LogMsg("Mod loaded")

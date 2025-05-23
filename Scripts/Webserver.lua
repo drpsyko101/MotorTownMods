@@ -30,6 +30,8 @@
 
 -- Import Section
 -- Declare everything that this module needs from outside
+local dir = os.getenv("PWD") or io.popen("cd"):read()
+package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/socket/core.dll"
 local socket = require("socket")
 local url = require("socket.url")
 
@@ -47,23 +49,12 @@ local LogMsg = LogMsg
 -- Cut off external access
 _ENV = nil
 
-
-
-
-local serverString = "DTM Lua Webserver 0.1.0"
-
-
+local serverString = "MotorTownMods server 0.1.0"
 local clients = {}
-
 local sessions = {}
-
 local nextSessionID = 1
-
 local g_server = nil
-
 local handlers = {}
-
-
 
 local function findHandlerIndex(path, method)
     for i, h in ipairs(handlers) do
@@ -77,14 +68,12 @@ local function findHandlerIndex(path, method)
     return nil
 end
 
-
-
 local function findHandler(path, method)
     for i, h in ipairs(handlers) do
         LogMsg("Checking " .. h.path .. "  " .. h.method)
 
         local base = string.gsub(h.path, "%*", ".*") -- Turn asterisks into Lua wild patterns
-        local pat = string.format("^%s$", base)  -- Add anchors to pattern
+        local pat = string.format("^%s$", base)      -- Add anchors to pattern
         if string.find(path, pat) == 1 then
             --if path == h.path then
             if method == nil or h.method == "*" or method == h.method then
@@ -93,11 +82,8 @@ local function findHandler(path, method)
             end
         end
     end
-
     return nil
 end
-
-
 
 local function getNewClients()
     --print( "Waiting for connection on " .. i .. ":" .. p .. "..." )
@@ -112,13 +98,13 @@ local function getNewClients()
         client:settimeout(1)
         table.insert(clients, client)
 
-        local s = { id = nextSessionID, state = "init", client = client }
+        local s = { id = nextSessionID, state = "init", client = client, closed = false }
         nextSessionID = nextSessionID + 1
         sessions[client] = s
+
+        socket.sleep(0.01)
     end
 end
-
-
 
 -- Build the headers for a normal response
 -- Content is optional and may be nil. If not nil, content type must be provided (ex: "application/json")
@@ -134,17 +120,17 @@ local function buildHeaders_OK(s, content, contentType)
 
     add("Server", serverString)
     add("Date", date("!%a, %d %b %Y %H:%M:%S GMT"))
-    add("Connection", "close")
+    add("Connection", "keep-alive")
 
     if content then
         add("Content-Length", #content)
         add("Content-type", contentType)
     end
 
-    return table.concat(h, "\n") .. "\n\n"
+    local header = table.concat(h, "\n") .. "\n\n"
+    LogMsg("Adding header: " .. header)
+    return header
 end
-
-
 
 -- Build the headers for an error response
 local function buildHeaders_Error(s, statusCode, statusText)
@@ -163,26 +149,14 @@ local function buildHeaders_Error(s, statusCode, statusText)
     return table.concat(h, "\n") .. "\n\n"
 end
 
-
-
--- Removes the given client from the client list.
--- This should NOT be called when iterating through the client list!
-local function removeSession(s)
-    for i, client in ipairs(clients) do
-        if client == s.client then
-            LogMsg("Removing client " .. i)
-            table.remove(clients, i)
-            sessions[s.client] = nil
-            client:close()
-            break
-        end
-    end
+local function markSessionForRemoval(s)
+    LogMsg("Marking client " .. s.id .. " for removal")
+    s.closed = true
 end
-
-
 
 local function sendResponse(s, header, rcontent)
     LogMsg("Sending the response")
+    socket.sleep(0.1)
 
     local a, b, elast = s.client:send(header)
     if a == nil then
@@ -192,6 +166,7 @@ local function sendResponse(s, header, rcontent)
     end
 
     if rcontent then
+        socket.sleep(0.1)
         local a, b, elast = s.client:send(rcontent)
         if a == nil then
             LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
@@ -199,25 +174,19 @@ local function sendResponse(s, header, rcontent)
             LogMsg("Last byte sent: " .. a .. " content size: " .. #rcontent)
         end
     end
-
-    removeSession(s)
+    socket.sleep(0.1)
+    markSessionForRemoval(s)
 end
-
-
 
 local function sendOKResponse(s, content, contentType)
     local header = buildHeaders_OK(s, content, contentType)
     sendResponse(s, header, content)
 end
 
-
-
 local function sendErrorResponse(s, statusCode, statusText)
     local header = buildHeaders_Error(s, statusCode, statusText)
     sendResponse(s, header)
 end
-
-
 
 -- Parse the raw headers into a nice name/value dictionary
 local function parseHeaders(s)
@@ -241,8 +210,6 @@ local function parseHeaders(s)
     return 0 -- success
 end
 
-
-
 local function processHeaders(s)
     s.contentLength = 0
 
@@ -251,8 +218,6 @@ local function processHeaders(s)
         s.contentLength = tonumber(len)
     end
 end
-
-
 
 local function dumpSession(s)
     LogMsg("==============================")
@@ -278,8 +243,8 @@ local function dumpSession(s)
     end
 
     LogMsg("URL Path: " .. s.urlComponents.path)
-    LogMsg("URL Params: " .. s.urlComponents.params)
-    LogMsg("URL url: " .. s.urlComponents.url)
+    LogMsg("URL Params: " .. (s.urlComponents.params or ""))
+    LogMsg("URL url: " .. (s.urlComponents.url or ""))
 
     LogMsg("URL path components:")
     for k, v in pairs(s.pathComponents) do
@@ -288,6 +253,7 @@ local function dumpSession(s)
 
     LogMsg(string.format("Content Length: %d", s.contentLength))
     LogMsg(string.format("Content: %s", s.content))
+    LogMsg("==============================")
 end
 
 
@@ -311,14 +277,13 @@ local function processSession(s)
         end
     end
 
+    socket.sleep(0.01)
     --sendErrorResponse( s, "404", "Not Found" )
 
     --local rcontent = "Howdy pardners"
 end
 
-
-
--- Turns a query string into a table of name/value pairs
+---Turns a query string into a table of name/value pairs
 local function decodeQuery(s)
     local cgi = {}
     for name, value in string.gmatch(s, "([^&=]+)=([^&=]+)") do
@@ -329,14 +294,12 @@ local function decodeQuery(s)
     return cgi
 end
 
-
--- Members of the session table:
---   method = Request Type (e.g. GET, POST)
+---Members of the session table:
+---method = Request Type (e.g. GET, POST)
 --   url = Table containing URL components per the LuaSocket decoded URL specification
 --   headers = Table of all headers as key/value pairs
 --
 --
-
 local function handleClient(client)
     local s = sessions[client]
 
@@ -351,6 +314,7 @@ local function handleClient(client)
     if data then
         if s.state == "init" then
             LogMsg(string.format("(%d) INIT: '%s'", s.id, data))
+            socket.sleep(0.01)
             s.rawHeaders = {}
             local method, urlString, ver = string.match(data, "(%S+)%s+(%S+)%s+(%S+)")
             if method ~= nil then
@@ -362,7 +326,7 @@ local function handleClient(client)
 
                 s.pathComponents = url.parse_path(s.urlComponents.path)
 
-                LogMsg("Query Components " .. s.urlComponents.query)
+                LogMsg("Query Components " .. (s.urlComponents.query or ""))
                 if s.urlComponents.query ~= nil then
                     s.queryComponents = decodeQuery(s.urlComponents.query)
                 end
@@ -405,26 +369,23 @@ local function handleClient(client)
     else
         if err == "closed" then
             LogMsg("Client closed the connection: ")
-            removeSession(s)
+            markSessionForRemoval(s)
             --print( "Size of client list is " .. #clients )
         elseif err == "timeout" then
             LogMsg("Receive timeout. Partial data: " .. partial, "ERROR")
-            removeSession(s)
+            markSessionForRemoval(s)
         else
             LogMsg("Receive error: " .. err, "ERROR")
-            removeSession(s)
+            markSessionForRemoval(s)
         end
     end
 end
 
-
-
---
--- Wait the given amount of time for some data to process. If data received, it will be processed and this
--- method will return. If no data, it will timeout and return. The caller should not know or care which happened.
---
--- Note that if there is data to process this method may return sooner or later than the timeout time.
---
+---Wait the given amount of time for some data to process. If data received, it will be processed and this
+---method will return. If no data, it will timeout and return. The caller should not know or care which happened.
+---
+---Note that if there is data to process this method may return sooner or later than the timeout time.
+---@param timeout number Timout in seconds
 local function process(timeout)
     local rclients, _, err = socket.select(clients, nil, timeout)
     --print( #rclients, err )
@@ -444,15 +405,26 @@ local function process(timeout)
             end
         end
     end
+
+    -- Cleanup phase: remove closed sessions
+    local i = #clients
+    while i >= 1 do
+        local client_to_check = clients[i]
+        local s = sessions[client_to_check]
+        if s and s.closed then
+            LogMsg("Cleaning up client " .. s.id)
+            client_to_check:close()
+            table.remove(clients, i)
+            sessions[client_to_check] = nil
+        end
+        i = i - 1
+    end
 end
 
-
-
--- path is a pattern to match (no wildcards at the moment) Ex: "/api/status"
--- method is the request type (e.g. GET, POST). If nil the handler will be called for all types.
--- handler is a Lua function that will handle the endpoint
---      handler( url, method, content, headers )
---
+---comment
+---@param path string pattern to match (no wildcards at the moment) Ex: "/api/status"
+---@param method string request type (e.g. GET, POST). If nil the handler will be called for all types.
+---@param handler function(url, method, content, headers) Lua function that will handle the endpoint
 local function registerHandler(path, method, handler)
     local h = { path = path, method = method, handler = handler }
     -- Already registered?
@@ -466,8 +438,6 @@ local function registerHandler(path, method, handler)
     end
 end
 
-
-
 -- Initialize the web server
 local function init(host, port)
     LogMsg("Web Server binding to host '" .. host .. "' on port " .. port .. "...")
@@ -477,17 +447,11 @@ local function init(host, port)
         return
     end
 
-    --i, p = server:getsockname()
-    --print( i, p )
-    --assert( i, p )
-
     g_server:settimeout(0.05)
 
     -- Add the server socket to the client arrays so we will wait on it in select()
     table.insert(clients, g_server)
 end
-
-
 
 local function run(host, port)
     init(host, port)
@@ -496,8 +460,6 @@ local function run(host, port)
         process(1.0)
     end
 end
-
-
 
 return {
     run = run,

@@ -1,6 +1,4 @@
 local UEHelpers = require("UEHelpers")
-local json = require("cjson")
-
 
 local function ReadPlayerLocations(s)
   local playerStates = UEHelpers:GetAllPlayerStates()
@@ -17,16 +15,24 @@ local function ReadPlayerLocations(s)
       lastLocations[playerName] = location
     end
   end
-  local res = json.encode(lastLocations)
-  if Webserver ~= nil then
+
+  local res = '{"data":[]}'
+
+  pcall(function()
+    local json = require("cjson")
+    res = json.encode(lastLocations)
+  end)
+
+  pcall(function()
+    local Webserver = require("Webserver")
     Webserver.sendOKResponse(s, res, "application/json")
-  else
-    return LogMsg(res)
-  end
+  end)
+  return LogMsg(res)
 end
 
-if Webserver ~= nil then
+pcall(function()
+  local Webserver = require("Webserver")
   Webserver.registerHandler("/getallplayerlocations", "GET", ReadPlayerLocations)
-else
-  RegisterConsoleCommandHandler("getallplayerlocations", ReadPlayerLocations)
-end
+end)
+
+RegisterConsoleCommandHandler("getallplayerlocations", ReadPlayerLocations)
