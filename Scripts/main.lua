@@ -3,6 +3,7 @@ local UEHelpers = require("UEHelpers")
 local modName = "MotorTownMods"
 
 require("PlayerLocation")
+require("ServerAutoFps")
 
 ---Print a message to the console
 ---@param message string
