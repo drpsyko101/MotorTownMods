@@ -1,18 +1,25 @@
 local UEHelpers = require("UEHelpers")
+
 local modName = "MotorTownMods"
+local modLogLevel = 255
 
 -- require("PlayerLocation")
 
+---@enum (key) LogLevel
+local logLevel = {
+  ERROR = 0,
+  WARN = 1,
+  INFO = 2,
+  DEBUG = 3
+}
+
 ---Print a message to the console
 ---@param message string
----@param severity string?
+---@param severity LogLevel?
 function LogMsg(message, severity)
-  if severity then
-    severity = severity:upper()
-  else
-    severity = "INFO"
-  end
-  print(string.format("[%s] %s: %s\n", modName, severity, message))
+  local lvl = severity or "INFO"
+  if logLevel[lvl] > modLogLevel then return end
+  print(string.format("[%s] %s: %s\n", modName, lvl, message))
 end
 
 local function LoadWebserver()
@@ -22,11 +29,12 @@ local function LoadWebserver()
       Webserver.sendOKResponse(session, '{"status":"ok"}', "application/json")
     end)
     Webserver.run("*", 5001)
+    return nil
   end)
   if err then
-    LogMsg("Failed to start webserver: error code " .. err.code, "ERROR")
+    LogMsg("Failed to start webserver", "ERROR")
   end
-  return not status
+  return false
 end
 
 LoopAsync(5000, LoadWebserver)

@@ -1,28 +1,5 @@
--- webserver.lua
-
--- Don's simple Lua web server. This was developed for use as part of my Lua-based Home Automation system,
--- but may be useful as a component fort other purposes.
--- Note that this depends on the Lua socket library being present!
-
--- Copyright (c) 2015, Donald T. Meyer
--- All rights reserved.
---
--- Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
---
--- * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
---
--- * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the
--- documentation and/or other materials provided with the distribution.
---
--- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
--- TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
--- CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
--- PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
--- LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
--- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
 --------  To Do:  --------------
+-- Fix HTTP/0.9 issue
 -- Look into respecting a "keep open" request
 -- think about authentication
 -- 405 response needs to add allowed methods header
@@ -38,7 +15,6 @@ local url = require("socket.url")
 local string = string
 local table = table
 
-local print = print
 local pairs = pairs
 local ipairs = ipairs
 local tonumber = tonumber
@@ -49,13 +25,42 @@ local LogMsg = LogMsg
 -- Cut off external access
 _ENV = nil
 
-local serverString = "MotorTownMods server 0.1.0"
-local clients = {}
-local sessions = {}
-local nextSessionID = 1
-local g_server = nil
-local handlers = {}
+---@enum (key) RequestMethod
+local _method = {
+    GET = "GET",
+    POST = "POST",
+    PUT = "PUT",
+    DELETE = "DELETE"
+}
 
+---@enum (key) ConnectionState
+local _state = {
+    init = "init",
+    header = "header",
+    body = "body",
+    close = "close"
+}
+
+---@enum MimeType
+local _mimeType = {
+    json = "application/json",
+    plaintext = "text/plain"
+}
+
+---@alias ClientTable { id: integer, state: string, client: TCPSocketClient, rawHeaders: string[], headers: table<string,string>, method: RequestMethod, urlString: string, urlComponents?: table<string,string>, pathComponents: table<string,string>, queryComponents: table<string,string>, version: string, contentLength: number, content: string, state: ConnectionState }
+---@alias RequestPathHandler fun(session: ClientTable)
+---@alias RequestPathHandlerTable { path: string, method: RequestMethod, handler: RequestPathHandler }
+
+local serverString = "MotorTownMods server 0.1.0"
+local clients = {} ---@type TCPSocketClient[]
+local sessions = {} ---@type table<TCPSocketClient, ClientTable>
+local nextSessionID = 1
+local g_server = nil ---@class TCPSocketServer
+local handlers = {} ---@type RequestPathHandlerTable[]
+
+---Find a handler index by path and method
+---@param path string Request path
+---@param method string One of GET, POST, PUT, DELETE
 local function findHandlerIndex(path, method)
     for i, h in ipairs(handlers) do
         if path == h.path then
@@ -68,6 +73,10 @@ local function findHandlerIndex(path, method)
     return nil
 end
 
+---Find a handler by path and methods
+---@param path string Request path
+---@param method? RequestMethod
+---@return table|nil
 local function findHandler(path, method)
     for i, h in ipairs(handlers) do
         LogMsg("Checking " .. h.path .. "  " .. h.method)
@@ -85,8 +94,8 @@ local function findHandler(path, method)
     return nil
 end
 
+---Get a new connecting client
 local function getNewClients()
-    --print( "Waiting for connection on " .. i .. ":" .. p .. "..." )
     local client, err = g_server:accept()
 
     if client == nil then
@@ -98,7 +107,7 @@ local function getNewClients()
         client:settimeout(1)
         table.insert(clients, client)
 
-        local s = { id = nextSessionID, state = "init", client = client, closed = false }
+        local s = { id = nextSessionID, state = "init", client = client }
         nextSessionID = nextSessionID + 1
         sessions[client] = s
 
@@ -106,10 +115,12 @@ local function getNewClients()
     end
 end
 
--- Build the headers for a normal response
--- Content is optional and may be nil. If not nil, content type must be provided (ex: "application/json")
--- Assumes that the data is JSON
-local function buildHeaders_OK(s, content, contentType)
+---Build the headers for a normal response
+---Content is optional and may be nil. If not nil, content type must be provided (ex: "application/json")
+---Assumes that the data is JSON
+---@param content string? Content of the response
+---@param contentType string? Content mime type
+local function buildHeaders_OK(self, content, contentType)
     local h = {}
 
     local function add(name, value)
@@ -120,7 +131,7 @@ local function buildHeaders_OK(s, content, contentType)
 
     add("Server", serverString)
     add("Date", date("!%a, %d %b %Y %H:%M:%S GMT"))
-    add("Connection", "keep-alive")
+    add("Connection", "close")
 
     if content then
         add("Content-Length", #content)
@@ -132,8 +143,10 @@ local function buildHeaders_OK(s, content, contentType)
     return header
 end
 
--- Build the headers for an error response
-local function buildHeaders_Error(s, statusCode, statusText)
+---Build the headers for an error response
+---@param statusCode number HTTP status code
+---@param statusText string HTTP status message
+local function buildHeaders_Error(self, statusCode, statusText)
     local h = {}
 
     local function add(name, value)
@@ -149,11 +162,17 @@ local function buildHeaders_Error(s, statusCode, statusText)
     return table.concat(h, "\n") .. "\n\n"
 end
 
+---Safely mark a session for removal
+---@param s ClientTable
 local function markSessionForRemoval(s)
     LogMsg("Marking client " .. s.id .. " for removal")
-    s.closed = true
+    s.state = "close"
 end
 
+---Send a response to the clients
+---@param s ClientTable Session client
+---@param header string Response headers
+---@param rcontent string? Response body
 local function sendResponse(s, header, rcontent)
     LogMsg("Sending the response")
     socket.sleep(0.1)
@@ -178,6 +197,10 @@ local function sendResponse(s, header, rcontent)
     markSessionForRemoval(s)
 end
 
+---Send 200 OK responses
+---@param s ClientTable
+---@param content string
+---@param contentType MimeType
 local function sendOKResponse(s, content, contentType)
     local header = buildHeaders_OK(s, content, contentType)
     sendResponse(s, header, content)
@@ -188,7 +211,8 @@ local function sendErrorResponse(s, statusCode, statusText)
     sendResponse(s, header)
 end
 
--- Parse the raw headers into a nice name/value dictionary
+---Parse the raw headers into a nice name/value dictionary
+---@param s ClientTable Session client
 local function parseHeaders(s)
     --print( string.format( "(%d) Request is '%s'", s.id, s.method ) )
 
@@ -294,12 +318,8 @@ local function decodeQuery(s)
     return cgi
 end
 
----Members of the session table:
----method = Request Type (e.g. GET, POST)
---   url = Table containing URL components per the LuaSocket decoded URL specification
---   headers = Table of all headers as key/value pairs
---
---
+---Handle client request data
+---@param client TCPSocketClient
 local function handleClient(client)
     local s = sessions[client]
 
@@ -387,7 +407,7 @@ end
 ---Note that if there is data to process this method may return sooner or later than the timeout time.
 ---@param timeout number Timout in seconds
 local function process(timeout)
-    local rclients, _, err = socket.select(clients, nil, timeout)
+    local rclients, _, err = socket.select(clients, nil, timeout) ---@cast rclients TCPSocketClient[]
     --print( #rclients, err )
     if err ~= nil then
         -- Either no data (timeout) or an error
@@ -411,7 +431,7 @@ local function process(timeout)
     while i >= 1 do
         local client_to_check = clients[i]
         local s = sessions[client_to_check]
-        if s and s.closed then
+        if s and s.state == "close" then
             LogMsg("Cleaning up client " .. s.id)
             client_to_check:close()
             table.remove(clients, i)
@@ -421,10 +441,10 @@ local function process(timeout)
     end
 end
 
----comment
+---Register a new handler for the specified path and method
 ---@param path string pattern to match (no wildcards at the moment) Ex: "/api/status"
----@param method string request type (e.g. GET, POST). If nil the handler will be called for all types.
----@param handler function(url, method, content, headers) Lua function that will handle the endpoint
+---@param method RequestMethod request type (e.g. GET, POST). If nil the handler will be called for all types.
+---@param handler RequestPathHandler
 local function registerHandler(path, method, handler)
     local h = { path = path, method = method, handler = handler }
     -- Already registered?
@@ -438,7 +458,9 @@ local function registerHandler(path, method, handler)
     end
 end
 
--- Initialize the web server
+---Initialize the web server
+---@param host string Host to bind to
+---@param port number Port to bind to
 local function init(host, port)
     LogMsg("Web Server binding to host '" .. host .. "' on port " .. port .. "...")
     g_server = socket.bind(host, port)
