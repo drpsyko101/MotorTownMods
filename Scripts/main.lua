@@ -1,9 +1,10 @@
+require("Helpers")
+
 local UEHelpers = require("UEHelpers")
+local playerManager = require("PlayerManager")
 
 local modName = "MotorTownMods"
-local modLogLevel = 255
-
--- require("PlayerLocation")
+local modLogLevel = 2
 
 ---@enum (key) LogLevel
 local logLevel = {
@@ -25,10 +26,17 @@ end
 local function LoadWebserver()
   local status, err = pcall(function()
     Webserver = require("Webserver")
+
     Webserver.registerHandler("/status", "GET", function(session)
       Webserver.sendOKResponse(session, '{"status":"ok"}', "application/json")
     end)
-    Webserver.run("*", 5001)
+
+    Webserver.registerHandler("/players", "GET", function(session)
+      Webserver.sendOKResponse(session, playerManager.GetPlayerStates(), "application/json")
+    end)
+
+    local port = os.getenv("LUA_MOD_PORT") or "5001"
+    Webserver.run("*", tonumber(port))
     return nil
   end)
   if err then

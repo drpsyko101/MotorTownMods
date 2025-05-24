@@ -79,14 +79,14 @@ end
 ---@return table|nil
 local function findHandler(path, method)
     for i, h in ipairs(handlers) do
-        LogMsg("Checking " .. h.path .. "  " .. h.method)
+        LogMsg("Checking " .. h.path .. "  " .. h.method, "DEBUG")
 
         local base = string.gsub(h.path, "%*", ".*") -- Turn asterisks into Lua wild patterns
         local pat = string.format("^%s$", base)      -- Add anchors to pattern
         if string.find(path, pat) == 1 then
             --if path == h.path then
             if method == nil or h.method == "*" or method == h.method then
-                LogMsg("Match for" .. h.path)
+                LogMsg("Match for" .. h.path, "DEBUG")
                 return h
             end
         end
@@ -103,7 +103,7 @@ local function getNewClients()
             LogMsg("Error from accept: " .. err, "ERROR")
         end
     else
-        LogMsg("Accepted connection from client")
+        LogMsg("Accepted connection from client", "DEBUG")
         client:settimeout(1)
         table.insert(clients, client)
 
@@ -111,7 +111,7 @@ local function getNewClients()
         nextSessionID = nextSessionID + 1
         sessions[client] = s
 
-        socket.sleep(0.01)
+        -- socket.sleep(0.01)
     end
 end
 
@@ -139,7 +139,7 @@ local function buildHeaders_OK(self, content, contentType)
     end
 
     local header = table.concat(h, "\n") .. "\n\n"
-    LogMsg("Adding header: " .. header)
+    LogMsg("Adding header: " .. header, "DEBUG")
     return header
 end
 
@@ -165,7 +165,7 @@ end
 ---Safely mark a session for removal
 ---@param s ClientTable
 local function markSessionForRemoval(s)
-    LogMsg("Marking client " .. s.id .. " for removal")
+    LogMsg("Marking client " .. s.id .. " for removal", "DEBUG")
     s.state = "close"
 end
 
@@ -174,26 +174,26 @@ end
 ---@param header string Response headers
 ---@param rcontent string? Response body
 local function sendResponse(s, header, rcontent)
-    LogMsg("Sending the response")
-    socket.sleep(0.1)
+    LogMsg("Sending the response", "DEBUG")
+    -- socket.sleep(0.1)
 
     local a, b, elast = s.client:send(header)
     if a == nil then
         LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
     else
-        LogMsg("Last byte sent: " .. a .. " header size: " .. #header)
+        LogMsg("Last byte sent: " .. a .. " header size: " .. #header, "DEBUG")
     end
 
     if rcontent then
-        socket.sleep(0.1)
+        -- socket.sleep(0.1)
         local a, b, elast = s.client:send(rcontent)
         if a == nil then
             LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
         else
-            LogMsg("Last byte sent: " .. a .. " content size: " .. #rcontent)
+            LogMsg("Last byte sent: " .. a .. " content size: " .. #rcontent, "DEBUG")
         end
     end
-    socket.sleep(0.1)
+    -- socket.sleep(0.1)
     markSessionForRemoval(s)
 end
 
@@ -244,40 +244,40 @@ local function processHeaders(s)
 end
 
 local function dumpSession(s)
-    LogMsg("==============================")
-    LogMsg("URL string:" .. s.urlString)
-    LogMsg(string.format("Method: %s", s.method))
-    LogMsg(string.format("Version: %s", s.version))
+    LogMsg("==============================", "DEBUG")
+    LogMsg("URL string:" .. s.urlString, "DEBUG")
+    LogMsg(string.format("Method: %s", s.method), "DEBUG")
+    LogMsg(string.format("Version: %s", s.version), "DEBUG")
 
-    LogMsg("Headers:")
+    LogMsg("Headers:", "DEBUG")
     for name, value in pairs(s.headers) do
-        LogMsg(string.format("    '%s' = '%s'", name, value))
+        LogMsg(string.format("    '%s' = '%s'", name, value), "DEBUG")
     end
 
-    LogMsg("URL components:")
+    LogMsg("URL components:", "DEBUG")
     for k, v in pairs(s.urlComponents) do
-        LogMsg(string.format("     %s:  %s", k, tostring(v)))
+        LogMsg(string.format("     %s:  %s", k, tostring(v)), "DEBUG")
     end
 
     if s.queryComponents ~= nil then
-        LogMsg("URL Query components")
+        LogMsg("URL Query components", "DEBUG")
         for k, v in pairs(s.queryComponents) do
-            LogMsg(string.format("     %s =  %s", k, tostring(v)))
+            LogMsg(string.format("     %s =  %s", k, tostring(v)), "DEBUG")
         end
     end
 
-    LogMsg("URL Path: " .. s.urlComponents.path)
-    LogMsg("URL Params: " .. (s.urlComponents.params or ""))
-    LogMsg("URL url: " .. (s.urlComponents.url or ""))
+    LogMsg("URL Path: " .. s.urlComponents.path, "DEBUG")
+    LogMsg("URL Params: " .. (s.urlComponents.params or ""), "DEBUG")
+    LogMsg("URL url: " .. (s.urlComponents.url or ""), "DEBUG")
 
-    LogMsg("URL path components:")
+    LogMsg("URL path components:", "DEBUG")
     for k, v in pairs(s.pathComponents) do
-        LogMsg(string.format("     %s:  %s", k, tostring(v)))
+        LogMsg(string.format("     %s:  %s", k, tostring(v)), "DEBUG")
     end
 
-    LogMsg(string.format("Content Length: %d", s.contentLength))
-    LogMsg(string.format("Content: %s", s.content))
-    LogMsg("==============================")
+    LogMsg(string.format("Content Length: %d", s.contentLength), "DEBUG")
+    LogMsg(string.format("Content: %s", s.content), "DEBUG")
+    LogMsg("==============================", "DEBUG")
 end
 
 
@@ -301,7 +301,7 @@ local function processSession(s)
         end
     end
 
-    socket.sleep(0.01)
+    -- socket.sleep(0.01)
     --sendErrorResponse( s, "404", "Not Found" )
 
     --local rcontent = "Howdy pardners"
@@ -333,8 +333,8 @@ local function handleClient(client)
 
     if data then
         if s.state == "init" then
-            LogMsg(string.format("(%d) INIT: '%s'", s.id, data))
-            socket.sleep(0.01)
+            LogMsg(string.format("(%d) INIT: '%s'", s.id, data), "DEBUG")
+            -- socket.sleep(0.01)
             s.rawHeaders = {}
             local method, urlString, ver = string.match(data, "(%S+)%s+(%S+)%s+(%S+)")
             if method ~= nil then
@@ -346,7 +346,7 @@ local function handleClient(client)
 
                 s.pathComponents = url.parse_path(s.urlComponents.path)
 
-                LogMsg("Query Components " .. (s.urlComponents.query or ""))
+                LogMsg("Query Components " .. (s.urlComponents.query or ""), "DEBUG")
                 if s.urlComponents.query ~= nil then
                     s.queryComponents = decodeQuery(s.urlComponents.query)
                 end
@@ -359,11 +359,11 @@ local function handleClient(client)
                 sendErrorResponse(s, 400, "Bad Request")
             end
         elseif s.state == "header" then
-            LogMsg(string.format("(%d)  HDR: %s", s.id, data))
+            LogMsg(string.format("(%d)  HDR: %s", s.id, data), "DEBUG")
             if data ~= "" then
                 table.insert(s.rawHeaders, data)
             else
-                LogMsg(string.format("(%d)  End Headers", s.id))
+                LogMsg(string.format("(%d)  End Headers", s.id), "DEBUG")
                 local rc = parseHeaders(s)
                 if rc ~= 0 then
                     sendErrorResponse(s, 400, "Bad Request")
@@ -373,11 +373,11 @@ local function handleClient(client)
                 processHeaders(s)
 
                 if s.contentLength == 0 then
-                    LogMsg("Content length = 0, not waiting for content")
+                    LogMsg("Content length = 0, not waiting for content", "DEBUG")
                     -- Processing the session will result in it being closed
                     processSession(s)
                 else
-                    LogMsg("Waiting for content")
+                    LogMsg("Waiting for content", "DEBUG")
                     s.state = "body"
                 end
             end
@@ -388,7 +388,7 @@ local function handleClient(client)
         end
     else
         if err == "closed" then
-            LogMsg("Client closed the connection: ")
+            LogMsg("Client closed the connection: ", "DEBUG")
             markSessionForRemoval(s)
             --print( "Size of client list is " .. #clients )
         elseif err == "timeout" then
@@ -432,7 +432,7 @@ local function process(timeout)
         local client_to_check = clients[i]
         local s = sessions[client_to_check]
         if s and s.state == "close" then
-            LogMsg("Cleaning up client " .. s.id)
+            LogMsg("Cleaning up client " .. s.id, "DEBUG")
             client_to_check:close()
             table.remove(clients, i)
             sessions[client_to_check] = nil
@@ -462,14 +462,14 @@ end
 ---@param host string Host to bind to
 ---@param port number Port to bind to
 local function init(host, port)
-    LogMsg("Web Server binding to host '" .. host .. "' on port " .. port .. "...")
+    LogMsg("Web Server binding to host '" .. host .. "' on port " .. port .. "...", "DEBUG")
     g_server = socket.bind(host, port)
     if g_server == nil then
         LogMsg("Unable to bind to port!", "ERROR");
         return
     end
 
-    g_server:settimeout(0.05)
+    -- g_server:settimeout(0.05)
 
     -- Add the server socket to the client arrays so we will wait on it in select()
     table.insert(clients, g_server)
@@ -479,7 +479,7 @@ local function run(host, port)
     init(host, port)
 
     while 1 do
-        process(1.0)
+        process(5.0)
     end
 end
 
