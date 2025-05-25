@@ -16,7 +16,7 @@ local function EventPlayerToString(player)
   data.bWrongVehicle = player.bWrongVehicle
   data.bWrongEngine = player.bWrongEngine
   data.LastSectionTotalTimeSeconds = player.LastSectionTotalTimeSeconds
-  data.LapTimes = player.LapTimes
+  data.LapTimes = string.format("[%s]", table.concat(player.LapTimes, ","))
   data.BestLapTime = player.BestLapTime
   data.Reward_RacingExp = player.Reward_RacingExp
   data.Reward_Money = RewardToString(player.Reward_Money)
@@ -30,13 +30,13 @@ local function RaceEventToString(event)
   local data = {}
   local eKeys = {}
   for i = 1, #event.EngineKeys do
-    table.insert(eKeys, event.EngineKeys[i]:ToString())
+    table.insert(eKeys, string.format('"%s"', eKeys, event.EngineKeys[i]:ToString()))
   end
   data.EngineKeys = string.format("[%s]", table.concat(eKeys, ","))
 
   local vKeys = {}
   for j = 1, #event.VehicleKeys do
-    table.insert(vKeys, event.VehicleKeys[j]:ToString())
+    table.insert(vKeys, string.format('"%s"', vKeys, event.VehicleKeys[j]:ToString()))
   end
   data.VehicleKeys = string.format("[%s]", table.concat(vKeys, ","))
 
@@ -73,7 +73,7 @@ local function GetEvents()
     data.State = event.State
     data.bInCountdown = event.bInCountdown
 
-    table.insert(arr, string.format("{%s}", SimpleJsonSerializer(data)))
+    table.insert(arr, SimpleJsonSerializer(data))
   end
   return string.format('{"data":[%s]}', table.concat(arr, ","))
 end
@@ -100,6 +100,15 @@ end
 
 RegisterConsoleCommandHandler("getevents", function(Cmd, CommandParts, Ar)
   LogMsg(GetEvents())
+  return true
+end)
+
+RegisterConsoleCommandHandler("updateeventname", function(Cmd, CommandParts, Ar)
+  local eventGuid = table.remove(CommandParts, 1)
+  local eventName = table.concat(CommandParts, " ")
+  if UpdateEventName(eventGuid, eventName) then
+    LogMsg(string.format("Updated event %s name to %s", eventGuid, eventName))
+  end
   return true
 end)
 
