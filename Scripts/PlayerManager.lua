@@ -1,60 +1,60 @@
 local UEHelpers = require("UEHelpers")
 
-local function GetPlayerStates()
-  local playerStates = UEHelpers:GetAllPlayerStates()
+---Get all or selected player state(s)
+---@param guid string? Filter by character guid
+local function GetPlayerStates(guid)
+  local gameState = GetMotorTownGameState()
+  if not gameState:IsValid() then return '{"data":[]}' end
+
+  local playerStates = gameState.PlayerArray
+  
   LogMsg(string.format("%i player state(s) found", #playerStates), "DEBUG")
   local arr = {}
   for i = 1, #playerStates, 1 do
     local data = {}
     local playerState = playerStates[i] ---@cast playerState AMotorTownPlayerState
-    if playerState:IsValid() then
-      data.PlayerName = playerState:GetPlayerName():ToString()
-      data.GridIndex = playerState.GridIndex
-      data.bIsHost = playerState.bIsHost
-      data.bIsAdmin = playerState.bIsAdmin
-      data.CharacterGuid = GuidToString(playerState.CharacterGuid)
-      data.BestLapTime = playerState.BestLapTime
-      data.Levels = string.format('[%s]', table.concat(playerState.Levels, ","))
-      data.OwnCompanyGuid = GuidToString(playerState.OwnCompanyGuid)
-      data.JoinedCompanyGuid = GuidToString(playerState.JoinedCompanyGuid)
-      data.CustomDestinationAbsoluteLocation = VectorToString(playerState.CustomDestinationAbsoluteLocation)
 
-      local ownedEventGuids = {}
-      for j = 1, #playerState.OwnEventGuids, 1 do
-        table.insert(ownedEventGuids, GuidToString(playerState.OwnEventGuids[j]))
-      end
-      data.OwnEventGuids = string.format("[%s]", table.concat(ownedEventGuids, ","))
+    -- Skip invalid player states
+    if not playerState:IsValid() then goto continue end
 
-      local joinedEventGuids = {}
-      for k = 1, #playerState.JoinedEventGuids, 1 do
-        table.insert(joinedEventGuids, GuidToString(playerState.JoinedEventGuids[k]))
-      end
-      data.JoinedEventGuids = string.format("[%s]", table.concat(joinedEventGuids, ","))
+    -- Filter by guid if provided
+    if guid and guid:upper() ~= GuidToString(playerState.CharacterGuid) then goto continue end
 
-      data.Location = VectorToString(playerState.Location)
-      data.VehicleKey = playerState.VehicleKey:ToString()
+    data.PlayerName = playerState:GetPlayerName():ToString()
+    data.GridIndex = playerState.GridIndex
+    data.bIsHost = playerState.bIsHost
+    data.bIsAdmin = playerState.bIsAdmin
+    data.CharacterGuid = GuidToString(playerState.CharacterGuid)
+    data.BestLapTime = playerState.BestLapTime
+    data.Levels = string.format('[%s]', table.concat(playerState.Levels, ","))
+    data.OwnCompanyGuid = GuidToString(playerState.OwnCompanyGuid)
+    data.JoinedCompanyGuid = GuidToString(playerState.JoinedCompanyGuid)
+    data.CustomDestinationAbsoluteLocation = VectorToString(playerState.CustomDestinationAbsoluteLocation)
+
+    local ownedEventGuids = {}
+    for j = 1, #playerState.OwnEventGuids, 1 do
+      table.insert(ownedEventGuids, GuidToString(playerState.OwnEventGuids[j]))
     end
+    data.OwnEventGuids = string.format("[%s]", table.concat(ownedEventGuids, ","))
 
-    local playerArr = {}
-    for key, value in pairs(data) do
-      local _val = ""
-      if type(value) == "number" or type(value) == "boolean" then
-        _val = tostring(value)
-      elseif (string.sub(value, 1, 1) == "{" and string.sub(value, -1, -1) == "}") or (string.sub(value, 1, 1) == "[" and string.sub(value, -1, -1) == "]") then
-        _val = value
-      else
-        _val = string.format('"%s"', value)
-      end
-
-      table.insert(playerArr, string.format('"%s":%s', key, _val))
+    local joinedEventGuids = {}
+    for k = 1, #playerState.JoinedEventGuids, 1 do
+      table.insert(joinedEventGuids, GuidToString(playerState.JoinedEventGuids[k]))
     end
-    table.insert(arr, string.format("{%s}", table.concat(playerArr, ",")))
+    data.JoinedEventGuids = string.format("[%s]", table.concat(joinedEventGuids, ","))
+
+    data.Location = VectorToString(playerState.Location)
+    data.VehicleKey = playerState.VehicleKey:ToString()
+
+    table.insert(arr, string.format("{%s}", SimpleJsonSerializer(data)))
+
+    ::continue::
   end
   return string.format('{"data":[%s]}', table.concat(arr, ","))
 end
 
 RegisterConsoleCommandHandler("getplayerstates", function(Cmd, CommandParts, Ar)
-  LogMsg(GetPlayerStates())
+  LogMsg(GetPlayerStates(CommandParts[1]))
   return true
 end)
 

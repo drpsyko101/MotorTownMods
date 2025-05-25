@@ -206,6 +206,10 @@ local function sendOKResponse(s, content, contentType)
     sendResponse(s, header, content)
 end
 
+---Send an error response
+---@param s ClientTable
+---@param statusCode number
+---@param statusText string
 local function sendErrorResponse(s, statusCode, statusText)
     local header = buildHeaders_Error(s, statusCode, statusText)
     sendResponse(s, header)

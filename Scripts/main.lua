@@ -2,6 +2,7 @@ require("Helpers")
 
 local UEHelpers = require("UEHelpers")
 local playerManager = require("PlayerManager")
+local eventManager = require("EventManager")
 
 local modName = "MotorTownMods"
 local modLogLevel = 2
@@ -27,12 +28,32 @@ local function LoadWebserver()
   local status, err = pcall(function()
     Webserver = require("Webserver")
 
+    -- General server status
     Webserver.registerHandler("/status", "GET", function(session)
       Webserver.sendOKResponse(session, '{"status":"ok"}', "application/json")
     end)
 
+    -- Player management
     Webserver.registerHandler("/players", "GET", function(session)
       Webserver.sendOKResponse(session, playerManager.GetPlayerStates(), "application/json")
+    end)
+    Webserver.registerHandler("/players/*", "GET", function(session)
+      local playerGuid = session.urlComponents[#session.urlComponents] or nil
+      Webserver.sendOKResponse(session, playerManager.GetPlayerStates(playerGuid), "application/json")
+    end)
+
+    -- Event management
+    Webserver.registerHandler("/events", "GET", function(session)
+      Webserver.sendOKResponse(session, eventManager.GetEvents(), "application/json")
+    end)
+    Webserver.registerHandler("/events/*", "GET", function(session)
+      local eventGuid = session.urlComponents[#session.urlComponents]
+      local eventName = session.content
+      if eventManager.UpdateEventName(eventGuid, eventName) then
+        Webserver.sendOKResponse(session, eventManager.GetEvents(), "application/json")
+      else
+        Webserver.sendErrorResponse(session, 404, "Event not found")
+      end
     end)
 
     local port = os.getenv("LUA_MOD_PORT") or "5001"
@@ -40,7 +61,8 @@ local function LoadWebserver()
     return nil
   end)
   if err then
-    LogMsg("Failed to start webserver", "ERROR")
+    LogMsg("Unexpected error has occured in Webserver", "ERROR")
+    return true
   end
   return false
 end

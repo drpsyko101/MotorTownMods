@@ -1,4 +1,5 @@
-local UEHelpers = require("UEHelpers")
+require("UEHelpers")
+require("Helpers")
 
 -- Amount of poll per minute.
 -- Change this value to increase/decrease median accuracy
@@ -6,14 +7,14 @@ local pollPerMin = 30
 local serverFps = {} ---@type number[]
 
 local function GetServerFps()
-    local gameState = UEHelpers:GetGameStateBase() ---@cast gameState AMotorTownGameState
+    local gameState = GetMotorTownGameState()
     if (gameState:IsValid()) then
         local fps = gameState.Net_HotState.FPS ---@cast fps number
         table.insert(serverFps, fps)
         if (#serverFps > pollPerMin) then
             table.remove(serverFps, 1)
         end
-        table.sort(serverFps, function (a, b)
+        table.sort(serverFps, function(a, b)
             return a > b
         end)
         local medianIdx = math.ceil(#serverFps / 2)
@@ -31,7 +32,7 @@ local function AdjustTrafficDensity(amount)
         LogMsg("Changing traffic amount from " .. npcAmount .. "% to " .. amount .. "%")
         npcAmount = amount
     end
-    local gameState = UEHelpers:GetGameStateBase() ---@cast gameState AMotorTownGameState
+    local gameState = GetMotorTownGameState()
     if (gameState:IsValid() and gameState.AIVehicleSpawnSystem:IsValid()) then
         local settings = gameState.AIVehicleSpawnSystem.SpawnSettings
         local densities = {
@@ -61,7 +62,7 @@ local function AdjustTrafficDensity(amount)
 end
 
 local function AutoAdjustServerCaps()
-    local gameState = UEHelpers:GetGameStateBase() ---@cast gameState AMotorTownGameState
+    local gameState = GetMotorTownGameState()
     if not gameState:IsValid() then
         LogMsg("invalid GameState")
         return false
@@ -83,4 +84,6 @@ local function AutoAdjustServerCaps()
     return false
 end
 
-LoopAsync(60 * 1000 / pollPerMin, AutoAdjustServerCaps)
+if os.getenv("MOD_ENABLE_AUTO_FPS") then
+    LoopAsync(60 * 1000 / pollPerMin, AutoAdjustServerCaps)
+end
