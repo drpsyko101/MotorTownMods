@@ -1,4 +1,5 @@
 local UEHelpers = require("UEHelpers")
+require("Helpers")
 
 -- Amount of poll per minute.
 -- Change this value to increase/decrease median accuracy
@@ -6,14 +7,14 @@ local pollPerMin = 30
 local serverFps = {} ---@type number[]
 
 local function GetServerFps()
-    local gameState = UEHelpers:GetGameStateBase() ---@cast gameState AMotorTownGameState
+    local gameState = GetMotorTownGameState()
     if (gameState:IsValid()) then
         local fps = gameState.Net_HotState.FPS ---@cast fps number
         table.insert(serverFps, fps)
         if (#serverFps > pollPerMin) then
             table.remove(serverFps, 1)
         end
-        table.sort(serverFps, function (a, b)
+        table.sort(serverFps, function(a, b)
             return a > b
         end)
         local medianIdx = math.ceil(#serverFps / 2)
@@ -31,7 +32,7 @@ local function AdjustTrafficDensity(amount)
         LogMsg("Changing traffic amount from " .. npcAmount .. "% to " .. amount .. "%")
         npcAmount = amount
     end
-    local gameState = UEHelpers:GetGameStateBase() ---@cast gameState AMotorTownGameState
+    local gameState = GetMotorTownGameState()
     if (gameState:IsValid() and gameState.AIVehicleSpawnSystem:IsValid()) then
         local settings = gameState.AIVehicleSpawnSystem.SpawnSettings
         local densities = {
@@ -61,26 +62,31 @@ local function AdjustTrafficDensity(amount)
 end
 
 local function AutoAdjustServerCaps()
-    local gameState = UEHelpers:GetGameStateBase() ---@cast gameState AMotorTownGameState
+    local gameState = GetMotorTownGameState()
     if not gameState:IsValid() then
         LogMsg("invalid GameState")
         return false
     end
 
+    local targetTraffic = tonumber(os.getenv("MOD_AUTO_FPS_TRAFFIC")) or 75
+    local targetPlayerVehicle = tonumber(os.getenv("MOD_AUTO_FPS_PLAYER")) or 10
+
     local currentFps = GetServerFps()
     if (currentFps <= 0) then
         return
     elseif (currentFps < 30) then
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = 5
+        gameState.Net_ServerConfig.MaxVehiclePerPlayer = math.floor(targetPlayerVehicle / 2)
         AdjustTrafficDensity(0)
     elseif (currentFps < 40) then
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = 7
-        AdjustTrafficDensity(30)
+        gameState.Net_ServerConfig.MaxVehiclePerPlayer = math.floor(targetPlayerVehicle * 0.75)
+        AdjustTrafficDensity(math.floor(targetTraffic / 2))
     else
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = 10
-        AdjustTrafficDensity(75)
+        gameState.Net_ServerConfig.MaxVehiclePerPlayer = targetPlayerVehicle
+        AdjustTrafficDensity(targetTraffic)
     end
     return false
 end
 
-LoopAsync(60 * 1000 / pollPerMin, AutoAdjustServerCaps)
+if os.getenv("MOD_AUTO_FPS_ENABLE") then
+    LoopAsync(60 * 1000 / pollPerMin, AutoAdjustServerCaps)
+end
