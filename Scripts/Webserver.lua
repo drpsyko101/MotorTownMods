@@ -1,5 +1,4 @@
 --------  To Do:  --------------
--- Fix HTTP/0.9 issue
 -- Look into respecting a "keep open" request
 -- think about authentication
 -- 405 response needs to add allowed methods header
@@ -47,11 +46,11 @@ local _mimeType = {
     plaintext = "text/plain"
 }
 
----@alias ClientTable { id: integer, state: string, client: TCPSocketClient, rawHeaders: string[], headers: table<string,string>, method: RequestMethod, urlString: string, urlComponents?: table<string,string>, pathComponents: table<string,string>, queryComponents: table<string,string>, version: string, contentLength: number, content: string, state: ConnectionState }
+---@alias ClientTable { id: integer, state: string, client: TCPSocketClient, rawHeaders: string[], headers: table<string,string>, method: RequestMethod, urlString: string, urlComponents?: table<string,string>, pathComponents: string[], queryComponents: table<string,string>, version: string, contentLength: number?, content: string, state: ConnectionState }
 ---@alias RequestPathHandler fun(session: ClientTable)
 ---@alias RequestPathHandlerTable { path: string, method: RequestMethod, handler: RequestPathHandler }
 
-local serverString = "MotorTownMods server 0.1.0"
+local serverString = "MotorTownMods server 0.1.1"
 local clients = {} ---@type TCPSocketClient[]
 local sessions = {} ---@type table<TCPSocketClient, ClientTable>
 local nextSessionID = 1
@@ -73,6 +72,19 @@ local function findHandlerIndex(path, method)
     return nil
 end
 
+---Breaks string into specified bytes chunks
+---@param input string String input
+---@param chunkSize number? Chunk size, defaults to 40 bytes
+---@return string[]
+local function BreakChunks(input, chunkSize)
+    chunkSize = chunkSize or 40
+    local s = {}
+    for i = 1, #input, chunkSize do
+        s[#s + 1] = input:sub(i, i + chunkSize - 1)
+    end
+    return s
+end
+
 ---Find a handler by path and methods
 ---@param path string Request path
 ---@param method? RequestMethod
@@ -86,7 +98,7 @@ local function findHandler(path, method)
         if string.find(path, pat) == 1 then
             --if path == h.path then
             if method == nil or h.method == "*" or method == h.method then
-                LogMsg("Match for" .. h.path, "DEBUG")
+                LogMsg("Match for " .. h.path, "DEBUG")
                 return h
             end
         end
@@ -110,8 +122,6 @@ local function getNewClients()
         local s = { id = nextSessionID, state = "init", client = client }
         nextSessionID = nextSessionID + 1
         sessions[client] = s
-
-        -- socket.sleep(0.01)
     end
 end
 
@@ -175,25 +185,28 @@ end
 ---@param rcontent string? Response body
 local function sendResponse(s, header, rcontent)
     LogMsg("Sending the response", "DEBUG")
-    -- socket.sleep(0.1)
 
-    local a, b, elast = s.client:send(header)
-    if a == nil then
-        LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
-    else
-        LogMsg("Last byte sent: " .. a .. " header size: " .. #header, "DEBUG")
+    for index, headerValue in ipairs(BreakChunks(header)) do
+        local a, b, elast = s.client:send(headerValue)
+        if a == nil then
+            LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
+            break
+        else
+            LogMsg("Last byte sent: " .. a .. " header size: " .. #headerValue, "DEBUG")
+        end
     end
 
     if rcontent then
-        -- socket.sleep(0.1)
-        local a, b, elast = s.client:send(rcontent)
-        if a == nil then
-            LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
-        else
-            LogMsg("Last byte sent: " .. a .. " content size: " .. #rcontent, "DEBUG")
+        for index, value in ipairs(BreakChunks(rcontent)) do
+            local a, b, elast = s.client:send(value)
+            if a == nil then
+                LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
+                break
+            else
+                LogMsg("Last byte sent: " .. a .. " content size: " .. #value, "DEBUG")
+            end
         end
     end
-    -- socket.sleep(0.1)
     markSessionForRemoval(s)
 end
 
@@ -238,6 +251,8 @@ local function parseHeaders(s)
     return 0 -- success
 end
 
+---Process request header content
+---@param s ClientTable
 local function processHeaders(s)
     s.contentLength = 0
 
@@ -247,6 +262,8 @@ local function processHeaders(s)
     end
 end
 
+---Dump headers for debugging
+---@param s ClientTable
 local function dumpSession(s)
     LogMsg("==============================", "DEBUG")
     LogMsg("URL string:" .. s.urlString, "DEBUG")
@@ -305,7 +322,6 @@ local function processSession(s)
         end
     end
 
-    -- socket.sleep(0.01)
     --sendErrorResponse( s, "404", "Not Found" )
 
     --local rcontent = "Howdy pardners"
@@ -338,7 +354,6 @@ local function handleClient(client)
     if data then
         if s.state == "init" then
             LogMsg(string.format("(%d) INIT: '%s'", s.id, data), "DEBUG")
-            -- socket.sleep(0.01)
             s.rawHeaders = {}
             local method, urlString, ver = string.match(data, "(%S+)%s+(%S+)%s+(%S+)")
             if method ~= nil then
@@ -466,7 +481,7 @@ end
 ---@param host string Host to bind to
 ---@param port number Port to bind to
 local function init(host, port)
-    LogMsg("Web Server binding to host '" .. host .. "' on port " .. port .. "...", "DEBUG")
+    LogMsg("Web Server binding to host '" .. host .. "' on port " .. port .. "...")
     g_server = socket.bind(host, port)
     if g_server == nil then
         LogMsg("Unable to bind to port!", "ERROR");

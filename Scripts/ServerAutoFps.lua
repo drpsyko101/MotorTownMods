@@ -1,4 +1,4 @@
-require("UEHelpers")
+local UEHelpers = require("UEHelpers")
 require("Helpers")
 
 -- Amount of poll per minute.
@@ -68,22 +68,25 @@ local function AutoAdjustServerCaps()
         return false
     end
 
+    local targetTraffic = tonumber(os.getenv("MOD_AUTO_FPS_TRAFFIC")) or 75
+    local targetPlayerVehicle = tonumber(os.getenv("MOD_AUTO_FPS_PLAYER")) or 10
+
     local currentFps = GetServerFps()
     if (currentFps <= 0) then
         return
     elseif (currentFps < 30) then
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = 5
+        gameState.Net_ServerConfig.MaxVehiclePerPlayer = math.floor(targetPlayerVehicle / 2)
         AdjustTrafficDensity(0)
     elseif (currentFps < 40) then
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = 7
-        AdjustTrafficDensity(30)
+        gameState.Net_ServerConfig.MaxVehiclePerPlayer = math.floor(targetPlayerVehicle * 0.75)
+        AdjustTrafficDensity(math.floor(targetTraffic / 2))
     else
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = 10
-        AdjustTrafficDensity(75)
+        gameState.Net_ServerConfig.MaxVehiclePerPlayer = targetPlayerVehicle
+        AdjustTrafficDensity(targetTraffic)
     end
     return false
 end
 
-if os.getenv("MOD_ENABLE_AUTO_FPS") then
+if os.getenv("MOD_AUTO_FPS_ENABLE") then
     LoopAsync(60 * 1000 / pollPerMin, AutoAdjustServerCaps)
 end

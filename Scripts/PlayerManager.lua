@@ -39,14 +39,14 @@ local function GetPlayerStates(guid)
 
     local joinedEventGuids = {}
     for k = 1, #playerState.JoinedEventGuids, 1 do
-      table.insert(joinedEventGuids, GuidToString(playerState.JoinedEventGuids[k]))
+      table.insert(joinedEventGuids, string.format('"%s"', GuidToString(playerState.JoinedEventGuids[k])))
     end
     data.JoinedEventGuids = string.format("[%s]", table.concat(joinedEventGuids, ","))
 
     data.Location = VectorToString(playerState.Location)
     data.VehicleKey = playerState.VehicleKey:ToString()
 
-    table.insert(arr, string.format("{%s}", SimpleJsonSerializer(data)))
+    table.insert(arr, SimpleJsonSerializer(data))
 
     ::continue::
   end

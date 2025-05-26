@@ -47,7 +47,8 @@ local function RaceEventToString(event)
 end
 
 ---Get all active events
-local function GetEvents()
+---@param eventGuid string? Return specific event matching this GUID
+local function GetEvents(eventGuid)
   local gameState = GetMotorTownGameState()
   if not gameState:IsValid() then return '{"data":[]}' end
 
@@ -57,6 +58,9 @@ local function GetEvents()
   local arr = {}
   for i = 1, #eventSystem.Net_Events, 1 do
     local event = eventSystem.Net_Events[i]
+
+    if eventGuid and eventGuid ~= GuidToString(event.EventGuid) then goto continue end
+
     local data = {}
     data.EventGuid = GuidToString(event.EventGuid)
     data.EventName = event.EventName:ToString()
@@ -74,6 +78,8 @@ local function GetEvents()
     data.bInCountdown = event.bInCountdown
 
     table.insert(arr, SimpleJsonSerializer(data))
+
+    ::continue::
   end
   return string.format('{"data":[%s]}', table.concat(arr, ","))
 end

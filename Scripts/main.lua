@@ -3,6 +3,7 @@ require("Helpers")
 local UEHelpers = require("UEHelpers")
 local playerManager = require("PlayerManager")
 local eventManager = require("EventManager")
+local json = require("JsonParser")
 
 local modName = "MotorTownMods"
 local modLogLevel = 2
@@ -38,7 +39,7 @@ local function LoadWebserver()
       Webserver.sendOKResponse(session, playerManager.GetPlayerStates(), "application/json")
     end)
     Webserver.registerHandler("/players/*", "GET", function(session)
-      local playerGuid = session.urlComponents[#session.urlComponents] or nil
+      local playerGuid = session.pathComponents[2]
       Webserver.sendOKResponse(session, playerManager.GetPlayerStates(playerGuid), "application/json")
     end)
 
@@ -47,16 +48,21 @@ local function LoadWebserver()
       Webserver.sendOKResponse(session, eventManager.GetEvents(), "application/json")
     end)
     Webserver.registerHandler("/events/*", "GET", function(session)
-      local eventGuid = session.urlComponents[#session.urlComponents]
-      local eventName = session.content
-      if eventManager.UpdateEventName(eventGuid, eventName) then
-        Webserver.sendOKResponse(session, eventManager.GetEvents(), "application/json")
+      local eventGuid = session.pathComponents[2]
+      Webserver.sendOKResponse(session, eventManager.GetEvents(eventGuid), "application/json")
+    end)
+    Webserver.registerHandler("/events/*", "POST", function(session)
+      local eventGuid = session.pathComponents[2]
+      local content = json.parse(session.content)
+      local eventName = content.EventName or nil
+      if eventName and eventManager.UpdateEventName(eventGuid, eventName) then
+        Webserver.sendOKResponse(session, eventManager.GetEvents(eventGuid), "application/json")
       else
         Webserver.sendErrorResponse(session, 404, "Event not found")
       end
     end)
 
-    local port = os.getenv("LUA_MOD_PORT") or "5001"
+    local port = os.getenv("MOD_LUA_PORT") or "5001"
     Webserver.run("*", tonumber(port))
     return nil
   end)
