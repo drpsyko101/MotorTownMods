@@ -1,5 +1,6 @@
 require("Helpers")
 
+local statics = require("Statics")
 local UEHelpers = require("UEHelpers")
 local playerManager = require("PlayerManager")
 local eventManager = require("EventManager")
@@ -21,8 +22,8 @@ local logLevel = {
 ---@param severity LogLevel?
 function LogMsg(message, severity)
   local lvl = severity or "INFO"
-  if logLevel[lvl] > modLogLevel then return end
-  print(string.format("[%s] %s: %s\n", modName, lvl, message))
+  if logLevel[lvl] > statics.ModLogLevel then return end
+  print(string.format("[%s] %s: %s\n", statics.ModName, lvl, message))
 end
 
 local function LoadWebserver()

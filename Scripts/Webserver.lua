@@ -10,6 +10,7 @@ local dir = os.getenv("PWD") or io.popen("cd"):read()
 package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/socket/core.dll"
 local socket = require("socket")
 local url = require("socket.url")
+local statics = require("Statics")
 
 local string = string
 local table = table
@@ -50,7 +51,7 @@ local _mimeType = {
 ---@alias RequestPathHandler fun(session: ClientTable)
 ---@alias RequestPathHandlerTable { path: string, method: RequestMethod, handler: RequestPathHandler }
 
-local serverString = "MotorTownMods server 0.1.1"
+local serverString = statics.ModName .. " server " .. statics.ModVersion
 local clients = {} ---@type TCPSocketClient[]
 local sessions = {} ---@type table<TCPSocketClient, ClientTable>
 local nextSessionID = 1

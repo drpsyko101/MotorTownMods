@@ -52,50 +52,33 @@ function GetMotorTownGameState()
   return MotorTownGameState ---@type AMotorTownGameState
 end
 
----Convert FMTCharacterId to strings
+---Convert FMTCharacterId to JSON serializable table
 ---@param characterId FMTCharacterId
-function CharacterIdToString(characterId)
-  local guid = GuidToString(characterId.CharacterGuid)
-  local netId = characterId.UniqueNetId:ToString()
-  return string.format('{"CharacterGuid":"%s","UniqueNetId":"%s"}', guid, netId)
+function CharacterIdToTable(characterId)
+  return {
+    CharacterGuid = GuidToString(characterId.CharacterGuid),
+    UniqueNetId = characterId.UniqueNetId:ToString(),
+  }
 end
 
----Convert FMTShadowedInt64 to string
+---Convert FMTShadowedInt64 to JSON serializable table
 ---@param reward FMTShadowedInt64
-function RewardToString(reward)
-  return string.format('{"BaseValue":%d,"ShadowedValue":%d}', reward.BaseValue, reward.ShadowedValue)
+function RewardToTable(reward)
+  return {
+    BaseValue = reward.BaseValue,
+    ShadowedValue = reward.ShadowedValue
+  }
 end
 
----Convert simple object type to JSON encoded string
----@param data table<string, any>
-function SimpleJsonSerializer(data)
-  local res = {}
-  for key, value in pairs(data) do
-    local _val = ""
-    if type(value) == "number" or type(value) == "boolean" then
-      _val = tostring(value)
-    elseif (string.sub(value, 1, 1) == "{" and string.sub(value, -1, -1) == "}") or (string.sub(value, 1, 1) == "[" and string.sub(value, -1, -1) == "]") then
-      _val = value
-    else
-      _val = string.format('"%s"', value)
-    end
-
-    table.insert(res, string.format('"%s":%s', key, _val))
-  end
-  return string.format("{%s}", table.concat(res, ","))
-end
-
----Convert FMTRoute to string
+---Convert FMTRoute to JSON serializable table
 ---@param route FMTRoute
-function RouteToJson(route)
+function RouteToTable(route)
   local data = {}
 
   data.RouteName = route.RouteName:ToString()
-
-  local arr = {}
+  data.Waypoints = {}
   for i = 1, #route.Waypoints, 1 do
-    table.insert(arr, TransformToString(route.Waypoints[i]))
+    table.insert(data.Waypoints, TransformToString(route.Waypoints[i]))
   end
-  data.Waypoints = string.format("[%s]", table.concat(arr, ","))
-  return SimpleJsonSerializer(data)
+  return data
 end

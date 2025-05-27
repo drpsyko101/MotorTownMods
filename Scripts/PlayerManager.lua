@@ -1,4 +1,5 @@
 local UEHelpers = require("UEHelpers")
+local json = require("JsonParser")
 
 ---Get all or selected player state(s)
 ---@param guid string? Filter by character guid
@@ -11,7 +12,6 @@ local function GetPlayerStates(guid)
   LogMsg(string.format("%i player state(s) found", #playerStates), "DEBUG")
   local arr = {}
   for i = 1, #playerStates, 1 do
-    local data = {}
     local playerState = playerStates[i] ---@cast playerState AMotorTownPlayerState
 
     -- Skip invalid player states
@@ -20,37 +20,40 @@ local function GetPlayerStates(guid)
     -- Filter by guid if provided
     if guid and guid:upper() ~= GuidToString(playerState.CharacterGuid) then goto continue end
 
+    local data = {}
     data.PlayerName = playerState:GetPlayerName():ToString()
     data.GridIndex = playerState.GridIndex
     data.bIsHost = playerState.bIsHost
     data.bIsAdmin = playerState.bIsAdmin
     data.CharacterGuid = GuidToString(playerState.CharacterGuid)
     data.BestLapTime = playerState.BestLapTime
-    data.Levels = string.format('[%s]', table.concat(playerState.Levels, ","))
+    data.Levels = {}
+    for i = 1, #playerState.Levels, 1 do
+      table.insert(data.Levels, playerState.Levels[i])
+    end
+    
     data.OwnCompanyGuid = GuidToString(playerState.OwnCompanyGuid)
     data.JoinedCompanyGuid = GuidToString(playerState.JoinedCompanyGuid)
     data.CustomDestinationAbsoluteLocation = VectorToString(playerState.CustomDestinationAbsoluteLocation)
 
-    local ownedEventGuids = {}
+    data.OwnEventGuids = {}
     for j = 1, #playerState.OwnEventGuids, 1 do
-      table.insert(ownedEventGuids, GuidToString(playerState.OwnEventGuids[j]))
+      table.insert(data.OwnEventGuids, GuidToString(playerState.OwnEventGuids[j]))
     end
-    data.OwnEventGuids = string.format("[%s]", table.concat(ownedEventGuids, ","))
 
-    local joinedEventGuids = {}
+    data.JoinedEventGuids = {}
     for k = 1, #playerState.JoinedEventGuids, 1 do
-      table.insert(joinedEventGuids, string.format('"%s"', GuidToString(playerState.JoinedEventGuids[k])))
+      table.insert(data.JoinedEventGuids, GuidToString(playerState.JoinedEventGuids[k]))
     end
-    data.JoinedEventGuids = string.format("[%s]", table.concat(joinedEventGuids, ","))
 
     data.Location = VectorToString(playerState.Location)
     data.VehicleKey = playerState.VehicleKey:ToString()
 
-    table.insert(arr, SimpleJsonSerializer(data))
+    table.insert(arr, data)
 
     ::continue::
   end
-  return string.format('{"data":[%s]}', table.concat(arr, ","))
+  return string.format('{"data":%s}', json.stringify(table))
 end
 
 RegisterConsoleCommandHandler("getplayerstates", function(Cmd, CommandParts, Ar)

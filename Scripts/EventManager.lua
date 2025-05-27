@@ -1,12 +1,14 @@
-require("UEHelpers")
+local UEHelpers = require("UEHelpers")
+local webhook = require("Webclient")
+local json = require("JsonParser")
 
----Convert FMTEventPlayer to string
+---Convert FMTEventPlayer to JSON serializable table
 ---@param player FMTEventPlayer
-local function EventPlayerToString(player)
+local function EventPlayerToTable(player)
   local data = {}
 
   data.BestLapTime = player.BestLapTime
-  data.CharacterId = CharacterIdToString(player.CharacterId)
+  data.CharacterId = CharacterIdToTable(player.CharacterId)
   data.PlayerName = player.PlayerName:ToString()
   data.Rank = player.Rank
   data.SectionIndex = player.SectionIndex
@@ -16,34 +18,74 @@ local function EventPlayerToString(player)
   data.bWrongVehicle = player.bWrongVehicle
   data.bWrongEngine = player.bWrongEngine
   data.LastSectionTotalTimeSeconds = player.LastSectionTotalTimeSeconds
-  data.LapTimes = string.format("[%s]", table.concat(player.LapTimes, ","))
+
+  data.LapTimes = {}
+  for i = 1, #player.LapTimes, 1 do
+    table.insert(data.LapTimes, player.LapTimes[i])
+  end
+
   data.BestLapTime = player.BestLapTime
   data.Reward_RacingExp = player.Reward_RacingExp
-  data.Reward_Money = RewardToString(player.Reward_Money)
+  data.Reward_Money = RewardToTable(player.Reward_Money)
 
-  return SimpleJsonSerializer(data)
+  return data
 end
 
----Convert FMTRaceEventSetup to string
+---Convert FMTRaceEventSetup to JSON serializable table
 ---@param event FMTRaceEventSetup
-local function RaceEventToString(event)
+local function RaceEventToTable(event)
   local data = {}
-  local eKeys = {}
+  data.EngineKeys = {}
   for i = 1, #event.EngineKeys do
-    table.insert(eKeys, string.format('"%s"', eKeys, event.EngineKeys[i]:ToString()))
+    table.insert(data.EngineKeys, event.EngineKeys[i]:ToString())
   end
-  data.EngineKeys = string.format("[%s]", table.concat(eKeys, ","))
 
-  local vKeys = {}
+  data.VehicleKeys = {}
   for j = 1, #event.VehicleKeys do
-    table.insert(vKeys, string.format('"%s"', vKeys, event.VehicleKeys[j]:ToString()))
+    table.insert(data.VehicleKeys, event.VehicleKeys[j]:ToString())
   end
-  data.VehicleKeys = string.format("[%s]", table.concat(vKeys, ","))
 
   data.NumLaps = event.NumLaps
-  data.Route = RouteToJson(event.Route)
+  data.Route = RouteToTable(event.Route)
 
-  return SimpleJsonSerializer(data)
+  return data
+end
+
+---Convert EMTEventType to string
+---@param type EMTEventType
+local function EventTypeToString(type)
+  if type == 1 then return "Race" end
+  return "None"
+end
+
+---Convert event state to string
+---@param state EMTEventState
+local function EventStateToString(state)
+  if state == 1 then return "Ready" end
+  if state == 2 then return "InProgress" end
+  if state == 3 then return "Finished" end
+  return "None"
+end
+
+---Convert a FMTEvent to JSON serializable table
+---@param event FMTEvent
+local function EventToTable(event)
+  local data = {}
+  data.EventGuid = GuidToString(event.EventGuid)
+  data.EventName = event.EventName:ToString()
+  data.EventType = EventTypeToString(event.EventType)
+  data.OwnerCharacterId = CharacterIdToTable(event.OwnerCharacterId)
+
+  data.Players = {}
+  for j = 1, #event.Players, 1 do
+    table.insert(data.Players, EventPlayerToTable(event.Players[j]))
+  end
+
+  data.RaceSetup = RaceEventToTable(event.RaceSetup)
+  data.State = EventStateToString(event.State)
+  data.bInCountdown = event.bInCountdown
+
+  return data
 end
 
 ---Get all active events
@@ -60,28 +102,12 @@ local function GetEvents(eventGuid)
     local event = eventSystem.Net_Events[i]
 
     if eventGuid and eventGuid ~= GuidToString(event.EventGuid) then goto continue end
-
-    local data = {}
-    data.EventGuid = GuidToString(event.EventGuid)
-    data.EventName = event.EventName:ToString()
-    data.EventType = event.EventType
-    data.OwnerCharacterId = CharacterIdToString(event.OwnerCharacterId)
-
-    local players = {}
-    for j = 1, #event.Players, 1 do
-      table.insert(players, EventPlayerToString(event.Players[j]))
-    end
-    data.Players = string.format("[%s]", table.concat(players, ","))
-
-    data.RaceSetup = RaceEventToString(event.RaceSetup)
-    data.State = event.State
-    data.bInCountdown = event.bInCountdown
-
-    table.insert(arr, SimpleJsonSerializer(data))
+    
+    table.insert(arr, EventToTable(event))
 
     ::continue::
   end
-  return string.format('{"data":[%s]}', table.concat(arr, ","))
+  return string.format('{"data":%s}', json.stringify(table))
 end
 
 ---Update an event name
@@ -116,6 +142,20 @@ RegisterConsoleCommandHandler("updateeventname", function(Cmd, CommandParts, Ar)
     LogMsg(string.format("Updated event %s name to %s", eventGuid, eventName))
   end
   return true
+end)
+
+RegisterHook("/Script/MotorTown.MotorTownPlayerController:ServerAddEvent", function(self, eventParam)
+  local event = eventParam:get() ---@type FMTEvent
+  LogMsg("New event " .. GuidToString(event.EventGuid) .. " created", "DEBUG")
+  local eventTable = EventToTable(event)
+  webhook.CreateWebhookRequest('{"data":[' .. json.stringify(eventTable) .. ']}')
+end)
+
+RegisterHook("/Script/MotorTown.MotorTownPlayerController:ServerRemoveEvent", function(self, eventParam)
+  local event = eventParam:get() ---@type FGuid
+  local eventGuid = GuidToString(event)
+  LogMsg("Event " .. eventGuid .. " removed", "DEBUG")
+  webhook.CreateWebhookRequest('{"data":["' .. eventGuid .. '"]}')
 end)
 
 return {

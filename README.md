@@ -22,6 +22,7 @@ Most of the settings can be configured using environment variables:
 | Variable name          | Default value | Description                                                          |
 | ---------------------- | ------------- | -------------------------------------------------------------------- |
 | `MOD_LUA_PORT`         | `5001`        | Lua HTTP port. This only applies if `luasocket` module is installed  |
+| `MOD_WEBHOOK_URL`      | _none_        | Webhook URL to send the events to. Requires `luasocket` to function  |
 | `MOD_AUTO_FPS_ENABLE`  | _none_        | Enable automatic server traffic adjustment based on the server's FPS |
 | `MOD_AUTO_FPS_TRAFFIC` | `75`          | Amount of base traffic in percentage                                 |
 | `MOD_AUTO_FPS_PLAYER`  | `10`          | Maximum amount of vehicle spawnable by the player                    |

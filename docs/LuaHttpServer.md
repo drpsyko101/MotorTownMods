@@ -1,6 +1,6 @@
 # Lua HTTP Server
 
-## Endpoints
+## REST Endpoints
 
 Query parameter and/or request body is not needed unless specified.
 
@@ -105,11 +105,54 @@ Response:
 
 Returns the specified event. Output the same response JSON as above.
 
-#### POST `/event/<guid>`
+#### POST `/events/<guid>`
 
 Update event data. Currently only supports event name change. Will return the event data similar as above if successful.
 
 Request body:
 ```json
 { "EventName": "New event name" }
+```
+
+## Webhooks
+
+### Events
+
+#### Event creation
+
+Returns the new event data:
+```json
+{
+  "data": [
+    {
+      "State": 1,
+      "EventType": 1,
+      "RaceSetup": {
+        "NumLaps": 0,
+        "Route": { "RouteName": "", "Waypoints": [] },
+        "VehicleKeys": [],
+        "EngineKeys": []
+      },
+      "bInCountdown": false,
+      "OwnerCharacterId": {
+        "CharacterGuid": "EA50F9CE42B8A468F4FBFE8C42AD87ED",
+        "UniqueNetId": "76561198041602277"
+      },
+      "Players": [],
+      "EventGuid": "6E6705764C17B7F764098091A10567E7",
+      "EventName": "EnhancedBrow's Event"
+    }
+  ]
+}
+```
+
+#### Event removal
+
+Returns the GUID of the removed event
+```json
+{
+  "data": [
+    "835BB8FD4104E369D33C6BA74C41922A"
+  ]
+}
 ```
