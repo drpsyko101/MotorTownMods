@@ -66,6 +66,26 @@ RegisterConsoleCommandHandler("getplayers", function(Cmd, CommandParts, Ar)
   return true
 end)
 
+---Handle request for player states
+---@param session ClientTable
+local function HandleGetPlayerStates(session)
+  local playerStates = json.stringify {
+    data = GetPlayerStates()
+  }
+  session:sendOKResponse(playerStates)
+end
+
+---Handle request for player states
+---@param session ClientTable
+local function HandleGetSpecifcPlayerStates(session)
+  local playerGuid = session.pathComponents[2]
+  local playerStates = json.stringify {
+    data = GetPlayerStates(playerGuid)
+  }
+  session:sendOKResponse(playerStates)
+end
+
 return {
-  GetPlayerStates = GetPlayerStates
+  HandleGetPlayerStates = HandleGetPlayerStates,
+  HandleGetSpecifcPlayerStates = HandleGetSpecifcPlayerStates
 }

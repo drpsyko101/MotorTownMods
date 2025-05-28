@@ -250,7 +250,49 @@ RegisterHook(
   end
 )
 
+---Handle request for all events
+---@param session ClientTable
+local function HandleGetAllEvents(session)
+  local events = json.stringify {
+    data = GetEvents()
+  }
+  session:sendOKResponse(events)
+end
+
+---Handle request for all events
+---@param session ClientTable
+local function HandleGetSpecificEvents(session)
+  local eventGuid = session.pathComponents[2]
+  local events = json.stringify {
+    data = GetEvents(eventGuid)
+  }
+  session:sendOKResponse(events)
+end
+
+---Handle request for all events
+---@param session ClientTable
+local function HandleUpdateEventName(session)
+  local eventGuid = session.pathComponents[2]
+  local content = json.parse(session.content)
+
+  if content then
+    local eventName = content.EventName or nil
+
+    if eventName and UpdateEventName(eventGuid, eventName) then
+      local events = json.stringify {
+        data = GetEvents(eventGuid)
+      }
+      session:sendOKResponse(events)
+      return
+    end
+
+    session:sendErrorResponse(404, "Event not found")
+  end
+end
+
 return {
   GetEvents = GetEvents,
-  UpdateEventName = UpdateEventName
+  HandleGetAllEvents = HandleGetAllEvents,
+  HandleGetSpecificEvents = HandleGetSpecificEvents,
+  HandleUpdateEventName = HandleUpdateEventName
 }

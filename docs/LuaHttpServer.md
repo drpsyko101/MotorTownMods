@@ -15,6 +15,97 @@ Response:
 {"status":"ok"}
 ```
 
+#### GET `/status/general`
+
+Returns general server status
+```json
+{
+  "data": {
+    "ZoneStates": [
+      {
+        "BusTransportRate": 0.0,
+        "NumResidents": 42,
+        "ZoneKey": "Ara",
+        "FoodSupplyRate": 0.0,
+        "GarbageCollectRate": 0.0,
+        "PolicePatrolRate": 0.0
+      },
+      {
+        "BusTransportRate": 0.0,
+        "NumResidents": 11,
+        "ZoneKey": "Gwangjin",
+        "FoodSupplyRate": 0.0,
+        "GarbageCollectRate": 0.0,
+        "PolicePatrolRate": 0.0
+      },
+      {
+        "BusTransportRate": 0.0,
+        "NumResidents": 64,
+        "ZoneKey": "Gangjung",
+        "FoodSupplyRate": 0.0,
+        "GarbageCollectRate": 0.0,
+        "PolicePatrolRate": 0.0
+      },
+      {
+        "BusTransportRate": 0.0,
+        "NumResidents": 63,
+        "ZoneKey": "Jeju",
+        "FoodSupplyRate": 0.0,
+        "GarbageCollectRate": 0.0,
+        "PolicePatrolRate": 0.0
+      },
+      {
+        "BusTransportRate": 0.0,
+        "NumResidents": 24,
+        "ZoneKey": "Hallim",
+        "FoodSupplyRate": 0.0,
+        "GarbageCollectRate": 0.0,
+        "PolicePatrolRate": 0.0
+      },
+      {
+        "BusTransportRate": 0.0,
+        "NumResidents": 31,
+        "ZoneKey": "Seongsan",
+        "FoodSupplyRate": 0.0,
+        "GarbageCollectRate": 0.0,
+        "PolicePatrolRate": 0.0
+      },
+      {
+        "BusTransportRate": 0.0,
+        "NumResidents": 20,
+        "ZoneKey": "Gapa",
+        "FoodSupplyRate": 0.0,
+        "GarbageCollectRate": 0.0,
+        "PolicePatrolRate": 0.0
+      }
+    ],
+    "GarbageCollectRate": 0.0,
+    "NumResidents": 255,
+    "PolicePatrolRate": 0.0,
+    "ServerPlatformTimeSeconds": 16793104.642075,
+    "FoodSupplyRate": 0.0,
+    "BusTransportRate": 0.0,
+    "FPS": 75
+  }
+}
+```
+
+#### GET `/status/general/<zone>`
+
+Returns a specific zone status. Available zone keys can be found from `/status/general` data.
+```json
+{
+  "data": {
+    "FoodSupplyRate": 0.0,
+    "BusTransportRate": 0.0,
+    "GarbageCollectRate": 0.0,
+    "NumResidents": 65,
+    "ZoneKey": "Gangjung",
+    "PolicePatrolRate": 0.0
+  }
+}
+```
+
 ### Player Management
 
 #### GET `/players`

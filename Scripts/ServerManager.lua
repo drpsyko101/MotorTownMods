@@ -1,10 +1,70 @@
 local UEHelpers = require("UEHelpers")
+local json = require("JsonParser")
+
 require("Helpers")
 
 -- Amount of poll per minute.
 -- Change this value to increase/decrease median accuracy
 local pollPerMin = 30
 local serverFps = {} ---@type number[]
+
+---Convert FMTZoneState to JSON serializable table
+---@param zone FMTZoneState
+local function ZoneToTable(zone)
+    local data = {}
+
+    data.BusTransportRate = zone.BusTransportRate
+    data.FoodSupplyRate = zone.FoodSupplyRate
+    data.GarbageCollectRate = zone.GarbageCollectRate
+    data.PolicePatrolRate = zone.PolicePatrolRate
+    data.NumResidents = zone.NumResidents
+    data.ZoneKey = zone.ZoneKey:ToString()
+
+    return data
+end
+
+---Get current server state
+---@return table
+local function GetServerState(zoneName)
+    local gameState = GetMotorTownGameState()
+    local data = {}
+    if (gameState:IsValid()) then
+        local state = gameState.Net_HotState
+
+        data.FPS = state.FPS
+        data.BusTransportRate = state.BusTransportRate
+        data.FoodSupplyRate = state.FoodSupplyRate
+        data.GarbageCollectRate = state.GarbageCollectRate
+        data.NumResidents = state.NumResidents
+        data.PolicePatrolRate = state.PolicePatrolRate
+        data.ServerPlatformTimeSeconds = state.ServerPlatformTimeSeconds
+
+        local zones = {}
+        state.ZoneStates:ForEach(function(index, element)
+            local zone = element:get() ---@type FMTZoneState
+            table.insert(zones, ZoneToTable(zone))
+        end)
+        data.ZoneStates = zones
+    end
+    return data
+end
+
+---Get the specified zone state
+---@param zoneName string Return only for the specified zone state
+---@return table
+local function GetZoneState(zoneName)
+    local gameState = GetMotorTownGameState()
+    if (gameState:IsValid()) then
+        local state = gameState.Net_HotState
+
+        for i = 1, #state.ZoneStates, 1 do
+            if state.ZoneStates[i].ZoneKey:ToString() == zoneName then
+                return ZoneToTable(state.ZoneStates[i])
+            end
+        end
+    end
+    return {}
+end
 
 local function GetServerFps()
     local gameState = GetMotorTownGameState()
@@ -64,7 +124,7 @@ end
 local function AutoAdjustServerCaps()
     local gameState = GetMotorTownGameState()
     if not gameState:IsValid() then
-        LogMsg("invalid GameState")
+        LogMsg("invalid GameState", "ERROR")
         return false
     end
 
@@ -90,3 +150,32 @@ end
 if os.getenv("MOD_AUTO_FPS_ENABLE") then
     LoopAsync(60 * 1000 / pollPerMin, AutoAdjustServerCaps)
 end
+
+RegisterConsoleCommandHandler("getserverstate", function(Cmd, CommandParts, Ar)
+    LogMsg(json.stringify(GetServerState()))
+    return true
+end)
+
+---Handle the getserverstate commands
+---@param session ClientTable
+local function HandleGetServerState(session)
+    local serverStatus = json.stringify {
+        data = GetServerState()
+    }
+    session:sendOKResponse(serverStatus)
+end
+
+---Handle the getserverstate commands
+---@param session ClientTable
+local function HandleGetZoneState(session)
+    local zoneName = session.pathComponents[3]
+    local serverStatus = json.stringify {
+        data = GetZoneState(zoneName)
+    }
+    session:sendOKResponse(serverStatus)
+end
+
+return {
+    HandleGetServerState = HandleGetServerState,
+    HandleGetZoneState = HandleGetZoneState
+}

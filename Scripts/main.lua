@@ -4,6 +4,7 @@ local statics = require("Statics")
 local UEHelpers = require("UEHelpers")
 local playerManager = require("PlayerManager")
 local eventManager = require("EventManager")
+local serverManager = require("ServerManager")
 local json = require("JsonParser")
 
 ---@enum (key) LogLevel
@@ -29,63 +30,26 @@ local function LoadWebserver()
 
     -- General server status
     Webserver.registerHandler("/status", "GET", function(session)
-      Webserver.sendOKResponse(session, '{"status":"ok"}', "application/json")
+      session:sendOKResponse('{"status":"ok"}')
     end)
+    Webserver.registerHandler("/status/general", "GET", serverManager.HandleGetServerState)
+    Webserver.registerHandler("/status/general/*", "GET", serverManager.HandleGetZoneState)
 
     -- Player management
-    Webserver.registerHandler("/players", "GET", function(session)
-      local playerStates = json.stringify {
-        data = playerManager.GetPlayerStates()
-      }
-      Webserver.sendOKResponse(session, playerStates, "application/json")
-    end)
-    Webserver.registerHandler("/players/*", "GET", function(session)
-      local playerGuid = session.pathComponents[2]
-      local playerStates = json.stringify {
-        data = playerManager.GetPlayerStates(playerGuid)
-      }
-      Webserver.sendOKResponse(session, playerStates, "application/json")
-    end)
+    Webserver.registerHandler("/players", "GET", playerManager.HandleGetPlayerStates)
+    Webserver.registerHandler("/players/*", "GET", playerManager.HandleGetSpecifcPlayerStates)
 
     -- Event management
-    Webserver.registerHandler("/events", "GET", function(session)
-      local events = json.stringify {
-        data = eventManager.GetEvents()
-      }
-      Webserver.sendOKResponse(session, events, "application/json")
-    end)
-    Webserver.registerHandler("/events/*", "GET", function(session)
-      local eventGuid = session.pathComponents[2]
-      local events = json.stringify {
-        data = eventManager.GetEvents(eventGuid)
-      }
-      Webserver.sendOKResponse(session, events, "application/json")
-    end)
-    Webserver.registerHandler("/events/*", "POST", function(session)
-      local eventGuid = session.pathComponents[2]
-      local content = json.parse(session.content)
-
-      if content then
-        local eventName = content.EventName or nil
-
-        if eventName and eventManager.UpdateEventName(eventGuid, eventName) then
-          local events = json.stringify {
-            data = eventManager.GetEvents(eventGuid)
-          }
-          Webserver.sendOKResponse(session, events, "application/json")
-          return
-        end
-
-        Webserver.sendErrorResponse(session, 404, "Event not found")
-      end
-    end)
+    Webserver.registerHandler("/events", "GET", eventManager.HandleGetAllEvents)
+    Webserver.registerHandler("/events/*", "GET", eventManager.HandleGetSpecificEvents)
+    Webserver.registerHandler("/events/*", "POST", eventManager.HandleUpdateEventName)
 
     local port = os.getenv("MOD_LUA_PORT") or "5001"
     Webserver.run("*", tonumber(port))
     return nil
   end)
   if err then
-    LogMsg("Unexpected error has occured in Webserver", "ERROR")
+    LogMsg("Unexpected error has occured in Webserver: " .. err, "ERROR")
     return true
   end
   return false
