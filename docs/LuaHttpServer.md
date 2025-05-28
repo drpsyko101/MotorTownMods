@@ -103,7 +103,7 @@ Response:
 
 #### GET `/events/<guid>`
 
-Returns the specified event. Output the same response JSON as above.
+Returns the specified event. Outputs the same response JSON as above.
 
 #### POST `/events/<guid>`
 
@@ -123,6 +123,7 @@ Request body:
 Returns the new event data:
 ```json
 {
+  "hook" : "/Script/MotorTown.MotorTownPlayerController:ServerAddEvent",
   "data": [
     {
       "State": 1,
@@ -146,11 +147,24 @@ Returns the new event data:
 }
 ```
 
+#### Event state changed
+
+Returns the GUID of the event and the new event state.
+```json
+{
+  "hook": "/Script/MotorTown.MotorTownPlayerController:ServerChangeEventState",
+  "data": [
+    // similar event structure as above
+  ]
+}
+```
+
 #### Event removal
 
 Returns the GUID of the removed event
 ```json
 {
+  "hook": "",
   "data": [
     "835BB8FD4104E369D33C6BA74C41922A"
   ]

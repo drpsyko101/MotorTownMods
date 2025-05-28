@@ -1,24 +1,37 @@
 local UEHelpers = require("UEHelpers")
 
----Convert FVector to string
+---Convert FVector to JSON serializable table
 ---@param vector FVector
-function VectorToString(vector)
-  return string.format('{"X":%.3f,"Y":%.3f,"Z":%.3f}', vector.X, vector.Y, vector.Z)
+function VectorToTable(vector)
+  return {
+    X = vector.X,
+    Y = vector.Y,
+    Z = vector.Z
+  }
 end
 
----Convert FRotator to string
+---Convert FRotator to JSON serializable table
 ---@param rotation FQuat
-function RotatorToString(rotation)
-  return string.format('{"W":%.3f,"X":%.3f,"Y":%.3f,"Z":%.3f}', rotation.W, rotation.X, rotation.Y, rotation.Z)
+function RotatorToTable(rotation)
+  return {
+    W = rotation.W,
+    X = rotation.X,
+    Y = rotation.Y,
+    Z = rotation.Z
+  }
 end
 
----Convert FTransform to string
+---Convert FTransform to JSON serializable table
 ---@param transform FTransform
-function TransformToString(transform)
-  local location = VectorToString(transform.Translation)
-  local rotation = RotatorToString(transform.Rotation)
-  local scale = VectorToString(transform.Scale3D)
-  return string.format('{"Location":%s,"Rotation":%s,"Scale":%s}', location, rotation, scale)
+function TransformToTable(transform)
+  local location = VectorToTable(transform.Translation)
+  local rotation = RotatorToTable(transform.Rotation)
+  local scale = VectorToTable(transform.Scale3D)
+  return {
+    Location = location,
+    Rotation = rotation,
+    Scale3D = scale
+  }
 end
 
 ---Convert FGuid to string
@@ -70,6 +83,11 @@ function RewardToTable(reward)
   }
 end
 
+---@class Route
+---@field RouteName string
+---@field Waypoints TArray<FTransform>
+local Route = {}
+
 ---Convert FMTRoute to JSON serializable table
 ---@param route FMTRoute
 function RouteToTable(route)
@@ -77,8 +95,8 @@ function RouteToTable(route)
 
   data.RouteName = route.RouteName:ToString()
   data.Waypoints = {}
-  for i = 1, #route.Waypoints, 1 do
-    table.insert(data.Waypoints, TransformToString(route.Waypoints[i]))
-  end
+  route.Waypoints:ForEach(function(index, element)
+    table.insert(data.Waypoints, TransformToTable(element:get()))
+  end)
   return data
 end

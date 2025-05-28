@@ -20,9 +20,9 @@ local function EventPlayerToTable(player)
   data.LastSectionTotalTimeSeconds = player.LastSectionTotalTimeSeconds
 
   data.LapTimes = {}
-  for i = 1, #player.LapTimes, 1 do
-    table.insert(data.LapTimes, player.LapTimes[i])
-  end
+  player.LapTimes:ForEach(function(index, element)
+    table.insert(data.LapTimes, element:get())
+  end)
 
   data.BestLapTime = player.BestLapTime
   data.Reward_RacingExp = player.Reward_RacingExp
@@ -77,9 +77,9 @@ local function EventToTable(event)
   data.OwnerCharacterId = CharacterIdToTable(event.OwnerCharacterId)
 
   data.Players = {}
-  for j = 1, #event.Players, 1 do
-    table.insert(data.Players, EventPlayerToTable(event.Players[j]))
-  end
+  event.Players:ForEach(function(index, element)
+    table.insert(data.Players, EventPlayerToTable(element:get()))
+  end)
 
   data.RaceSetup = RaceEventToTable(event.RaceSetup)
   data.State = EventStateToString(event.State)
@@ -88,50 +88,99 @@ local function EventToTable(event)
   return data
 end
 
----Get all active events
----@param eventGuid string? Return specific event matching this GUID
-local function GetEvents(eventGuid)
+local EventSystem = CreateInvalidObject()
+---comment Get Motor Town event system
+---@return AMTEventSystem
+local function GetEventSystem()
   local gameState = GetMotorTownGameState()
-  if not gameState:IsValid() then return '{"data":[]}' end
+  if gameState:IsValid() and gameState.Net_EventSystem:IsValid() then
+    local gameStateClass = StaticFindObject("/Script/MotorTown.MTEventSystem")
+    ---@cast gameStateClass UClass
+    if gameState.Net_EventSystem:IsA(gameStateClass) then
+      EventSystem = gameState.Net_EventSystem
+    end
+  end
+  return EventSystem ---@type AMTEventSystem
+end
 
-  local eventSystem = gameState.Net_EventSystem
-  if not eventSystem:IsValid() then return '{"data":[]}' end
-
+---Get all active events in a JSON serializable table
+---@param eventGuid string? Return specific event matching this GUID
+---@return table[]
+local function GetEvents(eventGuid)
+  local eventSystem = GetEventSystem()
   local arr = {}
-  for i = 1, #eventSystem.Net_Events, 1 do
-    local event = eventSystem.Net_Events[i]
+
+  if not eventSystem:IsValid() then return arr end
+
+  eventSystem.Net_Events:ForEach(function(index, element)
+    local event = element:get() ---@type FMTEvent
 
     if eventGuid and eventGuid ~= GuidToString(event.EventGuid) then goto continue end
-    
+
     table.insert(arr, EventToTable(event))
 
     ::continue::
-  end
-  return string.format('{"data":%s}', json.stringify(table))
+  end)
+  return arr
 end
 
 ---Update an event name
 ---@param eventGuid string
 ---@param eventName string
 local function UpdateEventName(eventGuid, eventName)
-  local gameState = GetMotorTownGameState()
-  if not gameState:IsValid() then return false end
+  local eventSystem = GetEventSystem()
 
-  local eventSystem = gameState.Net_EventSystem
-  if not eventSystem:IsValid() then return false end
+  if eventSystem:IsValid() then
+    for i = 1, #eventSystem.Net_Events, 1 do
+      if GuidToString(eventSystem.Net_Events[i].EventGuid) == eventGuid then
+        eventSystem.Net_Events[i].EventName = eventName
+        return true
+      end
+    end
+    return false
+  end
+end
 
-  for i = 1, #eventSystem.Net_Events, 1 do
-    local event = eventSystem.Net_Events[i]
-    if GuidToString(event.EventGuid) == eventGuid then
-      event.EventName = eventName
-      return true
+---Update an event race setup
+---@param eventGuid string
+---@param raceSetup { Route: Route, NumLaps: number, VehicleKeys: string[], EngineKeys: string[] }
+---@return boolean
+local function UpdateEventRaceSetup(eventGuid, raceSetup)
+  local eventSystem = GetEventSystem()
+
+  if eventSystem:IsValid() then
+    for i = 1, #eventSystem.Net_Events, 1 do
+      if GuidToString(eventSystem.Net_Events[i].EventGuid) == eventGuid then
+        eventSystem.Net_Events[i].RaceSetup.NumLaps = raceSetup.NumLaps
+
+        eventSystem.Net_Events[i].RaceSetup.EngineKeys:Empty()
+        for index, value in ipairs(raceSetup.EngineKeys) do
+          eventSystem.Net_Events[i].RaceSetup.EngineKeys[index - 1] = FName(value)
+        end
+
+        eventSystem.Net_Events[i].RaceSetup.VehicleKeys:Empty()
+        for index, value in ipairs(raceSetup.VehicleKeys) do
+          eventSystem.Net_Events[i].RaceSetup.VehicleKeys[index - 1] = FName(value)
+        end
+
+        eventSystem.Net_Events[i].RaceSetup.Route.RouteName = raceSetup.Route.RouteName
+
+        eventSystem.Net_Events[i].RaceSetup.Route.Waypoints:Empty()
+        for index, value in ipairs(raceSetup.Route.Waypoints) do
+          eventSystem.Net_Events[i].RaceSetup.Route.Waypoints[index - 1] = value
+        end
+        return true
+      end
     end
   end
+
   return false
 end
 
+-- Console command registration
+
 RegisterConsoleCommandHandler("getevents", function(Cmd, CommandParts, Ar)
-  LogMsg(GetEvents())
+  LogMsg(json.stringify(GetEvents()))
   return true
 end)
 
@@ -144,19 +193,62 @@ RegisterConsoleCommandHandler("updateeventname", function(Cmd, CommandParts, Ar)
   return true
 end)
 
-RegisterHook("/Script/MotorTown.MotorTownPlayerController:ServerAddEvent", function(self, eventParam)
-  local event = eventParam:get() ---@type FMTEvent
-  LogMsg("New event " .. GuidToString(event.EventGuid) .. " created", "DEBUG")
-  local eventTable = EventToTable(event)
-  webhook.CreateWebhookRequest('{"data":[' .. json.stringify(eventTable) .. ']}')
-end)
+-- Register event hooks
 
-RegisterHook("/Script/MotorTown.MotorTownPlayerController:ServerRemoveEvent", function(self, eventParam)
-  local event = eventParam:get() ---@type FGuid
-  local eventGuid = GuidToString(event)
-  LogMsg("Event " .. eventGuid .. " removed", "DEBUG")
-  webhook.CreateWebhookRequest('{"data":["' .. eventGuid .. '"]}')
-end)
+local serverAddEvent = "/Script/MotorTown.MotorTownPlayerController:ServerAddEvent"
+RegisterHook(
+  serverAddEvent,
+  function(self, eventParam)
+    local event = eventParam:get() ---@type FMTEvent
+
+    LogMsg("New event " .. GuidToString(event.EventGuid) .. " created", "DEBUG")
+
+    local eventTable = EventToTable(event)
+    local res = json.stringify {
+      hook = serverAddEvent,
+      data = eventTable
+    }
+    webhook.CreateWebhookRequest(res)
+  end
+)
+
+local serverEventState = "/Script/MotorTown.MotorTownPlayerController:ServerChangeEventState"
+RegisterHook(
+  serverEventState,
+  function(self, eventParam, stateParam)
+    local guid = eventParam:get() ---@type FGuid
+    local eventState = stateParam:get() ---@type EMTEventState
+    local eventGuid = EventStateToString(eventState)
+
+    LogMsg("Event " .. guid .. " state changed to " .. eventGuid .. "", "DEBUG")
+
+    local event = GetEvents(eventGuid)
+
+    if #event == 0 then return end
+
+    local eventTable = EventToTable(event[1])
+    local res = json.stringify {
+      hook = serverEventState,
+      data = eventTable
+    }
+    webhook.CreateWebhookRequest(res)
+  end
+)
+
+local serverRemoveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerRemoveEvent"
+RegisterHook(
+  serverRemoveEvent,
+  function(self, eventParam)
+    local event = eventParam:get() ---@type FGuid
+    local eventGuid = GuidToString(event)
+    LogMsg("Event " .. eventGuid .. " removed", "DEBUG")
+    local res = json.stringify {
+      hook = serverRemoveEvent,
+      data = eventGuid
+    }
+    webhook.CreateWebhookRequest(res)
+  end
+)
 
 return {
   GetEvents = GetEvents,
