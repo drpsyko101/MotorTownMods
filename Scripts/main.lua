@@ -5,7 +5,6 @@ local UEHelpers = require("UEHelpers")
 local playerManager = require("PlayerManager")
 local eventManager = require("EventManager")
 local serverManager = require("ServerManager")
-local json = require("JsonParser")
 
 ---@enum (key) LogLevel
 local logLevel = {
@@ -34,6 +33,7 @@ local function LoadWebserver()
     end)
     Webserver.registerHandler("/status/general", "GET", serverManager.HandleGetServerState)
     Webserver.registerHandler("/status/general/*", "GET", serverManager.HandleGetZoneState)
+    Webserver.registerHandler("/status/traffic", "POST", serverManager.HandleUpdateNpcTraffic)
 
     -- Player management
     Webserver.registerHandler("/players", "GET", playerManager.HandleGetPlayerStates)

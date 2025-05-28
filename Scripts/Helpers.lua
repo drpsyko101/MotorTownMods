@@ -100,3 +100,16 @@ function RouteToTable(route)
   end)
   return data
 end
+
+---Read file as strings
+---@param path string
+---@return string|nil
+function ReadFileAsString(path)
+  local file = io.open(path, "rb")
+  if file then
+    local content = file:read("*all")
+    file:close()
+    return content
+  end
+  return nil
+end

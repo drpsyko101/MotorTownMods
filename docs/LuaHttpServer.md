@@ -106,6 +106,23 @@ Returns a specific zone status. Available zone keys can be found from `/status/g
 }
 ```
 
+#### POST `/status/traffic`
+
+Update the traffic related settings. Each request parameter is optional.
+
+Request body:
+```json
+{
+  "NPCVehicleDensity": 1.0,
+  "MaxVehiclePerPlayer": 10
+}
+```
+
+Response:
+```json
+{"status":"ok"}
+```
+
 ### Player Management
 
 #### GET `/players`

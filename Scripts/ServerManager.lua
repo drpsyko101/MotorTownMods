@@ -1,7 +1,20 @@
+local dir = os.getenv("PWD") or io.popen("cd"):read()
 local UEHelpers = require("UEHelpers")
 local json = require("JsonParser")
 
 require("Helpers")
+
+local maxVehiclePerPlayer = 10
+local npcVehicleDensity = 1.0
+
+local serverConfig = ReadFileAsString("../../../DedicatedServerConfig.json")
+if serverConfig then
+    local config = json.parse(serverConfig)
+    if config then
+        maxVehiclePerPlayer = config.MaxVehiclePerPlayer or maxVehiclePerPlayer
+        npcVehicleDensity = config.NPCVehicleDensity or npcVehicleDensity
+    end
+end
 
 -- Amount of poll per minute.
 -- Change this value to increase/decrease median accuracy
@@ -115,7 +128,7 @@ local function AdjustTrafficDensity(amount)
             local density = densities[setting.SettingKey]
             if density then
                 setting.bUseNPCVehicleDensity = false
-                setting.MaxCount = density.MaxAmount * amount / 100
+                setting.MaxCount = density.MaxAmount * amount
             end
         end
     end
@@ -128,27 +141,27 @@ local function AutoAdjustServerCaps()
         return false
     end
 
-    local targetTraffic = tonumber(os.getenv("MOD_AUTO_FPS_TRAFFIC")) or 75
-    local targetPlayerVehicle = tonumber(os.getenv("MOD_AUTO_FPS_PLAYER")) or 10
-
     local currentFps = GetServerFps()
     if (currentFps <= 0) then
         return
     elseif (currentFps < 30) then
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = math.floor(targetPlayerVehicle / 2)
+        gameState.Net_ServerConfig.MaxVehiclePerPlayer = math.floor(maxVehiclePerPlayer / 2)
         AdjustTrafficDensity(0)
     elseif (currentFps < 40) then
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = math.floor(targetPlayerVehicle * 0.75)
-        AdjustTrafficDensity(math.floor(targetTraffic / 2))
+        gameState.Net_ServerConfig.MaxVehiclePerPlayer = math.floor(maxVehiclePerPlayer * 0.75)
+        AdjustTrafficDensity(math.floor(npcVehicleDensity / 2))
     else
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = targetPlayerVehicle
-        AdjustTrafficDensity(targetTraffic)
+        gameState.Net_ServerConfig.MaxVehiclePerPlayer = maxVehiclePerPlayer
+        AdjustTrafficDensity(npcVehicleDensity)
     end
     return false
 end
 
 if os.getenv("MOD_AUTO_FPS_ENABLE") then
-    LoopAsync(60 * 1000 / pollPerMin, AutoAdjustServerCaps)
+    LoopAsync(60 * 1000 / pollPerMin, function()
+        AutoAdjustServerCaps()
+        return false
+    end)
 end
 
 RegisterConsoleCommandHandler("getserverstate", function(Cmd, CommandParts, Ar)
@@ -156,7 +169,15 @@ RegisterConsoleCommandHandler("getserverstate", function(Cmd, CommandParts, Ar)
     return true
 end)
 
----Handle the getserverstate commands
+RegisterConsoleCommandHandler("setnpctraffic", function(Cmd, CommandParts, Ar)
+    local density = tonumber(CommandParts[1]) or 1.0
+    npcVehicleDensity = density
+    AutoAdjustServerCaps()
+    LogMsg("Set NPC traffic density to " .. density * 100 .. "%")
+    return true
+end)
+
+---Handle the get server state commands
 ---@param session ClientTable
 local function HandleGetServerState(session)
     local serverStatus = json.stringify {
@@ -165,7 +186,7 @@ local function HandleGetServerState(session)
     session:sendOKResponse(serverStatus)
 end
 
----Handle the getserverstate commands
+---Handle the get zone state commands
 ---@param session ClientTable
 local function HandleGetZoneState(session)
     local zoneName = session.pathComponents[3]
@@ -175,7 +196,26 @@ local function HandleGetZoneState(session)
     session:sendOKResponse(serverStatus)
 end
 
+---Handle NPC traffic density update request
+---@param session ClientTable
+local function HandleUpdateNpcTraffic(session)
+    local body = json.parse(session.content)
+    if body then
+        local density = tonumber(body.NPCVehicleDensity)
+        if density then
+            npcVehicleDensity = density
+        end
+        local maxV = tonumber(body.MaxVehiclePerPlayer)
+        if maxV then
+            maxVehiclePerPlayer = maxV
+        end
+        AutoAdjustServerCaps()
+    end
+    session:sendOKResponse('{"status":"ok"}')
+end
+
 return {
     HandleGetServerState = HandleGetServerState,
-    HandleGetZoneState = HandleGetZoneState
+    HandleGetZoneState = HandleGetZoneState,
+    HandleUpdateNpcTraffic = HandleUpdateNpcTraffic
 }
