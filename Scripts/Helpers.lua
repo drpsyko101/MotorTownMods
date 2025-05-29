@@ -113,3 +113,37 @@ function ReadFileAsString(path)
   end
   return nil
 end
+
+---Convert string to FGuid. If no input is provided, a random Guid will be generated.
+---@param input string?
+---@return FGuid
+function StringToGuid(input)
+  local s = {}
+
+  if input then
+    if #input ~= 32 then
+      error(input .. " is not a valid Guid")
+    end
+
+    for i = 1, #input, 8 do
+      local a = input:sub(i, i + 8 - 1)
+      table.insert(s, tonumber(a, 16))
+    end
+  else
+    return {
+      A = math.random(1000000000, 9999999999),
+      B = math.random(1000000000, 9999999999),
+      C = math.random(1000000000, 9999999999),
+      D = math.random(1000000000, 9999999999)
+    }
+  end
+  if #s == 4 then
+    return {
+      A = s[1],
+      B = s[2],
+      C = s[3],
+      D = s[4]
+    }
+  end
+  error(input .. " is not a valid Guid")
+end

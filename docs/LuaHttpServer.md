@@ -11,13 +11,15 @@ Query parameter and/or request body is not needed unless specified.
 Returns Lua HTTP server status.
 
 Response:
+
 ```json
-{"status":"ok"}
+{ "status": "ok" }
 ```
 
 #### GET `/status/general`
 
 Returns general server status
+
 ```json
 {
   "data": {
@@ -93,6 +95,7 @@ Returns general server status
 #### GET `/status/general/<zone>`
 
 Returns a specific zone status. Available zone keys can be found from `/status/general` data.
+
 ```json
 {
   "data": {
@@ -111,6 +114,7 @@ Returns a specific zone status. Available zone keys can be found from `/status/g
 Update the traffic related settings. Each request parameter is optional.
 
 Request body:
+
 ```json
 {
   "NPCVehicleDensity": 1.0,
@@ -119,8 +123,9 @@ Request body:
 ```
 
 Response:
+
 ```json
-{"status":"ok"}
+{ "status": "ok" }
 ```
 
 ### Player Management
@@ -130,6 +135,7 @@ Response:
 Returns all available player states.
 
 Response:
+
 ```json
 {
   "data": [
@@ -164,6 +170,7 @@ Returns the specified player state. Output the same response JSON as above.
 Get all active events
 
 Response:
+
 ```json
 {
   "data": [
@@ -209,17 +216,140 @@ Response:
 }
 ```
 
+#### POST `/events`
+
+Create a new event. Will return the new event data similar to above if successful.
+
+Request body:
+
+```json
+{
+  "EventName": "EnhancedBrow's Event",
+  "EventType": 1,
+  "RaceSetup": {
+    "NumLaps": 0,
+    "Route": {
+      "RouteName": "My Super Track",
+      "Waypoints": [
+        {
+          "Translation": {
+            "X": -388146.600618,
+            "Y": 630854.981784,
+            "Z": -11157.142135
+          },
+          "Scale3D": {
+            "X": 1,
+            "Y": 19,
+            "Z": 10
+          },
+          "Rotation": {
+            "X": 0,
+            "Y": 0,
+            "Z": 0.5696381972391096,
+            "W": 0.8218955677251077
+          }
+        },
+        {
+          "Translation": {
+            "X": -386101.669514,
+            "Y": 656907.891716,
+            "Z": -11137.687317
+          },
+          "Scale3D": {
+            "X": 1,
+            "Y": 28,
+            "Z": 10
+          },
+          "Rotation": {
+            "X": 0,
+            "Y": 0,
+            "Z": 0.7823908105765881,
+            "W": 0.6227877804881126
+          }
+        }
+      ]
+    },
+    "VehicleKeys": [],
+    "EngineKeys": []
+  }
+}
+```
+
 #### GET `/events/<guid>`
 
-Returns the specified event. Outputs the same response JSON as above.
+Returns the specified event. Outputs the same response JSON as `GET /events`, but only for a single object.
 
 #### POST `/events/<guid>`
 
-Update event data. Currently only supports event name change. Will return the event data similar as above if successful.
+Update event data. Currently only supports changing the event name and/or race setup. Will return the event data similar as above if successful.
 
 Request body:
+
 ```json
-{ "EventName": "New event name" }
+{
+  "EventName": "New event name",
+  "RaceSetup": {
+    "NumLaps": 0,
+    "Route": {
+      "RouteName": "My Super Track",
+      "Waypoints": [
+        {
+          "Translation": {
+            "x": -388146.600618,
+            "y": 630854.981784,
+            "z": -11157.142135
+          },
+          "Scale3D": {
+            "x": 1,
+            "y": 19,
+            "z": 10
+          },
+          "Rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0.5696381972391096,
+            "w": 0.8218955677251077
+          }
+        },
+        {
+          "Translation": {
+            "x": -386101.669514,
+            "y": 656907.891716,
+            "z": -11137.687317
+          },
+          "Scale3D": {
+            "x": 1,
+            "y": 28,
+            "z": 10
+          },
+          "Rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0.7823908105765881,
+            "w": 0.6227877804881126
+          }
+        }
+      ]
+    },
+    "VehicleKeys": [],
+    "EngineKeys": []
+  }
+}
+```
+
+#### POST `/events/<guid>/state`
+
+Change the state of a given event GUID. Will return a `204` code if successful. This function might fail if there are no players in-game.
+
+Request body:
+
+```json
+{
+  // Ready = 1,
+  // InProgress = 2,
+  // Finished = 3,
+  "State": 1
+}
 ```
 
 ## Webhooks
@@ -229,9 +359,10 @@ Request body:
 #### Event creation
 
 Returns the new event data:
+
 ```json
 {
-  "hook" : "/Script/MotorTown.MotorTownPlayerController:ServerAddEvent",
+  "hook": "/Script/MotorTown.MotorTownPlayerController:ServerAddEvent",
   "data": [
     {
       "State": 1,
@@ -258,6 +389,7 @@ Returns the new event data:
 #### Event state changed
 
 Returns the GUID of the event and the new event state.
+
 ```json
 {
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerChangeEventState",
@@ -270,11 +402,10 @@ Returns the GUID of the event and the new event state.
 #### Event removal
 
 Returns the GUID of the removed event
+
 ```json
 {
   "hook": "",
-  "data": [
-    "835BB8FD4104E369D33C6BA74C41922A"
-  ]
+  "data": ["835BB8FD4104E369D33C6BA74C41922A"]
 }
 ```

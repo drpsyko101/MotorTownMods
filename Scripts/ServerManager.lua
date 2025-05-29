@@ -134,16 +134,22 @@ local function AdjustTrafficDensity(amount)
     end
 end
 
-local function AutoAdjustServerCaps()
+---Automatically adjust server caps
+---@param override boolean?
+---@return boolean
+local function AutoAdjustServerCaps(override)
     local gameState = GetMotorTownGameState()
     if not gameState:IsValid() then
-        LogMsg("invalid GameState", "ERROR")
         return false
     end
 
-    local currentFps = GetServerFps()
+    local currentFps = 60
+    if not override then
+        currentFps = GetServerFps()
+    end
+
     if (currentFps <= 0) then
-        return
+        return false
     elseif (currentFps < 30) then
         gameState.Net_ServerConfig.MaxVehiclePerPlayer = math.floor(maxVehiclePerPlayer / 2)
         AdjustTrafficDensity(0)
@@ -154,7 +160,7 @@ local function AutoAdjustServerCaps()
         gameState.Net_ServerConfig.MaxVehiclePerPlayer = maxVehiclePerPlayer
         AdjustTrafficDensity(npcVehicleDensity)
     end
-    return false
+    return true
 end
 
 if os.getenv("MOD_AUTO_FPS_ENABLE") then
@@ -172,32 +178,32 @@ end)
 RegisterConsoleCommandHandler("setnpctraffic", function(Cmd, CommandParts, Ar)
     local density = tonumber(CommandParts[1]) or 1.0
     npcVehicleDensity = density
-    AutoAdjustServerCaps()
+    AutoAdjustServerCaps(true)
     LogMsg("Set NPC traffic density to " .. density * 100 .. "%")
     return true
 end)
 
 ---Handle the get server state commands
----@param session ClientTable
+---@type RequestPathHandler
 local function HandleGetServerState(session)
     local serverStatus = json.stringify {
         data = GetServerState()
     }
-    session:sendOKResponse(serverStatus)
+    return serverStatus
 end
 
 ---Handle the get zone state commands
----@param session ClientTable
+---@type RequestPathHandler
 local function HandleGetZoneState(session)
     local zoneName = session.pathComponents[3]
     local serverStatus = json.stringify {
         data = GetZoneState(zoneName)
     }
-    session:sendOKResponse(serverStatus)
+    return serverStatus
 end
 
 ---Handle NPC traffic density update request
----@param session ClientTable
+---@type RequestPathHandler
 local function HandleUpdateNpcTraffic(session)
     local body = json.parse(session.content)
     if body then
@@ -209,9 +215,10 @@ local function HandleUpdateNpcTraffic(session)
         if maxV then
             maxVehiclePerPlayer = maxV
         end
-        AutoAdjustServerCaps()
+        AutoAdjustServerCaps(true)
+        return '{"status":"ok"}'
     end
-    session:sendOKResponse('{"status":"ok"}')
+    return nil, nil, 400
 end
 
 return {

@@ -72,7 +72,7 @@ local function HandleGetPlayerStates(session)
   local playerStates = json.stringify {
     data = GetPlayerStates()
   }
-  session:sendOKResponse(playerStates)
+  return playerStates
 end
 
 ---Handle request for player states
@@ -82,7 +82,7 @@ local function HandleGetSpecifcPlayerStates(session)
   local playerStates = json.stringify {
     data = GetPlayerStates(playerGuid)
   }
-  session:sendOKResponse(playerStates)
+  return playerStates
 end
 
 return {

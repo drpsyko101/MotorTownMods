@@ -78,7 +78,21 @@ function ClientTable.new(newId, client)
     return obj
 end
 
----@alias RequestPathHandler fun(session: ClientTable)
+---@enum (key) ResponseStatus
+local _resCode = {
+    [200] = "200 OK",
+    [201] = "201 Created",
+    [204] = "204 No Content",
+    [400] = "400 Bad Request",
+    [401] = "401 Unauthorized",
+    [403] = "403 Forbidden",
+    [404] = "404 Not Found",
+    [405] = "405 Method Not Allowed",
+    [500] = "500 Internal Server Error"
+}
+
+---Request handler for the specified path
+---@alias RequestPathHandler fun(session: ClientTable): resContent: string?, resType: MimeType?, resCode: ResponseStatus?
 ---@alias RequestPathHandlerTable { path: string, method: RequestMethod, handler: RequestPathHandler }
 
 local serverString = statics.ModName .. " server " .. statics.ModVersion
@@ -160,15 +174,18 @@ end
 ---Content is optional and may be nil. If not nil, content type must be provided (ex: "application/json")
 ---Assumes that the data is JSON
 ---@param content string? Content of the response
----@param contentType string? Content mime type
-function ClientTable:buildHeaders_OK(content, contentType)
+---@param contentType MimeType? Content mime type
+---@param resCode ResponseStatus? Response code
+local function buildHeaders(content, contentType, resCode)
+    contentType = contentType or _mimeType.json
+    local code = _resCode[resCode or 200]
     local h = {}
 
     local function add(name, value)
         table.insert(h, string.format("%s: %s", name, value))
     end
 
-    table.insert(h, "HTTP/1.1 200 OK")
+    table.insert(h, "HTTP/1.1 " .. code)
 
     add("Server", serverString)
     add("Date", date("!%a, %d %b %Y %H:%M:%S GMT"))
@@ -184,39 +201,24 @@ function ClientTable:buildHeaders_OK(content, contentType)
     return header
 end
 
----Build the headers for an error response
----@param statusCode number HTTP status code
----@param statusText string HTTP status message
-function ClientTable:buildHeaders_Error(statusCode, statusText)
-    local h = {}
-
-    local function add(name, value)
-        table.insert(h, string.format("%s: %s", name, value))
-    end
-
-    table.insert(h, string.format("HTTP/1.1 %d %s", statusCode, statusText))
-
-    add("Server", serverString)
-    add("Date", date("!%a, %d %b %Y %H:%M:%S GMT"))
-    add("Connection", "close")
-
-    return table.concat(h, "\n") .. "\n\n"
-end
-
 ---Safely mark a session for removal
-function ClientTable:markSessionForRemoval()
-    LogMsg("Marking client " .. self.id .. " for removal", "DEBUG")
-    self.state = "close"
+---@param client ClientTable
+local function markSessionForRemoval(client)
+    LogMsg("Marking client " .. client.id .. " for removal", "DEBUG")
+    client.state = "close"
 end
 
 ---Send a response to the clients
----@param header string Response headers
----@param rcontent string? Response body
-function ClientTable:sendResponse(header, rcontent)
+---@param client ClientTable
+---@param content? string Response body
+---@param contentType MimeType? Content mime type. defaults to application/json
+---@param resCode ResponseStatus? Response code. Defaults to 200 OK
+local function sendResponse(client, content, contentType, resCode)
     LogMsg("Sending the response", "DEBUG")
+    local header = buildHeaders(content, contentType, resCode)
 
     for index, headerValue in ipairs(BreakChunks(header)) do
-        local a, b, elast = self.client:send(headerValue)
+        local a, b, elast = client.client:send(headerValue)
         if a == nil then
             LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
             break
@@ -225,9 +227,9 @@ function ClientTable:sendResponse(header, rcontent)
         end
     end
 
-    if rcontent then
-        for index, value in ipairs(BreakChunks(rcontent)) do
-            local a, b, elast = self.client:send(value)
+    if content then
+        for index, value in ipairs(BreakChunks(content)) do
+            local a, b, elast = client.client:send(value)
             if a == nil then
                 LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
                 break
@@ -236,40 +238,22 @@ function ClientTable:sendResponse(header, rcontent)
             end
         end
     end
-    self:markSessionForRemoval()
-end
-
----Send 200 OK responses
----@param content string Response body
----@param contentType MimeType? Content mime type, defaults to application/json
-function ClientTable:sendOKResponse(content, contentType)
-    contentType = contentType or _mimeType.json
-    local header = self:buildHeaders_OK(content, contentType)
-    self:sendResponse(header, content)
-end
-
----Send an error response
----@param statusCode number HTTP status code
----@param statusText string? HTTP status message
-function ClientTable:sendErrorResponse(statusCode, statusText)
-    statusText = statusText or "Internal server error"
-    local header = self:buildHeaders_Error(statusCode, statusText)
-    self:sendResponse(header)
+    markSessionForRemoval(client)
 end
 
 ---Parse the raw headers into a nice name/value dictionary
-function ClientTable:parseHeaders()
+local function parseHeaders(client)
     --print( string.format( "(%d) Request is '%s'", s.id, s.method ) )
 
-    self.headers = {}
+    client.headers = {}
 
     -- TODO: handle a continued header line!
-    for _, line in ipairs(self.rawHeaders) do
+    for _, line in ipairs(client.rawHeaders) do
         local name, value = string.match(line, "(%S+)%s*:%s*(.+)%s*")
         if name ~= nil then
             --print( string.format( "'%s' = '%s'", name, value ) )
             name = string.lower(name) -- convert to lowercase for simplified access
-            self.headers[name] = value
+            client.headers[name] = value
         else
             LogMsg("Malformed header line:\n" .. line, "ERROR")
             return -1
@@ -280,71 +264,79 @@ function ClientTable:parseHeaders()
 end
 
 ---Process request header content
-function ClientTable:processHeaders()
-    self.contentLength = 0
+---@param client ClientTable
+local function processHeaders(client)
+    client.contentLength = 0
 
-    local len = self.headers["content-length"]
+    local len = client.headers["content-length"]
     if len ~= nil then
-        self.contentLength = tonumber(len)
+        client.contentLength = tonumber(len)
     end
 end
 
 ---Dump headers for debugging
-function ClientTable:dumpSession()
+---@param client ClientTable
+local function dumpSession(client)
     LogMsg("==============================", "DEBUG")
-    LogMsg("URL string:" .. self.urlString, "DEBUG")
-    LogMsg(string.format("Method: %s", self.method), "DEBUG")
-    LogMsg(string.format("Version: %s", self.version), "DEBUG")
+    LogMsg("URL string:" .. client.urlString, "DEBUG")
+    LogMsg(string.format("Method: %s", client.method), "DEBUG")
+    LogMsg(string.format("Version: %s", client.version), "DEBUG")
 
     LogMsg("Headers:", "DEBUG")
-    for name, value in pairs(self.headers) do
+    for name, value in pairs(client.headers) do
         LogMsg(string.format("    '%s' = '%s'", name, value), "DEBUG")
     end
 
     LogMsg("URL components:", "DEBUG")
-    for k, v in pairs(self.urlComponents) do
+    for k, v in pairs(client.urlComponents) do
         LogMsg(string.format("     %s:  %s", k, tostring(v)), "DEBUG")
     end
 
-    if self.queryComponents ~= nil then
+    if client.queryComponents ~= nil then
         LogMsg("URL Query components", "DEBUG")
-        for k, v in pairs(self.queryComponents) do
+        for k, v in pairs(client.queryComponents) do
             LogMsg(string.format("     %s =  %s", k, tostring(v)), "DEBUG")
         end
     end
 
-    LogMsg("URL Path: " .. self.urlComponents.path, "DEBUG")
-    LogMsg("URL Params: " .. (self.urlComponents.params or ""), "DEBUG")
-    LogMsg("URL url: " .. (self.urlComponents.url or ""), "DEBUG")
+    LogMsg("URL Path: " .. client.urlComponents.path, "DEBUG")
+    LogMsg("URL Params: " .. (client.urlComponents.params or ""), "DEBUG")
+    LogMsg("URL url: " .. (client.urlComponents.url or ""), "DEBUG")
 
     LogMsg("URL path components:", "DEBUG")
-    for k, v in pairs(self.pathComponents) do
+    for k, v in pairs(client.pathComponents) do
         LogMsg(string.format("     %s:  %s", k, tostring(v)), "DEBUG")
     end
 
-    LogMsg(string.format("Content Length: %d", self.contentLength), "DEBUG")
-    LogMsg(string.format("Content: %s", self.content), "DEBUG")
+    LogMsg(string.format("Content Length: %d", client.contentLength), "DEBUG")
+    LogMsg(string.format("Content: %s", client.content), "DEBUG")
     LogMsg("==============================", "DEBUG")
 end
 
--- This is called when we have a complete request ready to be processed.
-function ClientTable:processSession()
-    self:dumpSession()
+---This is called when we have a complete request ready to be processed.
+---@param client ClientTable
+local function processSession(client)
+    dumpSession(client)
 
-    local h = findHandler(self.urlComponents.path, self.method)
+    local h = findHandler(client.urlComponents.path, client.method)
     if h then
-        if not pcall(h.handler, self) then
-            self:sendErrorResponse(500, "Internal Server Error")
+        local status, content, mime, code = pcall(h.handler, client)
+        -- Check if the handler returned any valid response
+        if status and (content or mime or code) then
+            sendResponse(client, content, mime, code)
+        else
+            LogMsg("Handler error: " .. content, "ERROR")
+            sendResponse(client, nil, nil, 500)
         end
     else
         -- No matching path and method. How about just the path?
-        local h = findHandler(self.urlComponents.path, nil)
+        local h = findHandler(client.urlComponents.path, nil)
         if h then
             -- This is a valid path, but not for the method.
-            self:sendErrorResponse(405, "Method Not Allowed")
+            sendResponse(client, nil, nil, 405)
             -- TODO: need to build a header with the allowed methods!
         else
-            self:sendErrorResponse(404, "Not Found")
+            sendResponse(client, nil, nil, 404)
         end
     end
 end
@@ -398,7 +390,7 @@ local function handleClient(client)
                 s.state = "header"
             else
                 LogMsg("Malformed initial line", "ERROR")
-                s:sendErrorResponse(400, "Bad Request")
+                sendResponse(s, nil, nil, 400)
             end
         elseif s.state == "header" then
             LogMsg(string.format("(%d)  HDR: %s", s.id, data), "DEBUG")
@@ -406,18 +398,18 @@ local function handleClient(client)
                 table.insert(s.rawHeaders, data)
             else
                 LogMsg(string.format("(%d)  End Headers", s.id), "DEBUG")
-                local rc = s:parseHeaders()
+                local rc = parseHeaders(s)
                 if rc ~= 0 then
-                    s:sendErrorResponse(400, "Bad Request")
+                    sendResponse(s, nil, nil, 400)
                     return
                 end
 
-                s:processHeaders()
+                processHeaders(s)
 
                 if s.contentLength == 0 then
                     LogMsg("Content length = 0, not waiting for content", "DEBUG")
                     -- Processing the session will result in it being closed
-                    s:processSession()
+                    processSession(s)
                 else
                     LogMsg("Waiting for content", "DEBUG")
                     s.state = "body"
@@ -426,19 +418,19 @@ local function handleClient(client)
         else
             --print( string.format( "(%d) BODY: %s", s.id, data ) )
             s.content = data
-            s:processSession()
+            processSession(s)
         end
     else
         if err == "closed" then
             LogMsg("Client closed the connection: ", "DEBUG")
-            s:markSessionForRemoval()
+            markSessionForRemoval(s)
             --print( "Size of client list is " .. #clients )
         elseif err == "timeout" then
             LogMsg("Receive timeout. Partial data: " .. partial, "ERROR")
-            s:markSessionForRemoval()
+            markSessionForRemoval(s)
         else
             LogMsg("Receive error: " .. err, "ERROR")
-            s:markSessionForRemoval()
+            markSessionForRemoval(s)
         end
     end
 end

@@ -124,6 +124,74 @@ local function GetEvents(eventGuid)
   return arr
 end
 
+---@class RouteTable
+---@field RouteName string
+---@field Waypoints FTransform[]
+local RouteTable = {}
+
+---@class EventTable
+---@field EventName string
+---@field EventGuid string?
+---@field EventType number
+---@field OwnerCharacterId { UniqueNetId: string, CharacterGuid: string }
+---@field RaceSetup { Route: RouteTable, NumLaps: number, VehicleKeys: string[], EngineKeys: string[] }
+local EventTable = {}
+
+---Create a new event
+---@param event EventTable
+---@return boolean status
+---@return string? guid
+local function CreateNewEvent(event)
+  local eventSystem = GetEventSystem()
+
+  if eventSystem:IsValid() then
+    -- Add a new event without any TArray
+    local guid = StringToGuid(event.EventGuid)
+    eventSystem.Net_Events[#eventSystem.Net_Events + 1] = {
+      EventName = event.EventName,
+      EventGuid = guid,
+      EventType = event.EventType,
+      OwnerCharacterId = {
+        CharacterGuid = { A = 0, B = 0, C = 0, D = 0 },
+        UniqueNetId = ""
+      },
+      Players = {},
+      bInCountdown = false,
+      RaceSetup = {
+        NumLaps = event.RaceSetup.NumLaps,
+        EngineKeys = {},
+        VehicleKeys = {},
+        Route = {
+          RouteName = "",
+          Waypoints = {}
+        }
+      },
+      State = 1
+    }
+
+    eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.Route.RouteName = event.RaceSetup.Route.RouteName
+
+    -- Add back TArray individually
+    eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.Route.Waypoints:Empty()
+    for index, value in ipairs(event.RaceSetup.Route.Waypoints) do
+      eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.Route.Waypoints[index] = value
+    end
+
+    eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.EngineKeys:Empty()
+    for index, value in ipairs(event.RaceSetup.EngineKeys) do
+      eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.EngineKeys[index] = FName(value)
+    end
+
+    eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.VehicleKeys:Empty()
+    for index, value in ipairs(event.RaceSetup.VehicleKeys) do
+      eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.VehicleKeys[index] = FName(value)
+    end
+
+    return true, GuidToString(eventSystem.Net_Events[#eventSystem.Net_Events].EventGuid)
+  end
+  return false, nil
+end
+
 ---Update an event name
 ---@param eventGuid string
 ---@param eventName string
@@ -174,6 +242,40 @@ local function UpdateEventRaceSetup(eventGuid, raceSetup)
     end
   end
 
+  return false
+end
+
+---Change an event status
+---@param eventGuid string
+---@param state number
+local function ChangeEventState(eventGuid, state)
+  local gameState = GetMotorTownGameState()
+
+  if gameState:IsValid() then
+    if gameState.Net_EventSystem:IsValid() and #gameState.PlayerArray > 0 then
+      local PC = gameState.PlayerArray[1]:GetPlayerController()
+      ---@cast PC AMotorTownPlayerController
+
+      if not PC:IsValid() then return false end
+
+      for i = 1, #gameState.Net_EventSystem.Net_Events, 1 do
+        local event = gameState.Net_EventSystem.Net_Events[i]
+        if GuidToString(event.EventGuid) == eventGuid then
+          -- RPC call doesn't support StructProperty, so were using table instead
+          PC:ServerChangeEventState(
+            {
+              A = event.EventGuid.A,
+              B = event.EventGuid.B,
+              C = event.EventGuid.C,
+              D = event.EventGuid.D
+            },
+            state
+          )
+          return true
+        end
+      end
+    end
+  end
   return false
 end
 
@@ -251,48 +353,94 @@ RegisterHook(
 )
 
 ---Handle request for all events
----@param session ClientTable
+---@type RequestPathHandler
 local function HandleGetAllEvents(session)
   local events = json.stringify {
     data = GetEvents()
   }
-  session:sendOKResponse(events)
+  return events
 end
 
 ---Handle request for all events
----@param session ClientTable
+---@type RequestPathHandler
 local function HandleGetSpecificEvents(session)
   local eventGuid = session.pathComponents[2]
   local events = json.stringify {
     data = GetEvents(eventGuid)
   }
-  session:sendOKResponse(events)
+  return events
+end
+
+---Handle request for a new event
+---@type RequestPathHandler
+local function HandleCreateNewEvent(session)
+  local content = json.parse(session.content)
+
+  if content then
+    ---@cast content EventTable
+    local status, guid = CreateNewEvent(content)
+    if status then
+      LogMsg("Created new event " .. guid, "DEBUG")
+      local events = json.stringify {
+        data = GetEvents(guid)
+      }
+      return events, nil, 201
+    end
+  end
+
+  return nil, nil, 400
+end
+
+---Handle request for changing an event state
+---@type RequestPathHandler
+local function HandleChangeEventState(session)
+  local eventGuid = session.pathComponents[2]
+  local content = json.parse(session.content)
+
+  if type(content) == "table" and content.State then
+    if ChangeEventState(eventGuid, content.State) then
+      return nil, nil, 204
+    end
+  end
+
+  return nil, nil, 400
 end
 
 ---Handle request for all events
----@param session ClientTable
-local function HandleUpdateEventName(session)
+---@type RequestPathHandler
+local function HandleUpdateEvent(session)
   local eventGuid = session.pathComponents[2]
   local content = json.parse(session.content)
 
   if content then
     local eventName = content.EventName or nil
+    local eventSetup = content.EventSetup or nil
 
-    if eventName and UpdateEventName(eventGuid, eventName) then
-      local events = json.stringify {
-        data = GetEvents(eventGuid)
-      }
-      session:sendOKResponse(events)
-      return
+    if eventName then
+      if not UpdateEventName(eventGuid, eventName) then
+        return nil, nil, 400
+      end
     end
 
-    session:sendErrorResponse(404, "Event not found")
+    if eventSetup then
+      if not UpdateEventRaceSetup(eventGuid, eventSetup) then
+        return nil, nil, 400
+      end
+    end
+
+    local events = json.stringify {
+      data = GetEvents(eventGuid)
+    }
+    return events
   end
+  return nil, nil, 400
 end
 
 return {
   GetEvents = GetEvents,
   HandleGetAllEvents = HandleGetAllEvents,
   HandleGetSpecificEvents = HandleGetSpecificEvents,
-  HandleUpdateEventName = HandleUpdateEventName
+  HandleUpdateEvent = HandleUpdateEvent,
+  HandleCreateNewEvent = HandleCreateNewEvent,
+  HandleChangeEventState = HandleChangeEventState
 }

@@ -27,9 +27,12 @@ local function LoadWebserver()
   local status, err = pcall(function()
     Webserver = require("Webserver")
 
+    -- Note that the ordering of the path registration matters.
+    -- Put more specific paths before more general ones
+
     -- General server status
     Webserver.registerHandler("/status", "GET", function(session)
-      session:sendOKResponse('{"status":"ok"}')
+      return '{"status":"ok"}'
     end)
     Webserver.registerHandler("/status/general", "GET", serverManager.HandleGetServerState)
     Webserver.registerHandler("/status/general/*", "GET", serverManager.HandleGetZoneState)
@@ -41,8 +44,10 @@ local function LoadWebserver()
 
     -- Event management
     Webserver.registerHandler("/events", "GET", eventManager.HandleGetAllEvents)
+    Webserver.registerHandler("/events", "POST", eventManager.HandleCreateNewEvent)
     Webserver.registerHandler("/events/*", "GET", eventManager.HandleGetSpecificEvents)
-    Webserver.registerHandler("/events/*", "POST", eventManager.HandleUpdateEventName)
+    Webserver.registerHandler("/events/*/state", "POST", eventManager.HandleChangeEventState)
+    Webserver.registerHandler("/events/*", "POST", eventManager.HandleUpdateEvent)
 
     local port = os.getenv("MOD_LUA_PORT") or "5001"
     Webserver.run("*", tonumber(port))
