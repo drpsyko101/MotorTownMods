@@ -11,6 +11,7 @@ package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/socket/core.d
 local socket = require("socket")
 local url = require("socket.url")
 local statics = require("Statics")
+local json = require("JsonParser")
 
 local string = string
 local table = table
@@ -326,7 +327,10 @@ local function processSession(client)
             sendResponse(client, content, mime, code)
         else
             LogMsg("Handler error: " .. content, "ERROR")
-            sendResponse(client, nil, nil, 500)
+            local err = json.parse {
+                error = content or "Unknown error"
+            }
+            sendResponse(client, err, nil, 500)
         end
     else
         -- No matching path and method. How about just the path?

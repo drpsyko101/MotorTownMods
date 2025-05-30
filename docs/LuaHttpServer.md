@@ -433,7 +433,14 @@ Returns all houses in the game.
 
 #### GET `/delivery/points`
 
-Returns all delivery points in-game. Note that this is a bandwith heavy operation. Use sparingly.
+Returns all delivery points in-game. Note that this is a bandwith heavy operation if not supplied with any filters. Use sparingly.
+
+<details>
+<summary>Query:</summary>
+
+- `filters` (string|multi) - `MaxDeliveryDistance,Supplies,DeliveryPointName,MaxPassiveDeliveries,MissionPointType,MaxDeliveryReceiveDistance,bUseAsDestinationInteraction,bConsumeContainer,Net_RuntimeFlags,bShowStorage,DemandConfigs,InputInventoryShareTarget,BasePayment,InputInventoryShare,Net_OutputInventory,DestinationCargoLimits,bIsSender,PassiveSupplies,Net_ProductionLocalFoodSupply,Net_ProductionBonusByPopulation,Net_ProductionBonusByProduction,ProductionConfigs,MaxStorage,Net_Deliveries,PaymentMultiplier,GameplayTags,bRemoveUnusedInputCargo,DestinationTypes,StorageConfigs,DestinationExcludeTypes,bIsReceiver,MissionPointName,Net_InputInventory,PointName,bLoadCargoBySpawnAtPoint,DemandPriority,MaxDeliveries,Demands`
+
+</details>
 
 <details>
 <summary>Response data:</summary>
@@ -768,7 +775,7 @@ Returns all delivery points in-game. Note that this is a bandwith heavy operatio
 
 #### GET `/delivery/points/<guid>`
 
-Returns a delivery point given the guid in-game.
+Returns a delivery point given the guid in-game. Uses the same queries as above.
 
 <details>
 <summary>Response data:</summary>
@@ -1166,7 +1173,31 @@ Returns the GUID of the removed event.
 ```json
 {
   "hook": "",
-  "data": ["835BB8FD4104E369D33C6BA74C41922A"]
+  "data": {
+    "EventGuid": "835BB8FD4104E369D33C6BA74C41922A"
+  }
+}
+```
+
+</details>
+
+#### Event checkpoint update
+
+Called when a player passed an event checkpoint.
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "hook": "/Script/MotorTown.MotorTownPlayerController:ServerPassedRaceSection",
+  "data": {
+    "Sender": "",
+    "EventGuid": "",
+    "SectionIndex": -1,
+    "TotalTimeSeconds": 0,
+    "LaptimeSeconds": 0
+  }
 }
 ```
 

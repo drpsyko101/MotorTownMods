@@ -385,7 +385,9 @@ RegisterHook(
     LogMsg("Event " .. eventGuid .. " removed", "DEBUG")
     local res = json.stringify {
       hook = serverRemoveEvent,
-      data = eventGuid
+      data = {
+        EventGuid = eventGuid
+      }
     }
     webhook.CreateWebhookRequest(res)
   end

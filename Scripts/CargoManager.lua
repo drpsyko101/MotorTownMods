@@ -273,7 +273,8 @@ end
 
 ---Get delivery points
 ---@param guid string? Filter by delivery guid
-local function GetDeliveryPoints(guid)
+---@param fields string[]? Filter by fields
+local function GetDeliveryPoints(guid, fields)
   local deliverySystem = GetDeliverySystem()
   local arr = {} ---@type table[]
 
@@ -281,9 +282,31 @@ local function GetDeliveryPoints(guid)
     for i = 1, #deliverySystem.DeliveryPoints, 1 do
       local point = DeliveryPointToTable(deliverySystem.DeliveryPoints[i])
       if guid and guid == point.DeliveryPointGuid then
+        local filtered = {}
+        if fields then
+          for j = 1, #fields, 1 do
+            filtered[fields[j]] = point[fields[j]]
+          end
+          return filtered
+        end
+
         return point
       end
-      table.insert(arr, point)
+      local filtered = {}
+      if fields then
+        for j = 1, #fields, 1 do
+          if not point[fields[j]] then
+            error("Field " .. fields[j] .. " does not exist")
+          end
+
+          filtered[fields[j]] = point[fields[j]]
+        end
+        -- Always returns the delivery point guid
+        filtered.DeliveryPointGuid = point.DeliveryPointGuid
+        table.insert(arr, filtered)
+      else
+        table.insert(arr, point)
+      end
     end
   end
   return arr
@@ -295,9 +318,19 @@ end
 ---@type RequestPathHandler
 local function HandleGetDeliveryPoints(session)
   local guid = session.urlComponents[3] or nil
+  local filters = {}
+
+  if session.queryComponents.filters then
+    for index, value in ipairs(SplitString(session.queryComponents.filters, ",")) do
+      table.insert(filters, value)
+    end
+  else
+    filters = nil
+  end
+
   local data = {} ---@type table[]
 
-  data = GetDeliveryPoints(guid)
+  data = GetDeliveryPoints(guid, filters)
   return json.stringify {
     data = data
   }
