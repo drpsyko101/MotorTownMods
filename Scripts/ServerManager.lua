@@ -170,6 +170,8 @@ if os.getenv("MOD_AUTO_FPS_ENABLE") then
     end)
 end
 
+-- Register console commands
+
 RegisterConsoleCommandHandler("getserverstate", function(Cmd, CommandParts, Ar)
     LogMsg(json.stringify(GetServerState()))
     return true
@@ -182,6 +184,8 @@ RegisterConsoleCommandHandler("setnpctraffic", function(Cmd, CommandParts, Ar)
     LogMsg("Set NPC traffic density to " .. density * 100 .. "%")
     return true
 end)
+
+-- HTTP request handlers
 
 ---Handle the get server state commands
 ---@type RequestPathHandler

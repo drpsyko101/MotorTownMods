@@ -10,15 +10,21 @@ Query parameter and/or request body is not needed unless specified.
 
 Returns Lua HTTP server status.
 
-Response:
+<details>
+<summary>Response data:</summary>
 
 ```json
 { "status": "ok" }
 ```
 
+</details>
+
 #### GET `/status/general`
 
 Returns general server status
+
+<details>
+<summary>Response data:</summary>
 
 ```json
 {
@@ -92,9 +98,14 @@ Returns general server status
 }
 ```
 
+</details>
+
 #### GET `/status/general/<zone>`
 
 Returns a specific zone status. Available zone keys can be found from `/status/general` data.
+
+<details>
+<summary>Response data:</summary>
 
 ```json
 {
@@ -109,11 +120,14 @@ Returns a specific zone status. Available zone keys can be found from `/status/g
 }
 ```
 
+</details>
+
 #### POST `/status/traffic`
 
 Update the traffic related settings. Each request parameter is optional.
 
-Request body:
+<details>
+<summary>Request body:</summary>
 
 ```json
 {
@@ -122,11 +136,16 @@ Request body:
 }
 ```
 
-Response:
+</details>
+
+<details>
+<summary>Response data:</summary>
 
 ```json
 { "status": "ok" }
 ```
+
+</details>
 
 ### Player Management
 
@@ -134,7 +153,8 @@ Response:
 
 Returns all available player states.
 
-Response:
+<details>
+<summary>Response data:</summary>
 
 ```json
 {
@@ -159,6 +179,8 @@ Response:
 }
 ```
 
+</details>
+
 #### GET `/players/<guid>`
 
 Returns the specified player state. Output the same response JSON as above.
@@ -167,9 +189,10 @@ Returns the specified player state. Output the same response JSON as above.
 
 #### GET `/events`
 
-Get all active events
+Get all active events.
 
-Response:
+<details>
+<summary>Response data:</summary>
 
 ```json
 {
@@ -216,11 +239,14 @@ Response:
 }
 ```
 
+</details>
+
 #### POST `/events`
 
 Create a new event. Will return the new event data similar to above if successful.
 
-Request body:
+<details>
+<summary>Response data:</summary>
 
 ```json
 {
@@ -275,6 +301,8 @@ Request body:
 }
 ```
 
+</details>
+
 #### GET `/events/<guid>`
 
 Returns the specified event. Outputs the same response JSON as `GET /events`, but only for a single object.
@@ -283,7 +311,8 @@ Returns the specified event. Outputs the same response JSON as `GET /events`, bu
 
 Update event data. Currently only supports changing the event name and/or race setup. Will return the event data similar as above if successful.
 
-Request body:
+<details>
+<summary>Request body:</summary>
 
 ```json
 {
@@ -295,38 +324,38 @@ Request body:
       "Waypoints": [
         {
           "Translation": {
-            "x": -388146.600618,
-            "y": 630854.981784,
-            "z": -11157.142135
+            "X": -388146.600618,
+            "Y": 630854.981784,
+            "Z": -11157.142135
           },
           "Scale3D": {
-            "x": 1,
-            "y": 19,
-            "z": 10
+            "X": 1,
+            "Y": 19,
+            "Z": 10
           },
           "Rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0.5696381972391096,
-            "w": 0.8218955677251077
+            "X": 0,
+            "Y": 0,
+            "Z": 0.5696381972391096,
+            "W": 0.8218955677251077
           }
         },
         {
           "Translation": {
-            "x": -386101.669514,
-            "y": 656907.891716,
-            "z": -11137.687317
+            "X": -386101.669514,
+            "Y": 656907.891716,
+            "Z": -11137.687317
           },
           "Scale3D": {
-            "x": 1,
-            "y": 28,
-            "z": 10
+            "X": 1,
+            "Y": 28,
+            "Z": 10
           },
           "Rotation": {
-            "x": 0,
-            "y": 0,
-            "z": 0.7823908105765881,
-            "w": 0.6227877804881126
+            "X": 0,
+            "Y": 0,
+            "Z": 0.7823908105765881,
+            "W": 0.6227877804881126
           }
         }
       ]
@@ -337,11 +366,18 @@ Request body:
 }
 ```
 
+</details>
+
+#### DELETE `/events/<guid>`
+
+Remove an event based on the given GUID. Will return `204` code if successful.
+
 #### POST `/events/<guid>/state`
 
 Change the state of a given event GUID. Will return a `204` code if successful. This function might fail if there are no players in-game.
 
-Request body:
+<details>
+<summary>Request body:</summary>
 
 ```json
 {
@@ -352,13 +388,727 @@ Request body:
 }
 ```
 
+</details>
+
+### Properties
+
+#### GET `/houses`
+
+Returns all houses in the game.
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "data": [
+    {
+      "Location": {
+        "Y": 153095.171875,
+        "Z": -20989.853515625,
+        "X": -54631.31640625
+      },
+      "Net_OwnerCharacterGuid": "EA50F9CE42B8A468F4FBFE8C42AD87ED",
+      "AreaSize": { "Y": 2300.0, "Z": 2000.0, "X": 2500.0 },
+      "Net_RentLeftTimeSeconds": -1.0,
+      "Net_OwnerName": "EnhancedBrow",
+      "ForSale": false,
+      "HousegKey": "FirstHouse",
+      "Net_OwnerUniqueNetId": "76561198041602277",
+      "FenceStep": 200.0,
+      "Teleport": {
+        "Y": 154461.02123321,
+        "Z": -20990.000000828,
+        "X": -55425.852504868
+      },
+      "Rotation": { "Pitch": 0.0, "Roll": 0.0, "Yaw": 96.066780090332 }
+    }
+  ]
+}
+```
+
+</details>
+
+### Cargo
+
+#### GET `/delivery/points`
+
+Returns all delivery points in-game. Note that this is a bandwith heavy operation. Use sparingly.
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "data": [
+    {
+      "MaxDeliveryDistance": 0.0,
+      "Supplies": {},
+      "DeliveryPointName": { "Name": "1100 Rest Area", "Number": 0 },
+      "MaxPassiveDeliveries": 5,
+      "MissionPointType": 2,
+      "MaxDeliveryReceiveDistance": 0.0,
+      "bUseAsDestinationInteraction": false,
+      "bConsumeContainer": false,
+      "Net_RuntimeFlags": 3,
+      "bShowStorage": true,
+      "DemandConfigs": [
+        {
+          "MaxStorage": 10,
+          "CargoKey": "MilitarySupplyBox_01_Empty",
+          "PaymentMultiplier": 1.0,
+          "CargoGameplayTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": "",
+            "TokenStreamVersion": 0,
+            "TagDictionary": {},
+            "QueryTokenStream": {}
+          },
+          "CargoType": 0
+        }
+      ],
+      "InputInventoryShareTarget": {},
+      "BasePayment": 0,
+      "InputInventoryShare": {},
+      "Net_OutputInventory": { "Entries": {} },
+      "DestinationCargoLimits": [
+        {
+          "DeliveryPointTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": " ALL( DeliveryPoint.Warehouse )",
+            "TokenStreamVersion": 0,
+            "TagDictionary": ["DeliveryPoint.Warehouse"],
+            "QueryTokenStream": [0, 1, 2, 1, 0]
+          },
+          "CargoTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": " ANY( Cargo.FoodIngredients )",
+            "TokenStreamVersion": 0,
+            "TagDictionary": ["Cargo.FoodIngredients"],
+            "QueryTokenStream": [0, 1, 1, 1, 0]
+          },
+          "LimitCount": 0
+        },
+        {
+          "DeliveryPointTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": " ALL( DeliveryPoint.Warehouse )",
+            "TokenStreamVersion": 0,
+            "TagDictionary": ["DeliveryPoint.Warehouse"],
+            "QueryTokenStream": [0, 1, 2, 1, 0]
+          },
+          "CargoTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": " ANY( Cargo.WarehouseStore )",
+            "TokenStreamVersion": 0,
+            "TagDictionary": ["Cargo.WarehouseStore"],
+            "QueryTokenStream": [0, 1, 1, 1, 0]
+          },
+          "LimitCount": 0
+        }
+      ],
+      "bIsSender": true,
+      "DeliveryPointGuid": "47152D314AE8ABEF9DB76CA1E3B3C649",
+      "PassiveSupplies": [
+        {
+          "MaxNumCargoPerDelivery": 6,
+          "CargoKey": "None",
+          "Priority": 4,
+          "MinNumCargoPerDelivery": 1,
+          "CargoType": 3,
+          "MaxDeliveries": 5
+        },
+        {
+          "MaxNumCargoPerDelivery": 5,
+          "CargoKey": "None",
+          "Priority": 4,
+          "MinNumCargoPerDelivery": 1,
+          "CargoType": 2,
+          "MaxDeliveries": 5
+        }
+      ],
+      "Net_ProductionLocalFoodSupply": 0.0,
+      "Net_ProductionBonusByPopulation": 0.0,
+      "Net_ProductionBonusByProduction": 0.0,
+      "ProductionConfigs": [
+        {
+          "OutputCargos": {},
+          "ProductionTimeSeconds": 60.0,
+          "InputCargoTypes": { "9": 1 },
+          "ProductionFlags": 3,
+          "TimeSinceLastProduction": 0.0,
+          "bHidden": false,
+          "OutputCargoTypes": { "3": 4 },
+          "InputCargos": {},
+          "LocalFoodSupply": 0.0,
+          "ProductionSpeedMultiplier": 1.0,
+          "OutputCargoRowGameplayTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": " ALL( Cargo.GeneralPallet )",
+            "TokenStreamVersion": 0,
+            "TagDictionary": ["Cargo.GeneralPallet"],
+            "QueryTokenStream": [0, 1, 2, 1, 0]
+          },
+          "InputCargoGameplayTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": "",
+            "TokenStreamVersion": 0,
+            "TagDictionary": {},
+            "QueryTokenStream": {}
+          },
+          "bStoreInputCargo": false
+        },
+        {
+          "OutputCargos": {},
+          "ProductionTimeSeconds": 10.0,
+          "InputCargoTypes": { "3": 1 },
+          "ProductionFlags": 3,
+          "TimeSinceLastProduction": 0.0,
+          "bHidden": true,
+          "OutputCargoTypes": {},
+          "InputCargos": {},
+          "LocalFoodSupply": 0.0,
+          "ProductionSpeedMultiplier": 1.0,
+          "OutputCargoRowGameplayTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": "",
+            "TokenStreamVersion": 0,
+            "TagDictionary": {},
+            "QueryTokenStream": {}
+          },
+          "InputCargoGameplayTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": "",
+            "TokenStreamVersion": 0,
+            "TagDictionary": {},
+            "QueryTokenStream": {}
+          },
+          "bStoreInputCargo": true
+        },
+        {
+          "OutputCargos": {},
+          "ProductionTimeSeconds": 10.0,
+          "InputCargoTypes": { "4": 1 },
+          "ProductionFlags": 3,
+          "TimeSinceLastProduction": 0.0,
+          "bHidden": true,
+          "OutputCargoTypes": {},
+          "InputCargos": {},
+          "LocalFoodSupply": 0.0,
+          "ProductionSpeedMultiplier": 1.0,
+          "OutputCargoRowGameplayTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": "",
+            "TokenStreamVersion": 0,
+            "TagDictionary": {},
+            "QueryTokenStream": {}
+          },
+          "InputCargoGameplayTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": " ALL( Cargo.WarehouseStore )",
+            "TokenStreamVersion": 0,
+            "TagDictionary": ["Cargo.WarehouseStore"],
+            "QueryTokenStream": [0, 1, 2, 1, 0]
+          },
+          "bStoreInputCargo": true
+        },
+        {
+          "OutputCargos": { "MilitarySupplyBox_01": 1 },
+          "ProductionTimeSeconds": 10.0,
+          "InputCargoTypes": {},
+          "ProductionFlags": 3,
+          "TimeSinceLastProduction": 0.0,
+          "bHidden": false,
+          "OutputCargoTypes": {},
+          "InputCargos": { "MilitarySupplyBox_01_Empty": 1 },
+          "LocalFoodSupply": 0.0,
+          "ProductionSpeedMultiplier": 1.0,
+          "OutputCargoRowGameplayTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": "",
+            "TokenStreamVersion": 0,
+            "TagDictionary": {},
+            "QueryTokenStream": {}
+          },
+          "InputCargoGameplayTagQuery": {
+            "UserDescription": "",
+            "AutoDescription": "",
+            "TokenStreamVersion": 0,
+            "TagDictionary": {},
+            "QueryTokenStream": {}
+          },
+          "bStoreInputCargo": false
+        }
+      ],
+      "MaxStorage": 50,
+      "Net_Deliveries": [
+        {
+          "PathDistance": 572316.0625,
+          "DeliveryFlags": 0,
+          "PaymentMultiplierBySupply": 0.0,
+          "ReceiverPoint": "FD77C5AF49B45F4260DB538B7A086276",
+          "CargoKey": "BoxPallete_03",
+          "ColorIndex": -1,
+          "PathClimbHeight": 3766.0307617188,
+          "ID": 57,
+          "PaymentMultiplierByDemand": 0.0,
+          "Weight": 669.77142333984,
+          "PaymentMultiplierByBalanceConfig": 2.5999999046326,
+          "TimerSeconds": -1.0,
+          "NumCargos": 4,
+          "RegisteredTimeSeconds": 0.0,
+          "SenderPoint": "47152D314AE8ABEF9DB76CA1E3B3C649",
+          "PathSpeedKPH": 60.295635223389,
+          "ExpiresAtTimeSeconds": 322.47912597656,
+          "CargoType": 3
+        },
+        {
+          "PathDistance": 488957.71875,
+          "DeliveryFlags": 0,
+          "PaymentMultiplierBySupply": 0.0,
+          "ReceiverPoint": "6AC429CF4D459399AB8530B8AA1C1FB5",
+          "CargoKey": "CarrotBox",
+          "ColorIndex": -1,
+          "PathClimbHeight": 3232.38671875,
+          "ID": 72,
+          "PaymentMultiplierByDemand": 0.0,
+          "Weight": 0.0,
+          "PaymentMultiplierByBalanceConfig": 3.5999999046326,
+          "TimerSeconds": -1.0,
+          "NumCargos": 1,
+          "RegisteredTimeSeconds": 0.0,
+          "SenderPoint": "47152D314AE8ABEF9DB76CA1E3B3C649",
+          "PathSpeedKPH": 50.534671783447,
+          "ExpiresAtTimeSeconds": 138.92004394531,
+          "CargoType": 2
+        },
+        {
+          "PathDistance": 2596794.25,
+          "DeliveryFlags": 0,
+          "PaymentMultiplierBySupply": 0.0,
+          "ReceiverPoint": "8824998640317D45AE6BEBADAA056CB6",
+          "CargoKey": "Rice",
+          "ColorIndex": -1,
+          "PathClimbHeight": 34777.5546875,
+          "ID": 194,
+          "PaymentMultiplierByDemand": 0.0,
+          "Weight": 0.0,
+          "PaymentMultiplierByBalanceConfig": 3.5999999046326,
+          "TimerSeconds": -1.0,
+          "NumCargos": 2,
+          "RegisteredTimeSeconds": 0.0,
+          "SenderPoint": "47152D314AE8ABEF9DB76CA1E3B3C649",
+          "PathSpeedKPH": 86.923835754395,
+          "ExpiresAtTimeSeconds": 264.70550537109,
+          "CargoType": 2
+        },
+        {
+          "PathDistance": 2689873.25,
+          "DeliveryFlags": 0,
+          "PaymentMultiplierBySupply": 0.0,
+          "ReceiverPoint": "AFF6017D41E6DA856BCFD3879D90BA06",
+          "CargoKey": "OrangeBox",
+          "ColorIndex": -1,
+          "PathClimbHeight": 34819.66015625,
+          "ID": 196,
+          "PaymentMultiplierByDemand": 0.0,
+          "Weight": 0.0,
+          "PaymentMultiplierByBalanceConfig": 3.5999999046326,
+          "TimerSeconds": -1.0,
+          "NumCargos": 2,
+          "RegisteredTimeSeconds": 0.0,
+          "SenderPoint": "47152D314AE8ABEF9DB76CA1E3B3C649",
+          "PathSpeedKPH": 85.707252502441,
+          "ExpiresAtTimeSeconds": 156.92727661133,
+          "CargoType": 2
+        },
+        {
+          "PathDistance": 410317.65625,
+          "DeliveryFlags": 0,
+          "PaymentMultiplierBySupply": 0.0,
+          "ReceiverPoint": "26F9073F4F6D6A6FDCD3BD97897A3B6F",
+          "CargoKey": "CornBox",
+          "ColorIndex": -1,
+          "PathClimbHeight": 2147.5737304688,
+          "ID": 441,
+          "PaymentMultiplierByDemand": 0.0,
+          "Weight": 0.0,
+          "PaymentMultiplierByBalanceConfig": 3.5999999046326,
+          "TimerSeconds": -1.0,
+          "NumCargos": 4,
+          "RegisteredTimeSeconds": 0.0,
+          "SenderPoint": "47152D314AE8ABEF9DB76CA1E3B3C649",
+          "PathSpeedKPH": 61.20641708374,
+          "ExpiresAtTimeSeconds": 75.503082275391,
+          "CargoType": 2
+        }
+      ],
+      "PaymentMultiplier": 1.2000000476837,
+      "GameplayTags": ["DeliveryPoint.Warehouse"],
+      "bRemoveUnusedInputCargo": true,
+      "DestinationTypes": {},
+      "StorageConfigs": [
+        { "MaxStorage": 10, "CargoKey": "None", "CargoType": 9 }
+      ],
+      "DestinationExcludeTypes": {},
+      "bIsReceiver": true,
+      "MissionPointName": "1100 Rest Area",
+      "Net_InputInventory": { "Entries": {} },
+      "PointName": { "Texts": ["1100 Rest Area"] },
+      "bLoadCargoBySpawnAtPoint": false,
+      "DemandPriority": 1,
+      "MaxDeliveries": 40,
+      "Demands": {}
+    }
+  ]
+}
+```
+
+</details>
+
+#### GET `/delivery/points/<guid>`
+
+Returns a delivery point given the guid in-game.
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "data": {
+    "MaxDeliveryDistance": 0.0,
+    "Supplies": {},
+    "DeliveryPointName": { "Name": "1100 Rest Area", "Number": 0 },
+    "MaxPassiveDeliveries": 5,
+    "MissionPointType": 2,
+    "MaxDeliveryReceiveDistance": 0.0,
+    "bUseAsDestinationInteraction": false,
+    "bConsumeContainer": false,
+    "Net_RuntimeFlags": 3,
+    "bShowStorage": true,
+    "DemandConfigs": [
+      {
+        "MaxStorage": 10,
+        "CargoKey": "MilitarySupplyBox_01_Empty",
+        "PaymentMultiplier": 1.0,
+        "CargoGameplayTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": "",
+          "TokenStreamVersion": 0,
+          "TagDictionary": {},
+          "QueryTokenStream": {}
+        },
+        "CargoType": 0
+      }
+    ],
+    "InputInventoryShareTarget": {},
+    "BasePayment": 0,
+    "InputInventoryShare": {},
+    "Net_OutputInventory": { "Entries": {} },
+    "DestinationCargoLimits": [
+      {
+        "DeliveryPointTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": " ALL( DeliveryPoint.Warehouse )",
+          "TokenStreamVersion": 0,
+          "TagDictionary": ["DeliveryPoint.Warehouse"],
+          "QueryTokenStream": [0, 1, 2, 1, 0]
+        },
+        "CargoTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": " ANY( Cargo.FoodIngredients )",
+          "TokenStreamVersion": 0,
+          "TagDictionary": ["Cargo.FoodIngredients"],
+          "QueryTokenStream": [0, 1, 1, 1, 0]
+        },
+        "LimitCount": 0
+      },
+      {
+        "DeliveryPointTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": " ALL( DeliveryPoint.Warehouse )",
+          "TokenStreamVersion": 0,
+          "TagDictionary": ["DeliveryPoint.Warehouse"],
+          "QueryTokenStream": [0, 1, 2, 1, 0]
+        },
+        "CargoTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": " ANY( Cargo.WarehouseStore )",
+          "TokenStreamVersion": 0,
+          "TagDictionary": ["Cargo.WarehouseStore"],
+          "QueryTokenStream": [0, 1, 1, 1, 0]
+        },
+        "LimitCount": 0
+      }
+    ],
+    "bIsSender": true,
+    "DeliveryPointGuid": "47152D314AE8ABEF9DB76CA1E3B3C649",
+    "PassiveSupplies": [
+      {
+        "MaxNumCargoPerDelivery": 6,
+        "CargoKey": "None",
+        "Priority": 4,
+        "MinNumCargoPerDelivery": 1,
+        "CargoType": 3,
+        "MaxDeliveries": 5
+      },
+      {
+        "MaxNumCargoPerDelivery": 5,
+        "CargoKey": "None",
+        "Priority": 4,
+        "MinNumCargoPerDelivery": 1,
+        "CargoType": 2,
+        "MaxDeliveries": 5
+      }
+    ],
+    "Net_ProductionLocalFoodSupply": 0.0,
+    "Net_ProductionBonusByPopulation": 0.0,
+    "Net_ProductionBonusByProduction": 0.0,
+    "ProductionConfigs": [
+      {
+        "OutputCargos": {},
+        "ProductionTimeSeconds": 60.0,
+        "InputCargoTypes": { "9": 1 },
+        "ProductionFlags": 3,
+        "TimeSinceLastProduction": 0.0,
+        "bHidden": false,
+        "OutputCargoTypes": { "3": 4 },
+        "InputCargos": {},
+        "LocalFoodSupply": 0.0,
+        "ProductionSpeedMultiplier": 1.0,
+        "OutputCargoRowGameplayTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": " ALL( Cargo.GeneralPallet )",
+          "TokenStreamVersion": 0,
+          "TagDictionary": ["Cargo.GeneralPallet"],
+          "QueryTokenStream": [0, 1, 2, 1, 0]
+        },
+        "InputCargoGameplayTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": "",
+          "TokenStreamVersion": 0,
+          "TagDictionary": {},
+          "QueryTokenStream": {}
+        },
+        "bStoreInputCargo": false
+      },
+      {
+        "OutputCargos": {},
+        "ProductionTimeSeconds": 10.0,
+        "InputCargoTypes": { "3": 1 },
+        "ProductionFlags": 3,
+        "TimeSinceLastProduction": 0.0,
+        "bHidden": true,
+        "OutputCargoTypes": {},
+        "InputCargos": {},
+        "LocalFoodSupply": 0.0,
+        "ProductionSpeedMultiplier": 1.0,
+        "OutputCargoRowGameplayTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": "",
+          "TokenStreamVersion": 0,
+          "TagDictionary": {},
+          "QueryTokenStream": {}
+        },
+        "InputCargoGameplayTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": "",
+          "TokenStreamVersion": 0,
+          "TagDictionary": {},
+          "QueryTokenStream": {}
+        },
+        "bStoreInputCargo": true
+      },
+      {
+        "OutputCargos": {},
+        "ProductionTimeSeconds": 10.0,
+        "InputCargoTypes": { "4": 1 },
+        "ProductionFlags": 3,
+        "TimeSinceLastProduction": 0.0,
+        "bHidden": true,
+        "OutputCargoTypes": {},
+        "InputCargos": {},
+        "LocalFoodSupply": 0.0,
+        "ProductionSpeedMultiplier": 1.0,
+        "OutputCargoRowGameplayTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": "",
+          "TokenStreamVersion": 0,
+          "TagDictionary": {},
+          "QueryTokenStream": {}
+        },
+        "InputCargoGameplayTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": " ALL( Cargo.WarehouseStore )",
+          "TokenStreamVersion": 0,
+          "TagDictionary": ["Cargo.WarehouseStore"],
+          "QueryTokenStream": [0, 1, 2, 1, 0]
+        },
+        "bStoreInputCargo": true
+      },
+      {
+        "OutputCargos": { "MilitarySupplyBox_01": 1 },
+        "ProductionTimeSeconds": 10.0,
+        "InputCargoTypes": {},
+        "ProductionFlags": 3,
+        "TimeSinceLastProduction": 0.0,
+        "bHidden": false,
+        "OutputCargoTypes": {},
+        "InputCargos": { "MilitarySupplyBox_01_Empty": 1 },
+        "LocalFoodSupply": 0.0,
+        "ProductionSpeedMultiplier": 1.0,
+        "OutputCargoRowGameplayTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": "",
+          "TokenStreamVersion": 0,
+          "TagDictionary": {},
+          "QueryTokenStream": {}
+        },
+        "InputCargoGameplayTagQuery": {
+          "UserDescription": "",
+          "AutoDescription": "",
+          "TokenStreamVersion": 0,
+          "TagDictionary": {},
+          "QueryTokenStream": {}
+        },
+        "bStoreInputCargo": false
+      }
+    ],
+    "MaxStorage": 50,
+    "Net_Deliveries": [
+      {
+        "PathDistance": 572316.0625,
+        "DeliveryFlags": 0,
+        "PaymentMultiplierBySupply": 0.0,
+        "ReceiverPoint": "FD77C5AF49B45F4260DB538B7A086276",
+        "CargoKey": "BoxPallete_03",
+        "ColorIndex": -1,
+        "PathClimbHeight": 3766.0307617188,
+        "ID": 57,
+        "PaymentMultiplierByDemand": 0.0,
+        "Weight": 669.77142333984,
+        "PaymentMultiplierByBalanceConfig": 2.5999999046326,
+        "TimerSeconds": -1.0,
+        "NumCargos": 4,
+        "RegisteredTimeSeconds": 0.0,
+        "SenderPoint": "47152D314AE8ABEF9DB76CA1E3B3C649",
+        "PathSpeedKPH": 60.295635223389,
+        "ExpiresAtTimeSeconds": 322.47912597656,
+        "CargoType": 3
+      },
+      {
+        "PathDistance": 488957.71875,
+        "DeliveryFlags": 0,
+        "PaymentMultiplierBySupply": 0.0,
+        "ReceiverPoint": "6AC429CF4D459399AB8530B8AA1C1FB5",
+        "CargoKey": "CarrotBox",
+        "ColorIndex": -1,
+        "PathClimbHeight": 3232.38671875,
+        "ID": 72,
+        "PaymentMultiplierByDemand": 0.0,
+        "Weight": 0.0,
+        "PaymentMultiplierByBalanceConfig": 3.5999999046326,
+        "TimerSeconds": -1.0,
+        "NumCargos": 1,
+        "RegisteredTimeSeconds": 0.0,
+        "SenderPoint": "47152D314AE8ABEF9DB76CA1E3B3C649",
+        "PathSpeedKPH": 50.534671783447,
+        "ExpiresAtTimeSeconds": 138.92004394531,
+        "CargoType": 2
+      },
+      {
+        "PathDistance": 2596794.25,
+        "DeliveryFlags": 0,
+        "PaymentMultiplierBySupply": 0.0,
+        "ReceiverPoint": "8824998640317D45AE6BEBADAA056CB6",
+        "CargoKey": "Rice",
+        "ColorIndex": -1,
+        "PathClimbHeight": 34777.5546875,
+        "ID": 194,
+        "PaymentMultiplierByDemand": 0.0,
+        "Weight": 0.0,
+        "PaymentMultiplierByBalanceConfig": 3.5999999046326,
+        "TimerSeconds": -1.0,
+        "NumCargos": 2,
+        "RegisteredTimeSeconds": 0.0,
+        "SenderPoint": "47152D314AE8ABEF9DB76CA1E3B3C649",
+        "PathSpeedKPH": 86.923835754395,
+        "ExpiresAtTimeSeconds": 264.70550537109,
+        "CargoType": 2
+      },
+      {
+        "PathDistance": 2689873.25,
+        "DeliveryFlags": 0,
+        "PaymentMultiplierBySupply": 0.0,
+        "ReceiverPoint": "AFF6017D41E6DA856BCFD3879D90BA06",
+        "CargoKey": "OrangeBox",
+        "ColorIndex": -1,
+        "PathClimbHeight": 34819.66015625,
+        "ID": 196,
+        "PaymentMultiplierByDemand": 0.0,
+        "Weight": 0.0,
+        "PaymentMultiplierByBalanceConfig": 3.5999999046326,
+        "TimerSeconds": -1.0,
+        "NumCargos": 2,
+        "RegisteredTimeSeconds": 0.0,
+        "SenderPoint": "47152D314AE8ABEF9DB76CA1E3B3C649",
+        "PathSpeedKPH": 85.707252502441,
+        "ExpiresAtTimeSeconds": 156.92727661133,
+        "CargoType": 2
+      },
+      {
+        "PathDistance": 410317.65625,
+        "DeliveryFlags": 0,
+        "PaymentMultiplierBySupply": 0.0,
+        "ReceiverPoint": "26F9073F4F6D6A6FDCD3BD97897A3B6F",
+        "CargoKey": "CornBox",
+        "ColorIndex": -1,
+        "PathClimbHeight": 2147.5737304688,
+        "ID": 441,
+        "PaymentMultiplierByDemand": 0.0,
+        "Weight": 0.0,
+        "PaymentMultiplierByBalanceConfig": 3.5999999046326,
+        "TimerSeconds": -1.0,
+        "NumCargos": 4,
+        "RegisteredTimeSeconds": 0.0,
+        "SenderPoint": "47152D314AE8ABEF9DB76CA1E3B3C649",
+        "PathSpeedKPH": 61.20641708374,
+        "ExpiresAtTimeSeconds": 75.503082275391,
+        "CargoType": 2
+      }
+    ],
+    "PaymentMultiplier": 1.2000000476837,
+    "GameplayTags": ["DeliveryPoint.Warehouse"],
+    "bRemoveUnusedInputCargo": true,
+    "DestinationTypes": {},
+    "StorageConfigs": [
+      { "MaxStorage": 10, "CargoKey": "None", "CargoType": 9 }
+    ],
+    "DestinationExcludeTypes": {},
+    "bIsReceiver": true,
+    "MissionPointName": "1100 Rest Area",
+    "Net_InputInventory": { "Entries": {} },
+    "PointName": { "Texts": ["1100 Rest Area"] },
+    "bLoadCargoBySpawnAtPoint": false,
+    "DemandPriority": 1,
+    "MaxDeliveries": 40,
+    "Demands": {}
+  }
+}
+```
+
+</details>
+
 ## Webhooks
 
 ### Events
 
 #### Event creation
 
-Returns the new event data:
+Returns the new event data.
+
+<details>
+<summary>Response data:</summary>
 
 ```json
 {
@@ -386,9 +1136,14 @@ Returns the new event data:
 }
 ```
 
+</details>
+
 #### Event state changed
 
 Returns the GUID of the event and the new event state.
+
+<details>
+<summary>Response data:</summary>
 
 ```json
 {
@@ -399,9 +1154,14 @@ Returns the GUID of the event and the new event state.
 }
 ```
 
+</details>
+
 #### Event removal
 
-Returns the GUID of the removed event
+Returns the GUID of the removed event.
+
+<details>
+<summary>Response data:</summary>
 
 ```json
 {
@@ -409,3 +1169,5 @@ Returns the GUID of the removed event
   "data": ["835BB8FD4104E369D33C6BA74C41922A"]
 }
 ```
+
+</details>

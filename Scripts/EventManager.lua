@@ -260,7 +260,13 @@ local function ChangeEventState(eventGuid, state)
 
       for i = 1, #gameState.Net_EventSystem.Net_Events, 1 do
         local event = gameState.Net_EventSystem.Net_Events[i]
+
         if GuidToString(event.EventGuid) == eventGuid then
+          -- Race won't start if there are no players or waypoints
+          if #event.Players == 0 or #event.RaceSetup.Route.Waypoints == 0 then
+            return false
+          end
+
           -- RPC call doesn't support StructProperty, so were using table instead
           PC:ServerChangeEventState(
             {
@@ -270,6 +276,39 @@ local function ChangeEventState(eventGuid, state)
               D = event.EventGuid.D
             },
             state
+          )
+          return true
+        end
+      end
+    end
+  end
+  return false
+end
+
+---Remove an event
+---@param eventGuid string
+local function RemoveEvent(eventGuid)
+  local gameState = GetMotorTownGameState()
+
+  if gameState:IsValid() then
+    if gameState.Net_EventSystem:IsValid() and #gameState.PlayerArray > 0 then
+      local PC = gameState.PlayerArray[1]:GetPlayerController()
+      ---@cast PC AMotorTownPlayerController
+
+      if not PC:IsValid() then return false end
+
+      for i = 1, #gameState.Net_EventSystem.Net_Events, 1 do
+        local event = gameState.Net_EventSystem.Net_Events[i]
+
+        if GuidToString(event.EventGuid) == eventGuid then
+          -- RPC call doesn't support StructProperty, so were using table instead
+          PC:ServerRemoveEvent(
+            {
+              A = event.EventGuid.A,
+              B = event.EventGuid.B,
+              C = event.EventGuid.C,
+              D = event.EventGuid.D
+            }
           )
           return true
         end
@@ -351,6 +390,8 @@ RegisterHook(
     webhook.CreateWebhookRequest(res)
   end
 )
+
+-- HTTP request handlers
 
 ---Handle request for all events
 ---@type RequestPathHandler
@@ -436,11 +477,23 @@ local function HandleUpdateEvent(session)
   return nil, nil, 400
 end
 
+---Handle request for event removal
+---@type RequestPathHandler
+local function HandleRemoveEvent(session)
+  local eventGuid = session.pathComponents[2]
+
+  if RemoveEvent(eventGuid) then
+    return nil, nil, 204
+  end
+  return nil, nil, 400
+end
+
 return {
   GetEvents = GetEvents,
   HandleGetAllEvents = HandleGetAllEvents,
   HandleGetSpecificEvents = HandleGetSpecificEvents,
   HandleUpdateEvent = HandleUpdateEvent,
   HandleCreateNewEvent = HandleCreateNewEvent,
-  HandleChangeEventState = HandleChangeEventState
+  HandleChangeEventState = HandleChangeEventState,
+  HandleRemoveEvent = HandleRemoveEvent
 }

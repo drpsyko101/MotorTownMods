@@ -12,7 +12,7 @@ end
 
 ---Convert FRotator to JSON serializable table
 ---@param rotation FQuat
-function RotatorToTable(rotation)
+function QuatToTable(rotation)
   return {
     W = rotation.W,
     X = rotation.X,
@@ -21,11 +21,21 @@ function RotatorToTable(rotation)
   }
 end
 
+---Convert FRotator to JSON serializable table
+---@param rotation FRotator
+function RotatorToTable(rotation)
+  return {
+    Pitch = rotation.Pitch,
+    Yaw = rotation.Yaw,
+    Roll = rotation.Roll
+  }
+end
+
 ---Convert FTransform to JSON serializable table
 ---@param transform FTransform
 function TransformToTable(transform)
   local location = VectorToTable(transform.Translation)
-  local rotation = RotatorToTable(transform.Rotation)
+  local rotation = QuatToTable(transform.Rotation)
   local scale = VectorToTable(transform.Scale3D)
   return {
     Location = location,
@@ -146,4 +156,43 @@ function StringToGuid(input)
     }
   end
   error(input .. " is not a valid Guid")
+end
+
+---Convert FGameplayTag to string
+---@param gameplayTag FGameplayTag
+function GameplayTagToString(gameplayTag)
+  return gameplayTag.TagName:ToString()
+end
+
+---Convert FGameplayTagContainer to string
+---@param gameplayTag FGameplayTagContainer
+function GameplayTagContainerToString(gameplayTag)
+  local arr = {}
+  gameplayTag.GameplayTags:ForEach(function(index, element)
+    table.insert(arr, element:get().TagName:ToString())
+  end)
+  return arr
+end
+
+---Convert FGameplayTagQuery to JSON serializable table
+---@param query FGameplayTagQuery
+function GameplayTagQueryToTable(query)
+  local data = {}
+
+  data.AutoDescription = query.AutoDescription:ToString()
+
+  data.QueryTokenStream = {} ---@type number[]
+  query.QueryTokenStream:ForEach(function(index, element)
+    table.insert(data.QueryTokenStream, element:get())
+  end)
+
+  data.TagDictionary = {} ---@type string[]
+  query.TagDictionary:ForEach(function(index, element)
+    table.insert(data.TagDictionary, GameplayTagToString(element:get()))
+  end)
+
+  data.TokenStreamVersion = query.TokenStreamVersion
+  data.UserDescription = query.UserDescription:ToString()
+
+  return data
 end
