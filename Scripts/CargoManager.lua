@@ -294,7 +294,7 @@ end
 ---Handle GetDeliveryPoints request
 ---@type RequestPathHandler
 local function HandleGetDeliveryPoints(session)
-  local guid = session.urlComponents[2] or nil
+  local guid = session.urlComponents[3] or nil
   local data = {} ---@type table[]
 
   data = GetDeliveryPoints(guid)

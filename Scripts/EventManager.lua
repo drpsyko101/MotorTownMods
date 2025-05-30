@@ -391,6 +391,33 @@ RegisterHook(
   end
 )
 
+local passRaceSection = "/Script/MotorTown.MotorTownPlayerController:ServerPassedRaceSection"
+RegisterHook(
+  passRaceSection,
+  function(self, eventGuid, sectionIndex, totalTimeSeconds, laptimeSeconds)
+    local PC = self:get() ---@cast PC APlayerController
+
+    if not PC:IsValid() then return end
+
+    local PS = PC.PlayerState ---@cast PS AMotorTownPlayerState
+
+    if not PS:IsValid() then return end
+
+    local res = json.stringify {
+      hook = passRaceSection,
+      data = {
+        Sender = GuidToString(PS.CharacterGuid),
+        EventGuid = GuidToString(eventGuid:get()),
+        SectionIndex = sectionIndex:get(),
+        TotalTimeSeconds = totalTimeSeconds:get(),
+        LaptimeSeconds = laptimeSeconds:get()
+      }
+    }
+    LogMsg(res, "DEBUG")
+    webhook.CreateWebhookRequest(res)
+  end
+)
+
 -- HTTP request handlers
 
 ---Handle request for all events
