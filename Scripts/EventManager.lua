@@ -408,7 +408,7 @@ RegisterHook(
     local res = json.stringify {
       hook = passRaceSection,
       data = {
-        Sender = GuidToString(PS.CharacterGuid),
+        SenderGuid = GuidToString(PS.CharacterGuid),
         EventGuid = GuidToString(eventGuid:get()),
         SectionIndex = sectionIndex:get(),
         TotalTimeSeconds = totalTimeSeconds:get(),

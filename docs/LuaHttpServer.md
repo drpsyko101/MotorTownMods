@@ -1192,12 +1192,30 @@ Called when a player passed an event checkpoint.
 {
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerPassedRaceSection",
   "data": {
-    "Sender": "",
+    "SenderGuid": "",
     "EventGuid": "",
     "SectionIndex": -1,
     "TotalTimeSeconds": 0,
     "LaptimeSeconds": 0
   }
+}
+```
+
+</details>
+
+### Cargo
+
+#### Cargo accept delivery
+
+Called when a player accepted a cargo delivery.
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "hook": "/Script/MotorTown.MotorTownPlayerController:ServerAcceptDelivery",
+  "data": { "DeliveryId": 27, "Sender": "EA50F9CE42B8A468F4FBFE8C42AD87ED" }
 }
 ```
 

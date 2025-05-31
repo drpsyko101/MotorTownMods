@@ -1,4 +1,5 @@
 local json = require("JsonParser")
+local webhook = require("Webclient")
 
 local _deliverySystem = CreateInvalidObject()
 ---Get Motor Town delivery system
@@ -271,27 +272,85 @@ local function DeliveryPointToTable(point)
   return data
 end
 
+---Convert FMTCargoRepLocalMovement to JSON serializable table
+---@param movement FMTCargoRepLocalMovement
+local function CargoMovementToTable(movement)
+  return {
+    Location = VectorToTable(movement.Location),
+    Quat = QuatToTable(movement.Quat),
+    bIsValid = movement.bIsValid
+  }
+end
+
+---Convert AMTCargo to JSON serializable table
+---@param cargo AMTCargo
+local function CargoToTable(cargo)
+  local data = {}
+
+  data.bCanPickup = cargo.bCanPickup
+  data.bCanAutoload = cargo.bCanAutoload
+  data.Net_bIsAttachedDummy = cargo.Net_bIsAttachedDummy
+  -- data.Mesh = cargo.Mesh
+  -- data.CollisionResponse_NoSimulate = cargo.CollisionResponse_NoSimulate
+  -- data.CollisionResponse_NoSimulateAttached = cargo.CollisionResponse_NoSimulateAttached
+  -- data.DumpParticle = cargo.DumpParticle
+  -- data.DumpSound = cargo.DumpSound
+  data.EmptyContainerMass = cargo.EmptyContainerMass
+  -- data.PickupSound = cargo.PickupSound
+  -- data.HitSound = cargo.HitSound
+  -- data.InteractableComponent = cargo.InteractableComponent
+  -- data.Net_DroppedCargoSpace = cargo.Net_DroppedCargoSpace
+  data.Net_MovementOwnerPC = GetPlayerGuid(cargo.Net_MovementOwnerPC)
+  data.Server_ManualLoadingPaidPC = GetPlayerGuid(cargo.Server_ManualLoadingPaidPC)
+  data.Server_LastMovementOwnerPC = GetPlayerGuid(cargo.Server_LastMovementOwnerPC)
+
+  data.Server_TempMovementOwnerPCs = {}
+  cargo.Server_TempMovementOwnerPCs:ForEach(function(key, value)
+    data.Server_TempMovementOwnerPCs[GetPlayerGuid(key:get())] = value:get()
+  end)
+
+  -- data.DestinationInteractionActor = cargo.DestinationInteractionActor
+  data.Net_CargoKey = cargo.Net_CargoKey:ToString()
+  data.Net_ColorIndex = cargo.Net_ColorIndex
+  data.Net_Weight = cargo.Net_Weight
+  data.Net_Damage = cargo.Net_Damage
+  data.Net_CargoActorFlags = cargo.Net_CargoActorFlags
+  -- data.Net_SenderActor = cargo.Net_SenderActor
+  -- data.Net_DestinationActor = cargo.Net_DestinationActor
+  data.Net_DeliveryId = cargo.Net_DeliveryId
+  data.Net_bEnableSimulation = cargo.Net_bEnableSimulation
+  data.Net_EnableCollision = cargo.Net_EnableCollision
+  data.Net_DestinationLocation = VectorToTable(cargo.Net_DestinationLocation)
+  data.Net_SenderAbsoluteLocation = VectorToTable(cargo.Net_SenderAbsoluteLocation)
+  data.Net_SingleCargoPayment = RewardToTable(cargo.Net_SingleCargoPayment)
+  data.Net_Payment = RewardToTable(cargo.Net_Payment)
+  data.Net_SavedLifeTimeSeconds = cargo.Net_SavedLifeTimeSeconds
+  data.Net_TimeLeftSeconds = cargo.Net_TimeLeftSeconds
+  -- data.Net_CarrierComponent = cargo.Net_CarrierComponent
+  -- data.Server_LastValidCarrierComponent = cargo.Server_LastValidCarrierComponent
+  data.Net_LocalRepMovement = CargoMovementToTable(cargo.Net_LocalRepMovement)
+  data.Net_bIsEmptyContainer = cargo.Net_bIsEmptyContainer
+  data.Net_OwnerName = cargo.Net_OwnerName:ToString()
+  -- data.Net_LastValidCarrierVehicle = cargo.Net_LastValidCarrierVehicle
+  data.DroppedMarker = VectorToTable(cargo.DroppedMarker:K2_GetActorLocation())
+  data.Marker = VectorToTable(cargo.Marker:K2_GetActorLocation())
+  -- data.Net_Strap = cargo.Net_Strap
+  data.Net_PickupTimeSeconds = cargo.Net_PickupTimeSeconds
+
+  return data
+end
+
 ---Get delivery points
 ---@param guid string? Filter by delivery guid
 ---@param fields string[]? Filter by fields
-local function GetDeliveryPoints(guid, fields)
+---@param limit number? Limit the number of results
+local function GetDeliveryPoints(guid, fields, limit)
   local deliverySystem = GetDeliverySystem()
   local arr = {} ---@type table[]
 
   if deliverySystem:IsValid() then
     for i = 1, #deliverySystem.DeliveryPoints, 1 do
       local point = DeliveryPointToTable(deliverySystem.DeliveryPoints[i])
-      if guid and guid == point.DeliveryPointGuid then
-        local filtered = {}
-        if fields then
-          for j = 1, #fields, 1 do
-            filtered[fields[j]] = point[fields[j]]
-          end
-          return filtered
-        end
-
-        return point
-      end
       local filtered = {}
       if fields then
         for j = 1, #fields, 1 do
@@ -303,14 +362,43 @@ local function GetDeliveryPoints(guid, fields)
         end
         -- Always returns the delivery point guid
         filtered.DeliveryPointGuid = point.DeliveryPointGuid
+
+        -- Returns only the selected guid if valid
+        if guid and guid == point.DeliveryPointGuid then
+          return filtered
+        end
+
         table.insert(arr, filtered)
       else
         table.insert(arr, point)
+      end
+
+      -- Limit result if set
+      if limit and #arr >= limit then
+        return arr
       end
     end
   end
   return arr
 end
+
+-- Register event hooks
+
+local loadCargo = "/Script/MotorTown.MotorTownPlayerController:ServerAcceptDelivery"
+RegisterHook(
+  loadCargo,
+  function(context, DeliveryId)
+    local res = json.stringify {
+      hook = loadCargo,
+      data = {
+        Sender = GetPlayerGuid(context:get()),
+        DeliveryId = DeliveryId:get()
+      }
+    }
+    LogMsg(res, "DEBUG")
+    webhook.CreateWebhookRequest(res)
+  end
+)
 
 -- HTTP request handlers
 
@@ -318,10 +406,13 @@ end
 ---@type RequestPathHandler
 local function HandleGetDeliveryPoints(session)
   local guid = session.urlComponents[3] or nil
-  local filters = {}
+  local filters = {} ---@type string[]|nil
+  local limit = tonumber(session.queryComponents.limit) or nil
 
-  if session.queryComponents.filters then
-    for index, value in ipairs(SplitString(session.queryComponents.filters, ",")) do
+  local rawFilters = session.queryComponents.filters
+  if rawFilters then
+    filters = {}
+    for index, value in ipairs(SplitString(rawFilters, ",")) do
       table.insert(filters, value)
     end
   else
@@ -330,7 +421,7 @@ local function HandleGetDeliveryPoints(session)
 
   local data = {} ---@type table[]
 
-  data = GetDeliveryPoints(guid, filters)
+  data = GetDeliveryPoints(guid, filters, limit)
   return json.stringify {
     data = data
   }

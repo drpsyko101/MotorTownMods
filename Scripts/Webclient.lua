@@ -1,16 +1,20 @@
 local json = require("JsonParser")
 local statics = require("Statics")
 
+local webhookFailure = false
 local function __createWebhookRequest(content)
+    local webhookUrl = os.getenv("MOD_WEBHOOK_URL")
+
+    if not webhookUrl then return end
+
+    if webhookFailure then return end
+
     local dir = os.getenv("PWD") or io.popen("cd"):read()
     package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?/core.dll"
     package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
     local http = require("socket.http")
     local https = require("ssl.https")
     local ltn12 = require("ltn12")
-    local webhookUrl = os.getenv("MOD_WEBHOOK_URL")
-
-    if not webhookUrl then return end
 
     local bheaders = {
         ["content-type"] = "application/json",
@@ -52,10 +56,12 @@ end
 
 ---Send a request synchronously to the specified webhook URL
 ---@param content string Request body in JSON string format
+---@return boolean
 local function CreateWebhookRequest(content)
     local state, err = pcall(__createWebhookRequest, content)
     if not state then
         LogMsg("Failed to create webhook request: " .. err, "ERROR")
+        webhookFailure = true
     end
     return state
 end

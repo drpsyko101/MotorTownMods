@@ -200,6 +200,7 @@ end
 ---Split string
 ---@param inputstr string
 ---@param sep string?
+---@return string[]
 function SplitString(inputstr, sep)
   -- if sep is null, set it as space
   if sep == nil then
@@ -215,4 +216,17 @@ function SplitString(inputstr, sep)
   end
   -- return the array
   return t
+end
+
+---Get a player controller guid
+---@param playerController APlayerController
+function GetPlayerGuid(playerController)
+  if not playerController:IsValid() then return nil end
+
+  local playerState = playerController.PlayerState
+  ---@cast playerState AMotorTownPlayerState
+
+  if not playerState:IsValid() then return nil end
+
+  return GuidToString(playerState.CharacterGuid)
 end
