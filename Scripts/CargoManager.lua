@@ -406,27 +406,18 @@ RegisterHook(
 ---@type RequestPathHandler
 local function HandleGetDeliveryPoints(session)
   local guid = session.urlComponents[3] or nil
-  local filters = {} ---@type string[]|nil
   local limit = tonumber(session.queryComponents.limit) or nil
 
   local rawFilters = session.queryComponents.filters
-  if rawFilters then
-    filters = {}
-    for index, value in ipairs(SplitString(rawFilters, ",")) do
-      table.insert(filters, value)
-    end
-  else
-    filters = nil
-  end
+  local filters = SplitString(rawFilters, ",")
 
-  local data = {} ---@type table[]
-
-  data = GetDeliveryPoints(guid, filters, limit)
+  local data = GetDeliveryPoints(guid, filters, limit)
   return json.stringify {
     data = data
   }
 end
 
 return {
-  HandleGetDeliveryPoints = HandleGetDeliveryPoints
+  HandleGetDeliveryPoints = HandleGetDeliveryPoints,
+  CargoToTable = CargoToTable
 }

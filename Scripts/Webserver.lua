@@ -323,14 +323,20 @@ local function processSession(client)
     if h then
         local status, content, mime, code = pcall(h.handler, client)
         -- Check if the handler returned any valid response
-        if status and (content or mime or code) then
+        if status then
             sendResponse(client, content, mime, code)
         else
-            LogMsg("Handler error: " .. content, "ERROR")
-            local err = json.parse {
-                error = content or "Unknown error"
-            }
-            sendResponse(client, err, nil, 500)
+            if not pcall(function()
+                    local errMsg = content or "Unknown error"
+                    LogMsg("Handler error: " .. content, "ERROR")
+                    -- TODO: Fix perser failed to escape certain characters
+                    local err = json.stringify {
+                        error = errMsg
+                    }
+                    sendResponse(client, err, nil, 500)
+                end) then
+                sendResponse(client, '{"error":"Internal server error"}', nil, 500)
+            end
         end
     else
         -- No matching path and method. How about just the path?

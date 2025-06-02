@@ -1,5 +1,99 @@
 local UEHelpers = require("UEHelpers")
 
+-- Importing functions to the global namespace of this mod just so that we don't have to retype 'UEHelpers.' over and over again.
+local GetKismetSystemLibrary = UEHelpers.GetKismetSystemLibrary
+local GetKismetMathLibrary = UEHelpers.GetKismetMathLibrary
+local GetPlayerController = UEHelpers.GetPlayerController
+
+local IsInitialized = false
+
+local function Init()
+  if not GetKismetSystemLibrary():IsValid() then error("KismetSystemLibrary not valid\n") end
+
+  if not GetKismetMathLibrary():IsValid() then error("KismetMathLibrary not valid\n") end
+
+  IsInitialized = true
+end
+
+Init()
+
+local function GetActorFromHitResult(HitResult)
+  if UnrealVersion:IsBelow(5, 0) then
+    return HitResult.Actor:Get()
+  elseif UnrealVersion:IsBelow(5, 4) then
+    return HitResult.HitObjectHandle.Actor:Get()
+  else
+    return HitResult.HitObjectHandle.ReferenceObject:Get()
+  end
+end
+
+local selectedActor = CreateInvalidObject()
+---@cast selectedActor AActor
+
+---Get selected actor
+---@return AActor
+function GetSelectedActor()
+  return selectedActor
+end
+
+---Get actor from line trace
+local function GetObjectFromLineTrace()
+  if not IsInitialized then return selectedActor end
+
+  local PlayerController = GetPlayerController()
+  local PlayerPawn = PlayerController.Pawn
+  local CameraManager = PlayerController.PlayerCameraManager
+  local StartVector = CameraManager:GetCameraLocation()
+  local AddValue = GetKismetMathLibrary():Multiply_VectorInt(
+    GetKismetMathLibrary():GetForwardVector(CameraManager:GetCameraRotation()), 50000.0)
+  local EndVector = GetKismetMathLibrary():Add_VectorVector(StartVector, AddValue)
+  local TraceColor = {
+    ["R"] = 0,
+    ["G"] = 0,
+    ["B"] = 0,
+    ["A"] = 0,
+  }
+  local TraceHitColor = TraceColor
+  local EDrawDebugTrace_Type_None = 0
+  local ETraceTypeQuery_TraceTypeQuery1 = 0
+  local ActorsToIgnore = {
+  }
+  local HitResult = {}
+  local WasHit = GetKismetSystemLibrary():LineTraceSingle(
+    PlayerPawn,
+    StartVector,
+    EndVector,
+    ETraceTypeQuery_TraceTypeQuery1,
+    false,
+    ActorsToIgnore,
+    EDrawDebugTrace_Type_None,
+    HitResult,
+    true,
+    TraceColor,
+    TraceHitColor,
+    0.0
+  )
+
+  if WasHit then
+    selectedActor = GetActorFromHitResult(HitResult)
+    LogMsg("Selected actor: " .. selectedActor:GetFullName())
+    return
+  end
+  selectedActor = CreateInvalidObject()
+end
+
+local function DeselectActor()
+  selectedActor = CreateInvalidObject()
+  LogMsg("Selected actor: none")
+end
+
+RegisterKeyBind(Key.F, { ModifierKey.CONTROL, ModifierKey.SHIFT }, GetObjectFromLineTrace)
+RegisterKeyBind(Key.D, { ModifierKey.CONTROL, ModifierKey.SHIFT }, DeselectActor)
+RegisterConsoleCommandHandler("deselectactor", function(Cmd, CommandParts, Ar)
+  DeselectActor()
+  return true
+end)
+
 ---Convert FVector to JSON serializable table
 ---@param vector FVector
 function VectorToTable(vector)
@@ -200,8 +294,9 @@ end
 ---Split string
 ---@param inputstr string
 ---@param sep string?
----@return string[]
+---@return string[]|nil
 function SplitString(inputstr, sep)
+  if inputstr == nil then return nil end
   -- if sep is null, set it as space
   if sep == nil then
     sep = '%s'
@@ -229,4 +324,53 @@ function GetPlayerGuid(playerController)
   if not playerState:IsValid() then return nil end
 
   return GuidToString(playerState.CharacterGuid)
+end
+
+---Convert FColor to JSON serializable table
+---@param color FColor
+function ColorToTable(color)
+  return {
+    R = color.R,
+    G = color.G,
+    B = color.B,
+    A = color.A
+  }
+end
+
+---Converts FVector2D to JSON serializable table
+---@param vector FVector2D
+function Vector2DToTable(vector)
+  return {
+    X = vector.X,
+    Y = vector.Y
+  }
+end
+
+---Convert FMTSettingValue to JSON serializable table
+---@param setting FMTSettingValue
+function SettingValueToTable(setting)
+  return {
+    ValueType = setting.ValueType,
+    FloatValue = setting.FloatValue,
+    Int64Value = setting.Int64Value,
+    BoolValue = setting.BoolValue,
+    StringValue = setting.StringValue:ToString(),
+    EnumValue = setting.EnumValue,
+  }
+end
+
+---Convert FMTItemInventory to JSON serializable table
+---@param item FMTItemInventory
+function ItemInventoryToTable(item)
+  local data = {}
+
+  data.Slots = {}
+  item.Slots:ForEach(function(index, element)
+    table.insert(data.Slots, {
+      Key = element:get().Key:ToString(),
+      NumStack = element:get().NumStack
+    })
+  end)
+
+  return data
 end

@@ -2,11 +2,11 @@ local json = require("JsonParser")
 local statics = require("Statics")
 
 local webhookFailure = false
-local function __createWebhookRequest(content)
-    local webhookUrl = os.getenv("MOD_WEBHOOK_URL")
 
-    if not webhookUrl then return end
-
+---Send a request to the specified URL
+---@param url string
+---@param content string?
+local function __createWebhookRequest(url, content)
     if webhookFailure then return end
 
     local dir = os.getenv("PWD") or io.popen("cd"):read()
@@ -27,10 +27,10 @@ local function __createWebhookRequest(content)
     local resHeaders = {}
     local resSecure = {}
 
-    LogMsg("Sending POST request to " .. webhookUrl .. " with payload size: " .. #content, "DEBUG")
-    if string.match(webhookUrl, "^https:") then
+    LogMsg("Sending POST request to " .. url .. " with payload size: " .. #content, "DEBUG")
+    if string.match(url, "^https:") then
         resState, resCode, resHeaders, resSecure = https.request {
-            url = webhookUrl,
+            url = url,
             method = "POST",
             headers = bheaders,
             source = ltn12.source.string(content),
@@ -40,7 +40,7 @@ local function __createWebhookRequest(content)
         }
     else
         resState, resCode, resHeaders = http.request {
-            url = webhookUrl,
+            url = url,
             method = "POST",
             headers = bheaders,
             source = ltn12.source.string(content),
@@ -55,10 +55,14 @@ local function __createWebhookRequest(content)
 end
 
 ---Send a request synchronously to the specified webhook URL
----@param content string Request body in JSON string format
+---@param content string? Request body in JSON string format
 ---@return boolean
 local function CreateWebhookRequest(content)
-    local state, err = pcall(__createWebhookRequest, content)
+    local url = os.getenv("MOD_WEBHOOK_URL")
+
+    if not url then return false end
+
+    local state, err = pcall(__createWebhookRequest, url, content)
     if not state then
         LogMsg("Failed to create webhook request: " .. err, "ERROR")
         webhookFailure = true
@@ -66,6 +70,23 @@ local function CreateWebhookRequest(content)
     return state
 end
 
+---Send a request synchronously to the specified webhook URL
+---@param path string
+---@param content string? Request body in JSON string format
+---@return boolean
+local function CreateServerRequest(path, content)
+    local url = os.getenv("MOD_SERVER_API_URL")
+
+    if not url then return false end
+
+    local state, err = pcall(__createWebhookRequest, url .. path, content)
+    if not state then
+        LogMsg("Failed to create server API request: " .. err, "ERROR")
+    end
+    return state
+end
+
 return {
-    CreateWebhookRequest = CreateWebhookRequest
+    CreateWebhookRequest = CreateWebhookRequest,
+    CreateServerRequest = CreateServerRequest
 }
