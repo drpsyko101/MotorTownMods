@@ -51,29 +51,13 @@ local function RaceEventToTable(event)
   return data
 end
 
----Convert EMTEventType to string
----@param type EMTEventType
-local function EventTypeToString(type)
-  if type == 1 then return "Race" end
-  return "None"
-end
-
----Convert event state to string
----@param state EMTEventState
-local function EventStateToString(state)
-  if state == 1 then return "Ready" end
-  if state == 2 then return "InProgress" end
-  if state == 3 then return "Finished" end
-  return "None"
-end
-
 ---Convert a FMTEvent to JSON serializable table
 ---@param event FMTEvent
 local function EventToTable(event)
   local data = {}
   data.EventGuid = GuidToString(event.EventGuid)
   data.EventName = event.EventName:ToString()
-  data.EventType = EventTypeToString(event.EventType)
+  data.EventType = event.EventType
   data.OwnerCharacterId = CharacterIdToTable(event.OwnerCharacterId)
 
   data.Players = {}
@@ -82,7 +66,7 @@ local function EventToTable(event)
   end)
 
   data.RaceSetup = RaceEventToTable(event.RaceSetup)
-  data.State = EventStateToString(event.State)
+  data.State = event.State
   data.bInCountdown = event.bInCountdown
 
   return data

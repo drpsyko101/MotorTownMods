@@ -28,3 +28,7 @@ Most of the settings can be configured using environment variables:
 ## Documentation
 
 More detailed instructions can be found in the [docs](./docs).
+
+## Contributing
+
+More contributions are welcomed! Read how to contribute [here](./docs/CONTRIBUTING.md).

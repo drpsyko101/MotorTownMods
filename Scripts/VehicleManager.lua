@@ -1503,10 +1503,31 @@ RegisterConsoleCommandHandler("despawnvehicle", function()
   return true
 end)
 
-RegisterConsoleCommandHandler("getvehicle", function()
-  local vehicle = GetVehicles(nil, nil, 1)
+RegisterConsoleCommandHandler("setvehicleparam", function(Cmd, CommandParts, Ar)
+  local fields = SplitString(table.remove(CommandParts, 1), ".")
+  local value = CommandParts[1]
 
-  LogMsg(json.stringify(vehicle), "DEBUG")
+  if not fields then
+    LogMsg("No fields value given.", "ERROR")
+    return true
+  end
+
+  if value == nil then
+    LogMsg("No valid value given.", "ERROR")
+    return true
+  end
+
+  local PC = UEHelpers:GetPlayerController()
+  if PC:IsValid() then
+    local pawn = PC:K2_GetPawn()
+    local vehicleClass = StaticFindObject("/Script/MotorTown.MTVehicle")
+    ---@cast vehicleClass UClass
+
+    if pawn:IsValid() and pawn:IsA(vehicleClass) then
+      RecursiveSetValue(pawn, fields, value)
+    end
+  end
+
   return true
 end)
 

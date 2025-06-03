@@ -374,3 +374,20 @@ function ItemInventoryToTable(item)
 
   return data
 end
+
+---Deep set table value
+---@param input table
+---@param fields string[]
+---@param value any
+function RecursiveSetValue(input, fields, value)
+  local field = table.remove(fields, 1)
+  if input[field] ~= nil then
+    if #fields == 0 then
+      input[field] = value
+    else
+      RecursiveSetValue(input[field], fields, value)
+    end
+  else
+    error("Invalid field value given")
+  end
+end
