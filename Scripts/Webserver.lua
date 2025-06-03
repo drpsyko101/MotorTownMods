@@ -10,6 +10,8 @@ local dir = os.getenv("PWD") or io.popen("cd"):read()
 package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/socket/core.dll"
 local socket = require("socket")
 local url = require("socket.url")
+local statics = require("Statics")
+local json = require("JsonParser")
 
 local string = string
 local table = table
@@ -20,6 +22,8 @@ local tonumber = tonumber
 local tostring = tostring
 local date = os.date
 local LogMsg = LogMsg
+local setmetatable = setmetatable
+local pcall = pcall
 
 -- Cut off external access
 _ENV = nil
@@ -46,11 +50,53 @@ local _mimeType = {
     plaintext = "text/plain"
 }
 
----@alias ClientTable { id: integer, state: string, client: TCPSocketClient, rawHeaders: string[], headers: table<string,string>, method: RequestMethod, urlString: string, urlComponents?: table<string,string>, pathComponents: string[], queryComponents: table<string,string>, version: string, contentLength: number?, content: string, state: ConnectionState }
----@alias RequestPathHandler fun(session: ClientTable)
+---@class ClientTable
+---@field id integer
+---@field client TCPSocketClient
+---@field rawHeaders string[]
+---@field headers table<string,string>
+---@field method RequestMethod
+---@field urlString string
+---@field urlComponents table<string,string>?
+---@field pathComponents string[]
+---@field queryComponents table<string,string>
+---@field version string
+---@field contentLength number?
+---@field content string
+---@field state ConnectionState
+local ClientTable = {}
+ClientTable.__index = ClientTable
+
+---Create a new client
+---@param newId number
+---@param client TCPSocketClient
+---@return ClientTable
+function ClientTable.new(newId, client)
+    local obj = setmetatable({}, ClientTable)
+    obj.id = newId
+    obj.client = client
+    obj.state = "init"
+    return obj
+end
+
+---@enum (key) ResponseStatus
+local _resCode = {
+    [200] = "200 OK",
+    [201] = "201 Created",
+    [204] = "204 No Content",
+    [400] = "400 Bad Request",
+    [401] = "401 Unauthorized",
+    [403] = "403 Forbidden",
+    [404] = "404 Not Found",
+    [405] = "405 Method Not Allowed",
+    [500] = "500 Internal Server Error"
+}
+
+---Request handler for the specified path
+---@alias RequestPathHandler fun(session: ClientTable): resContent: string?, resType: MimeType?, resCode: ResponseStatus?
 ---@alias RequestPathHandlerTable { path: string, method: RequestMethod, handler: RequestPathHandler }
 
-local serverString = "MotorTownMods server 0.1.1"
+local serverString = statics.ModName .. " server " .. statics.ModVersion
 local clients = {} ---@type TCPSocketClient[]
 local sessions = {} ---@type table<TCPSocketClient, ClientTable>
 local nextSessionID = 1
@@ -59,7 +105,7 @@ local handlers = {} ---@type RequestPathHandlerTable[]
 
 ---Find a handler index by path and method
 ---@param path string Request path
----@param method string One of GET, POST, PUT, DELETE
+---@param method RequestMethod Request method i.e. GET, POST, etc.
 local function findHandlerIndex(path, method)
     for i, h in ipairs(handlers) do
         if path == h.path then
@@ -88,7 +134,7 @@ end
 ---Find a handler by path and methods
 ---@param path string Request path
 ---@param method? RequestMethod
----@return table|nil
+---@return RequestPathHandlerTable|nil
 local function findHandler(path, method)
     for i, h in ipairs(handlers) do
         LogMsg("Checking " .. h.path .. "  " .. h.method, "DEBUG")
@@ -119,7 +165,7 @@ local function getNewClients()
         client:settimeout(1)
         table.insert(clients, client)
 
-        local s = { id = nextSessionID, state = "init", client = client }
+        local s = ClientTable.new(nextSessionID, client)
         nextSessionID = nextSessionID + 1
         sessions[client] = s
     end
@@ -129,15 +175,18 @@ end
 ---Content is optional and may be nil. If not nil, content type must be provided (ex: "application/json")
 ---Assumes that the data is JSON
 ---@param content string? Content of the response
----@param contentType string? Content mime type
-local function buildHeaders_OK(self, content, contentType)
+---@param contentType MimeType? Content mime type
+---@param resCode ResponseStatus? Response code
+local function buildHeaders(content, contentType, resCode)
+    contentType = contentType or _mimeType.json
+    local code = _resCode[resCode or 200]
     local h = {}
 
     local function add(name, value)
         table.insert(h, string.format("%s: %s", name, value))
     end
 
-    table.insert(h, "HTTP/1.1 200 OK")
+    table.insert(h, "HTTP/1.1 " .. code)
 
     add("Server", serverString)
     add("Date", date("!%a, %d %b %Y %H:%M:%S GMT"))
@@ -153,41 +202,24 @@ local function buildHeaders_OK(self, content, contentType)
     return header
 end
 
----Build the headers for an error response
----@param statusCode number HTTP status code
----@param statusText string HTTP status message
-local function buildHeaders_Error(self, statusCode, statusText)
-    local h = {}
-
-    local function add(name, value)
-        table.insert(h, string.format("%s: %s", name, value))
-    end
-
-    table.insert(h, string.format("HTTP/1.1 %d %s", statusCode, statusText))
-
-    add("Server", serverString)
-    add("Date", date("!%a, %d %b %Y %H:%M:%S GMT"))
-    add("Connection", "close")
-
-    return table.concat(h, "\n") .. "\n\n"
-end
-
 ---Safely mark a session for removal
----@param s ClientTable
-local function markSessionForRemoval(s)
-    LogMsg("Marking client " .. s.id .. " for removal", "DEBUG")
-    s.state = "close"
+---@param client ClientTable
+local function markSessionForRemoval(client)
+    LogMsg("Marking client " .. client.id .. " for removal", "DEBUG")
+    client.state = "close"
 end
 
 ---Send a response to the clients
----@param s ClientTable Session client
----@param header string Response headers
----@param rcontent string? Response body
-local function sendResponse(s, header, rcontent)
+---@param client ClientTable
+---@param content? string Response body
+---@param contentType MimeType? Content mime type. defaults to application/json
+---@param resCode ResponseStatus? Response code. Defaults to 200 OK
+local function sendResponse(client, content, contentType, resCode)
     LogMsg("Sending the response", "DEBUG")
+    local header = buildHeaders(content, contentType, resCode)
 
     for index, headerValue in ipairs(BreakChunks(header)) do
-        local a, b, elast = s.client:send(headerValue)
+        local a, b, elast = client.client:send(headerValue)
         if a == nil then
             LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
             break
@@ -196,9 +228,9 @@ local function sendResponse(s, header, rcontent)
         end
     end
 
-    if rcontent then
-        for index, value in ipairs(BreakChunks(rcontent)) do
-            local a, b, elast = s.client:send(value)
+    if content then
+        for index, value in ipairs(BreakChunks(content)) do
+            local a, b, elast = client.client:send(value)
             if a == nil then
                 LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
                 break
@@ -207,41 +239,22 @@ local function sendResponse(s, header, rcontent)
             end
         end
     end
-    markSessionForRemoval(s)
-end
-
----Send 200 OK responses
----@param s ClientTable
----@param content string
----@param contentType MimeType
-local function sendOKResponse(s, content, contentType)
-    local header = buildHeaders_OK(s, content, contentType)
-    sendResponse(s, header, content)
-end
-
----Send an error response
----@param s ClientTable
----@param statusCode number
----@param statusText string
-local function sendErrorResponse(s, statusCode, statusText)
-    local header = buildHeaders_Error(s, statusCode, statusText)
-    sendResponse(s, header)
+    markSessionForRemoval(client)
 end
 
 ---Parse the raw headers into a nice name/value dictionary
----@param s ClientTable Session client
-local function parseHeaders(s)
+local function parseHeaders(client)
     --print( string.format( "(%d) Request is '%s'", s.id, s.method ) )
 
-    s.headers = {}
+    client.headers = {}
 
     -- TODO: handle a continued header line!
-    for _, line in ipairs(s.rawHeaders) do
+    for _, line in ipairs(client.rawHeaders) do
         local name, value = string.match(line, "(%S+)%s*:%s*(.+)%s*")
         if name ~= nil then
             --print( string.format( "'%s' = '%s'", name, value ) )
             name = string.lower(name) -- convert to lowercase for simplified access
-            s.headers[name] = value
+            client.headers[name] = value
         else
             LogMsg("Malformed header line:\n" .. line, "ERROR")
             return -1
@@ -252,85 +265,97 @@ local function parseHeaders(s)
 end
 
 ---Process request header content
----@param s ClientTable
-local function processHeaders(s)
-    s.contentLength = 0
+---@param client ClientTable
+local function processHeaders(client)
+    client.contentLength = 0
 
-    local len = s.headers["content-length"]
+    local len = client.headers["content-length"]
     if len ~= nil then
-        s.contentLength = tonumber(len)
+        client.contentLength = tonumber(len)
     end
 end
 
 ---Dump headers for debugging
----@param s ClientTable
-local function dumpSession(s)
+---@param client ClientTable
+local function dumpSession(client)
     LogMsg("==============================", "DEBUG")
-    LogMsg("URL string:" .. s.urlString, "DEBUG")
-    LogMsg(string.format("Method: %s", s.method), "DEBUG")
-    LogMsg(string.format("Version: %s", s.version), "DEBUG")
+    LogMsg("URL string:" .. client.urlString, "DEBUG")
+    LogMsg(string.format("Method: %s", client.method), "DEBUG")
+    LogMsg(string.format("Version: %s", client.version), "DEBUG")
 
     LogMsg("Headers:", "DEBUG")
-    for name, value in pairs(s.headers) do
+    for name, value in pairs(client.headers) do
         LogMsg(string.format("    '%s' = '%s'", name, value), "DEBUG")
     end
 
     LogMsg("URL components:", "DEBUG")
-    for k, v in pairs(s.urlComponents) do
+    for k, v in pairs(client.urlComponents) do
         LogMsg(string.format("     %s:  %s", k, tostring(v)), "DEBUG")
     end
 
-    if s.queryComponents ~= nil then
+    if client.queryComponents ~= nil then
         LogMsg("URL Query components", "DEBUG")
-        for k, v in pairs(s.queryComponents) do
+        for k, v in pairs(client.queryComponents) do
             LogMsg(string.format("     %s =  %s", k, tostring(v)), "DEBUG")
         end
     end
 
-    LogMsg("URL Path: " .. s.urlComponents.path, "DEBUG")
-    LogMsg("URL Params: " .. (s.urlComponents.params or ""), "DEBUG")
-    LogMsg("URL url: " .. (s.urlComponents.url or ""), "DEBUG")
+    LogMsg("URL Path: " .. client.urlComponents.path, "DEBUG")
+    LogMsg("URL Params: " .. (client.urlComponents.params or ""), "DEBUG")
+    LogMsg("URL url: " .. (client.urlComponents.url or ""), "DEBUG")
 
     LogMsg("URL path components:", "DEBUG")
-    for k, v in pairs(s.pathComponents) do
+    for k, v in pairs(client.pathComponents) do
         LogMsg(string.format("     %s:  %s", k, tostring(v)), "DEBUG")
     end
 
-    LogMsg(string.format("Content Length: %d", s.contentLength), "DEBUG")
-    LogMsg(string.format("Content: %s", s.content), "DEBUG")
+    LogMsg(string.format("Content Length: %d", client.contentLength), "DEBUG")
+    LogMsg(string.format("Content: %s", client.content), "DEBUG")
     LogMsg("==============================", "DEBUG")
 end
 
+---This is called when we have a complete request ready to be processed.
+---@param client ClientTable
+local function processSession(client)
+    dumpSession(client)
 
--- This is called when we have a complete request ready to be processed.
-local function processSession(s)
-    dumpSession(s)
-
-    local h = findHandler(s.urlComponents.path, s.method)
+    local h = findHandler(client.urlComponents.path, client.method)
     if h then
-        --print( ">>>>>>>>>>  Handler is" .. h )
-        h.handler(s)
+        local status, content, mime, code = pcall(h.handler, client)
+        -- Check if the handler returned any valid response
+        if status then
+            sendResponse(client, content, mime, code)
+        else
+            if not pcall(function()
+                    local errMsg = content or "Unknown error"
+                    LogMsg("Handler error: " .. content, "ERROR")
+                    -- TODO: Fix perser failed to escape certain characters
+                    local err = json.stringify {
+                        error = errMsg
+                    }
+                    sendResponse(client, err, nil, 500)
+                end) then
+                sendResponse(client, '{"error":"Internal server error"}', nil, 500)
+            end
+        end
     else
         -- No matching path and method. How about just the path?
-        local h = findHandler(s.urlComponents.path, nil)
+        local h = findHandler(client.urlComponents.path, nil)
         if h then
             -- This is a valid path, but not for the method.
-            sendErrorResponse(s, 405, "Method Not Allowed")
+            sendResponse(client, nil, nil, 405)
             -- TODO: need to build a header with the allowed methods!
         else
-            sendErrorResponse(s, 404, "Not Found")
+            sendResponse(client, nil, nil, 404)
         end
     end
-
-    --sendErrorResponse( s, "404", "Not Found" )
-
-    --local rcontent = "Howdy pardners"
 end
 
 ---Turns a query string into a table of name/value pairs
-local function decodeQuery(s)
+---@param path string
+local function decodeQuery(path)
     local cgi = {}
-    for name, value in string.gmatch(s, "([^&=]+)=([^&=]+)") do
+    for name, value in string.gmatch(path, "([^&=]+)=([^&=]+)") do
         name = url.unescape(name)
         value = url.unescape(value)
         cgi[name] = value
@@ -375,7 +400,7 @@ local function handleClient(client)
                 s.state = "header"
             else
                 LogMsg("Malformed initial line", "ERROR")
-                sendErrorResponse(s, 400, "Bad Request")
+                sendResponse(s, nil, nil, 400)
             end
         elseif s.state == "header" then
             LogMsg(string.format("(%d)  HDR: %s", s.id, data), "DEBUG")
@@ -385,7 +410,7 @@ local function handleClient(client)
                 LogMsg(string.format("(%d)  End Headers", s.id), "DEBUG")
                 local rc = parseHeaders(s)
                 if rc ~= 0 then
-                    sendErrorResponse(s, 400, "Bad Request")
+                    sendResponse(s, nil, nil, 400)
                     return
                 end
 
@@ -506,11 +531,6 @@ return {
     run = run,
     registerHandler = registerHandler,
     init = init,
-    process = process,
-    dumpSession = dumpSession,
 
     decodeQuery = decodeQuery,
-
-    sendOKResponse = sendOKResponse,
-    sendErrorResponse = sendErrorResponse
 }

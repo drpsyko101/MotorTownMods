@@ -1,18 +1,21 @@
 local UEHelpers = require("UEHelpers")
+local json = require("JsonParser")
 
 ---Get all or selected player state(s)
 ---@param guid string? Filter by character guid
+---@return table[]
 local function GetPlayerStates(guid)
   local gameState = GetMotorTownGameState()
-  if not gameState:IsValid() then return '{"data":[]}' end
+  local arr = {}
+
+  if not gameState:IsValid() then return arr end
 
   local playerStates = gameState.PlayerArray
-  
+
   LogMsg(string.format("%i player state(s) found", #playerStates), "DEBUG")
-  local arr = {}
-  for i = 1, #playerStates, 1 do
-    local data = {}
-    local playerState = playerStates[i] ---@cast playerState AMotorTownPlayerState
+
+  playerStates:ForEach(function(index, element)
+    local playerState = element:get() ---@type AMotorTownPlayerState
 
     -- Skip invalid player states
     if not playerState:IsValid() then goto continue end
@@ -20,44 +23,69 @@ local function GetPlayerStates(guid)
     -- Filter by guid if provided
     if guid and guid:upper() ~= GuidToString(playerState.CharacterGuid) then goto continue end
 
+    local data = {}
     data.PlayerName = playerState:GetPlayerName():ToString()
     data.GridIndex = playerState.GridIndex
     data.bIsHost = playerState.bIsHost
     data.bIsAdmin = playerState.bIsAdmin
     data.CharacterGuid = GuidToString(playerState.CharacterGuid)
     data.BestLapTime = playerState.BestLapTime
-    data.Levels = string.format('[%s]', table.concat(playerState.Levels, ","))
+
+    data.Levels = {}
+    playerState.Layers:ForEach(function(index, element)
+      table.insert(data.Levels, element:get())
+    end)
+
     data.OwnCompanyGuid = GuidToString(playerState.OwnCompanyGuid)
     data.JoinedCompanyGuid = GuidToString(playerState.JoinedCompanyGuid)
-    data.CustomDestinationAbsoluteLocation = VectorToString(playerState.CustomDestinationAbsoluteLocation)
+    data.CustomDestinationAbsoluteLocation = VectorToTable(playerState.CustomDestinationAbsoluteLocation)
 
-    local ownedEventGuids = {}
-    for j = 1, #playerState.OwnEventGuids, 1 do
-      table.insert(ownedEventGuids, GuidToString(playerState.OwnEventGuids[j]))
-    end
-    data.OwnEventGuids = string.format("[%s]", table.concat(ownedEventGuids, ","))
+    data.OwnEventGuids = {}
+    playerState.OwnEventGuids:ForEach(function(index, element)
+      table.insert(data.OwnEventGuids, GuidToString(element:get()))
+    end)
 
-    local joinedEventGuids = {}
-    for k = 1, #playerState.JoinedEventGuids, 1 do
-      table.insert(joinedEventGuids, string.format('"%s"', GuidToString(playerState.JoinedEventGuids[k])))
-    end
-    data.JoinedEventGuids = string.format("[%s]", table.concat(joinedEventGuids, ","))
+    data.JoinedEventGuids = {}
+    playerState.JoinedEventGuids:ForEach(function(index, element)
+      table.insert(data.JoinedEventGuids, GuidToString(element:get()))
+    end)
 
-    data.Location = VectorToString(playerState.Location)
+    data.Location = VectorToTable(playerState.Location)
     data.VehicleKey = playerState.VehicleKey:ToString()
 
-    table.insert(arr, SimpleJsonSerializer(data))
+    table.insert(arr, data)
 
     ::continue::
-  end
-  return string.format('{"data":[%s]}', table.concat(arr, ","))
+  end)
+  return arr
 end
 
-RegisterConsoleCommandHandler("getplayerstates", function(Cmd, CommandParts, Ar)
-  LogMsg(GetPlayerStates(CommandParts[1]))
+RegisterConsoleCommandHandler("getplayers", function(Cmd, CommandParts, Ar)
+  local playerStates = json.stringify(GetPlayerStates(CommandParts[1]))
+  LogMsg(playerStates)
   return true
 end)
 
+---Handle request for player states
+---@param session ClientTable
+local function HandleGetPlayerStates(session)
+  local playerStates = json.stringify {
+    data = GetPlayerStates()
+  }
+  return playerStates
+end
+
+---Handle request for player states
+---@param session ClientTable
+local function HandleGetSpecifcPlayerStates(session)
+  local playerGuid = session.pathComponents[2]
+  local playerStates = json.stringify {
+    data = GetPlayerStates(playerGuid)
+  }
+  return playerStates
+end
+
 return {
-  GetPlayerStates = GetPlayerStates
+  HandleGetPlayerStates = HandleGetPlayerStates,
+  HandleGetSpecifcPlayerStates = HandleGetSpecifcPlayerStates
 }
