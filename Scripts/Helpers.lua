@@ -1,9 +1,31 @@
 local UEHelpers = require("UEHelpers")
 
+local myPlayerControllerCache = CreateInvalidObject() ---@cast myPlayerControllerCache APlayerController
+---Get my own PlayerController
+---@return APlayerController
+function GetMyPlayerController()
+  if myPlayerControllerCache:IsValid() then
+    return myPlayerControllerCache
+  end
+
+  local gameInstance = UEHelpers.GetGameInstance()
+  if gameInstance:IsValid() and gameInstance.LocalPlayers and #gameInstance.LocalPlayers > 0 then
+    local localPlayer = gameInstance.LocalPlayers[1]
+    if localPlayer:IsValid() then
+      myPlayerControllerCache = localPlayer.PlayerController
+    end
+  else
+    local playerController = UEHelpers.GetPlayerController()
+    if playerController:IsValid() then
+      myPlayerControllerCache = playerController
+    end
+  end
+  return myPlayerControllerCache
+end
+
 -- Importing functions to the global namespace of this mod just so that we don't have to retype 'UEHelpers.' over and over again.
 local GetKismetSystemLibrary = UEHelpers.GetKismetSystemLibrary
 local GetKismetMathLibrary = UEHelpers.GetKismetMathLibrary
-local GetPlayerController = UEHelpers.GetPlayerController
 
 local IsInitialized = false
 
@@ -40,7 +62,7 @@ end
 local function GetObjectFromLineTrace()
   if not IsInitialized then return selectedActor end
 
-  local PlayerController = GetPlayerController()
+  local PlayerController = GetMyPlayerController()
   local PlayerPawn = PlayerController.Pawn
   local CameraManager = PlayerController.PlayerCameraManager
   local StartVector = CameraManager:GetCameraLocation()
