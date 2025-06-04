@@ -2057,6 +2057,34 @@ Returns a delivery point given the guid in-game. Uses the same queries as above.
 
 </details>
 
+
+### Assets
+
+#### POST `/assets/spawn`
+
+Spawn a given asset path at specified location and rotation. Rotation field is optional. Will return a `204` status code if successful.
+
+<details>
+<summary>Request body:</summary>
+
+```json
+{
+  "AssetPath": "/Path/To/Asset.Asset",
+  "Location": {
+    "X": 0.0,
+    "Y": 0.0,
+    "Z": 0.0
+  },
+  "Rotation": {
+    "Pitch": 0.0,
+    "Roll": 0.0,
+    "Yaw": 0.0
+  }
+}
+```
+
+</details>
+
 ## Webhooks
 
 ### Events

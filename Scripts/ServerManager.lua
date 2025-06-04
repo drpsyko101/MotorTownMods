@@ -200,10 +200,13 @@ end
 ---@type RequestPathHandler
 local function HandleGetZoneState(session)
     local zoneName = session.pathComponents[3]
-    local serverStatus = json.stringify {
-        data = GetZoneState(zoneName)
-    }
-    return serverStatus
+    if zoneName then
+        local serverStatus = json.stringify {
+            data = GetZoneState(zoneName)
+        }
+        return serverStatus
+    end
+    return nil, nil, 400
 end
 
 ---Handle NPC traffic density update request
