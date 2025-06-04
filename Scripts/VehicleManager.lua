@@ -1075,7 +1075,10 @@ local function VehicleToTable(vehicle)
   -- data.RootBody = vehicle.RootBody
   -- data.Mesh = vehicle.Mesh
   -- data.SteeringWheel = vehicle.SteeringWheel
-  -- data.Wheels = vehicle.Wheels
+  data.Wheels = {}
+  vehicle.Wheels:ForEach(function(index, element)
+    table.insert(data.Wheels, WheelCompToTable(element:get()))
+  end)
   -- data.EngineComponent = vehicle.EngineComponent
   -- data.CargoSpaceInteractableComponent = vehicle.CargoSpaceInteractableComponent
   -- data.DrivingInput = vehicle.DrivingInput
@@ -1505,30 +1508,30 @@ end)
 
 RegisterConsoleCommandHandler("setvehicleparam", function(Cmd, CommandParts, Ar)
   if not pcall(function()
-    local fields = SplitString(table.remove(CommandParts, 1), ".")
-    local value = CommandParts[1]
+        local fields = SplitString(table.remove(CommandParts, 1), ".")
+        local value = CommandParts[1]
 
-    if not fields then
-      LogMsg("No fields value given.", "ERROR")
-      return true
-    end
+        if not fields then
+          LogMsg("No fields value given.", "ERROR")
+          return true
+        end
 
-    if value == nil then
-      LogMsg("No valid value given.", "ERROR")
-      return true
-    end
+        if value == nil then
+          LogMsg("No valid value given.", "ERROR")
+          return true
+        end
 
-    local PC = GetMyPlayerController()
-    if PC:IsValid() then
-      local pawn = PC:K2_GetPawn()
-      local vehicleClass = StaticFindObject("/Script/MotorTown.MTVehicle")
-      ---@cast vehicleClass UClass
+        local PC = GetMyPlayerController()
+        if PC:IsValid() then
+          local pawn = PC:K2_GetPawn()
+          local vehicleClass = StaticFindObject("/Script/MotorTown.MTVehicle")
+          ---@cast vehicleClass UClass
 
-      if pawn:IsValid() and pawn:IsA(vehicleClass) then
-        RecursiveSetValue(pawn, fields, value)
-      end
-    end
-  end) then
+          if pawn:IsValid() and pawn:IsA(vehicleClass) then
+            RecursiveSetValue(pawn, fields, value)
+          end
+        end
+      end) then
     LogMsg("Failed to change " .. CommandParts[2] .. " field for pawn")
   end
 

@@ -4,25 +4,24 @@ local myPlayerControllerCache = CreateInvalidObject() ---@cast myPlayerControlle
 ---Get my own PlayerController
 ---@return APlayerController
 function GetMyPlayerController()
-    if myPlayerControllerCache:IsValid() then
-        return myPlayerControllerCache
-    end
-
-    local gameInstance = UEHelpers.GetGameInstance()
-    if gameInstance:IsValid() and gameInstance.LocalPlayers and #gameInstance.LocalPlayers > 0 then
-        local localPlayer = gameInstance.LocalPlayers[1]
-        if localPlayer:IsValid() then
-            myPlayerControllerCache = localPlayer.PlayerController
-        end
-    else
-        local playerController = UEHelpers.GetPlayerController()
-        if playerController:IsValid() then
-            myPlayerControllerCache = playerController
-        end
-    end
+  if myPlayerControllerCache:IsValid() then
     return myPlayerControllerCache
-end
+  end
 
+  local gameInstance = UEHelpers.GetGameInstance()
+  if gameInstance:IsValid() and gameInstance.LocalPlayers and #gameInstance.LocalPlayers > 0 then
+    local localPlayer = gameInstance.LocalPlayers[1]
+    if localPlayer:IsValid() then
+      myPlayerControllerCache = localPlayer.PlayerController
+    end
+  else
+    local playerController = UEHelpers.GetPlayerController()
+    if playerController:IsValid() then
+      myPlayerControllerCache = playerController
+    end
+  end
+  return myPlayerControllerCache
+end
 
 -- Importing functions to the global namespace of this mod just so that we don't have to retype 'UEHelpers.' over and over again.
 local GetKismetSystemLibrary = UEHelpers.GetKismetSystemLibrary
