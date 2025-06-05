@@ -2062,10 +2062,12 @@ Returns a delivery point given the guid in-game. Uses the same queries as above.
 
 #### POST `/assets/spawn`
 
-Spawn a given asset path at specified location and rotation. Rotation field is optional. Will return a `204` status code if successful.
+Spawn a given asset path at specified location and rotation. Rotation field is optional.
 
 <details>
 <summary>Request body:</summary>
+
+Spawning a single actor:
 
 ```json
 {
@@ -2079,7 +2081,70 @@ Spawn a given asset path at specified location and rotation. Rotation field is o
     "Pitch": 0.0,
     "Roll": 0.0,
     "Yaw": 0.0
+  },
+  "Tag": "SomeIdentifiableTag"
+}
+```
+
+Spawning multiple actors:
+
+```json
+[
+  {
+    "AssetPath": "/Path/To/Asset.Asset",
+    "Location": {
+      "X": 0.0,
+      "Y": 0.0,
+      "Z": 0.0
+    },
+    "Rotation": {
+      "Pitch": 0.0,
+      "Roll": 0.0,
+      "Yaw": 0.0
+    },
+    "Tag": "SomeIdentifiableTag"
   }
+]
+```
+
+</details>
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "Data": [
+    "AssetTagHere"
+  ]
+}
+```
+
+</details>
+
+#### POST `/assets/despawn`
+
+Despawn actor(s) based on the given tag(s).
+
+<details>
+<summary>Request body:</summary>
+
+Despawn using a single tag:
+
+```json
+{
+  "Tag": "AssetTagToDelete"
+}
+```
+
+Despawn using multiple tags:
+
+```json
+{
+  "Tags": [
+    "Tag1",
+    "Tag2"
+  ]
 }
 ```
 

@@ -79,6 +79,7 @@ local function LoadWebserver()
 
     -- Asset management
     Webserver.registerHandler("/assets/spawn", "POST", assetManager.HandleSpawnActor)
+    Webserver.registerHandler("/assets/despawn", "POST", assetManager.HandleDespawnActor)
 
     local port = os.getenv("MOD_LUA_PORT") or "5001"
     Webserver.run("*", tonumber(port))
