@@ -530,7 +530,4 @@ end
 return {
     run = run,
     registerHandler = registerHandler,
-    init = init,
-
-    decodeQuery = decodeQuery,
 }
