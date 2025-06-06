@@ -58,6 +58,8 @@ local selectedActor = CreateInvalidObject()
 ---Get selected actor
 ---@return AActor
 function GetSelectedActor()
+  if selectedActor:IsValid() then return selectedActor end
+
   local wasHit, hitResult = GetHitResultFromCenterLineTrace()
   if wasHit then
     selectedActor = GetActorFromHitResult(hitResult)

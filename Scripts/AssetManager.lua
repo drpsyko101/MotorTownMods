@@ -10,23 +10,22 @@ local json = require("JsonParser")
 ---@return string? AssetTag
 local function SpawnActor(assetPath, location, rotation, tag)
   local world = UEHelpers.GetWorld()
-
   if world and world:IsValid() then
     local staticMeshActorClass = StaticFindObject("/Script/Engine.StaticMeshActor")
     ---@cast staticMeshActorClass UClass
     local staticMeshClass = StaticFindObject("/Script/Engine.StaticMesh")
     ---@cast staticMeshClass UClass
 
-    local assetTag = nil
+    local assetTag = tag
     ExecuteInGameThread(function()
       LoadAsset(assetPath)
       local assetClass = {}
-      local softAssetClass = StaticFindObject(assetPath)
+      local object = StaticFindObject(assetPath)
 
-      if softAssetClass:IsA(staticMeshClass) then
+      if object:IsA(staticMeshClass) then
         assetClass = staticMeshActorClass
       else
-        assetClass = softAssetClass
+        assetClass = object
       end
 
       LogMsg("Loaded and found asset " .. assetClass:GetFullName(), "DEBUG")
@@ -51,7 +50,6 @@ local function SpawnActor(assetPath, location, rotation, tag)
       if actor:IsValid() then
         LogMsg("Spawned actor " .. actor:GetFullName(), "DEBUG")
 
-        assetTag = tag
         if not assetTag then
           local str = SplitString(actor:GetFullName())
 
@@ -66,10 +64,17 @@ local function SpawnActor(assetPath, location, rotation, tag)
         actor.Tags[#actor.Tags + 1] = FName(assetTag)
         LogMsg("Spawned actor tagged: " .. assetTag, "DEBUG")
 
-        if softAssetClass:IsA(staticMeshClass) then
+        if actor:IsA(staticMeshActorClass) then
           ---@cast actor AStaticMeshActor
-          ---@cast softAssetClass UStaticMesh
-          actor.StaticMeshComponent:SetStaticMesh(softAssetClass)
+          ---@cast object UStaticMesh
+
+          -- Set actor to movable
+          actor:SetMobility(2)
+          if actor.StaticMeshComponent:SetStaticMesh(object) then
+            actor:SetReplicates(true)
+          else
+            error("Failed to set " .. object:GetFullName())
+          end
         end
       end
     end)
@@ -100,6 +105,33 @@ local function DestroyActor(assetTag)
     end)
     LogMsg("Destroyed actor: " .. actorName, "DEBUG")
   end
+end
+
+---Offset a selected actor location
+---@param offset { Translation: FVector?, Rotation: FRotator? }
+local function AddAssetTransformOffset(offset)
+  local actor = GetSelectedActor()
+
+  if actor:IsValid() then
+    local location = actor:K2_GetActorLocation()
+    local rotation = actor:K2_GetActorRotation()
+    if actor:K2_TeleportTo(
+          {
+            X = location.X + (offset.Translation and offset.Translation.X or 0),
+            Y = location.Y + (offset.Translation and offset.Translation.Y or 0),
+            Z = location.Z + (offset.Translation and offset.Translation.Z or 0)
+          },
+          {
+            Roll = rotation.Roll + (offset.Rotation and offset.Rotation.Roll or 0),
+            Pitch = rotation.Pitch + (offset.Rotation and offset.Rotation.Pitch or 0),
+            Yaw = rotation.Yaw + (offset.Rotation and offset.Rotation.Yaw or 0)
+          }
+        ) then
+      LogMsg("Moved " .. actor:GetFullName() .. " to " .. json.stringify(VectorToTable(actor:K2_GetActorLocation())))
+      return true
+    end
+  end
+  return false
 end
 
 -- Handle requests
@@ -203,7 +235,9 @@ RegisterConsoleCommandHandler("spawnactor", function(Cmd, CommandParts, Ar)
     local PC = GetMyPlayerController()
     if PC:IsValid() then
       rotation = PC.PlayerCameraManager:GetCameraRotation()
+      -- Don't inherit camera pitch & roll
       rotation.Pitch = 0
+      rotation.Roll = 0
     end
   end
 
@@ -220,6 +254,43 @@ RegisterConsoleCommandHandler("destroyactor", function(Cmd, CommandParts, Ar)
 
   DestroyActor(actorPath)
   return true
+end)
+
+-- Key bindings
+
+local changeRate = 1.0
+RegisterKeyBind(Key.PAGE_UP, { ModifierKey.CONTROL }, function()
+  changeRate = changeRate * 10
+  LogMsg("Transform multiplier: " .. tostring(changeRate))
+end)
+
+RegisterKeyBind(Key.PAGE_DOWN, { ModifierKey.CONTROL }, function()
+  changeRate = math.max(changeRate / 10, 0.1)
+  LogMsg("Transform multiplier: " .. tostring(changeRate))
+end)
+
+RegisterKeyBind(Key.LEFT_ARROW, { ModifierKey.CONTROL }, function()
+  AddAssetTransformOffset { Translation = { X = -1 * changeRate, Y = 0, Z = 0 } }
+end)
+
+RegisterKeyBind(Key.RIGHT_ARROW, { ModifierKey.CONTROL }, function()
+  AddAssetTransformOffset { Translation = { X = 1 * changeRate, Y = 0, Z = 0 } }
+end)
+
+RegisterKeyBind(Key.DOWN_ARROW, { ModifierKey.CONTROL }, function()
+  AddAssetTransformOffset { Translation = { X = 0, Y = -1 * changeRate, Z = 0 } }
+end)
+
+RegisterKeyBind(Key.UP_ARROW, { ModifierKey.CONTROL }, function()
+  AddAssetTransformOffset { Translation = { X = 0, Y = 1 * changeRate, Z = 0 } }
+end)
+
+RegisterKeyBind(Key.DOWN_ARROW, { ModifierKey.CONTROL, ModifierKey.SHIFT }, function()
+  AddAssetTransformOffset { Translation = { X = 0, Y = 0, Z = -1 * changeRate } }
+end)
+
+RegisterKeyBind(Key.UP_ARROW, { ModifierKey.CONTROL, ModifierKey.SHIFT }, function()
+  AddAssetTransformOffset { Translation = { X = 0, Y = 0, Z = 1 * changeRate } }
 end)
 
 return {
