@@ -2062,7 +2062,7 @@ Returns a delivery point given the guid in-game. Uses the same queries as above.
 
 #### POST `/assets/spawn`
 
-Spawn a given asset path at specified location and rotation. Rotation field is optional.
+Spawn a given asset path at specified location and rotation. Rotation field is optional. If no tags are provided, a new one will be generated for each asset.
 
 <details>
 <summary>Request body:</summary>
