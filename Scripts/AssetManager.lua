@@ -293,6 +293,30 @@ RegisterKeyBind(Key.UP_ARROW, { ModifierKey.CONTROL, ModifierKey.SHIFT }, functi
   AddAssetTransformOffset { Translation = { X = 0, Y = 0, Z = 1 * changeRate } }
 end)
 
+RegisterKeyBind(Key.LEFT_ARROW, { ModifierKey.CONTROL, ModifierKey.ALT }, function()
+  AddAssetTransformOffset { Rotation = { Roll = 0, Pitch = 0, Yaw = -1 * changeRate } }
+end)
+
+RegisterKeyBind(Key.RIGHT_ARROW, { ModifierKey.CONTROL, ModifierKey.ALT }, function()
+  AddAssetTransformOffset { Rotation = { Roll = 0, Pitch = 0, Yaw = 1 * changeRate } }
+end)
+
+RegisterKeyBind(Key.DOWN_ARROW, { ModifierKey.CONTROL, ModifierKey.ALT }, function()
+  AddAssetTransformOffset { Rotation = { Roll = 0, Pitch = -1 * changeRate, Yaw = 0 } }
+end)
+
+RegisterKeyBind(Key.UP_ARROW, { ModifierKey.CONTROL, ModifierKey.ALT }, function()
+  AddAssetTransformOffset { Rotation = { Roll = 0, Pitch = 1 * changeRate, Yaw = 0 } }
+end)
+
+RegisterKeyBind(Key.DOWN_ARROW, { ModifierKey.CONTROL, ModifierKey.SHIFT, ModifierKey.ALT }, function()
+  AddAssetTransformOffset { Rotation = { Roll = -1 * changeRate, Pitch = 0, Yaw = 0 } }
+end)
+
+RegisterKeyBind(Key.UP_ARROW, { ModifierKey.CONTROL, ModifierKey.SHIFT, ModifierKey.ALT }, function()
+  AddAssetTransformOffset { Rotation = { Roll = 1 * changeRate, Pitch = 0, Yaw = 0 } }
+end)
+
 return {
   HandleSpawnActor = HandleSpawnActor,
   HandleDespawnActor = HandleDespawnActor
