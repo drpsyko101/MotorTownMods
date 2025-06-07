@@ -35,9 +35,19 @@ local function LoadWebserver()
     -- Put more specific paths before more general ones
 
     -- General server status
-    Webserver.registerHandler("/status", "GET", function(session)
-      return '{"status":"ok"}'
-    end)
+    Webserver.registerHandler(
+      "/status",
+      "GET",
+      function(session)
+        local gameState = GetMotorTownGameState()
+        if not gameState:IsValid() then
+          -- Game state is not created yet
+          return '{"status":"not ready"}', nil, 503
+        end
+        return '{"status":"ok"}'
+      end,
+      false
+    )
     Webserver.registerHandler("/status/general", "GET", serverManager.HandleGetServerState)
     Webserver.registerHandler("/status/general/*", "GET", serverManager.HandleGetZoneState)
     Webserver.registerHandler("/status/traffic", "POST", serverManager.HandleUpdateNpcTraffic)
@@ -77,5 +87,5 @@ local function LoadWebserver()
   return false
 end
 
-LoopAsync(5000, LoadWebserver)
+ExecuteAsync(LoadWebserver)
 LogMsg("Mod loaded")

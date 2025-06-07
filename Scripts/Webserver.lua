@@ -7,11 +7,19 @@
 -- Import Section
 -- Declare everything that this module needs from outside
 local dir = os.getenv("PWD") or io.popen("cd"):read()
-package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/socket/core.dll"
+package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?/core.dll"
 local socket = require("socket")
+local mime = require("mime")
 local url = require("socket.url")
 local statics = require("Statics")
 local json = require("JsonParser")
+local auth = os.getenv("MOD_SERVER_PASSWORD")
+local bcrypt = nil
+if auth then
+    pcall(function()
+        bcrypt = require("lua-bcrypt")
+    end)
+end
 
 local string = string
 local table = table
@@ -89,12 +97,39 @@ local _resCode = {
     [403] = "403 Forbidden",
     [404] = "404 Not Found",
     [405] = "405 Method Not Allowed",
-    [500] = "500 Internal Server Error"
+    [500] = "500 Internal Server Error",
+    [503] = "503 Service Unavailable"
 }
 
 ---Request handler for the specified path
 ---@alias RequestPathHandler fun(session: ClientTable): resContent: string?, resType: MimeType?, resCode: ResponseStatus?
----@alias RequestPathHandlerTable { path: string, method: RequestMethod, handler: RequestPathHandler }
+
+---@class RequestPathHandlerTable
+---@field path string
+---@field method RequestMethod
+---@field handler RequestPathHandler
+---@field authenticate boolean
+local RequestPathHandlerTable = {}
+RequestPathHandlerTable.__index = RequestPathHandlerTable
+
+---Create a new request handler
+---@param path string
+---@param method RequestMethod
+---@param handler RequestPathHandler
+---@param authenticate boolean?
+---@return RequestPathHandlerTable
+function RequestPathHandlerTable.new(path, method, handler, authenticate)
+    local obj = setmetatable({}, RequestPathHandlerTable)
+    obj.path = path
+    obj.method = method
+    obj.handler = handler
+    if authenticate == nil then
+        obj.authenticate = true
+    else
+        obj.authenticate = authenticate
+    end
+    return obj
+end
 
 local serverString = statics.ModName .. " server " .. statics.ModVersion
 local clients = {} ---@type TCPSocketClient[]
@@ -275,6 +310,31 @@ local function processHeaders(client)
     end
 end
 
+---Authenticate header if applicable
+---@param client ClientTable
+local function authenticateSession(client)
+    -- If no password is set, don't authenticate
+    if not auth then
+        return true
+    end
+
+    local headerAuth = client.headers["authorization"] or client.headers["Authorization"] or nil
+    if headerAuth then
+        local basicAuth = string.match(headerAuth, "Basic (.+)")
+        if bcrypt then
+            if bcrypt.verify(auth, basicAuth) then
+                return true
+            end
+        else
+            -- Fallback to base64 encoding
+            return basicAuth == mime.b64(auth)
+        end
+    end
+
+    LogMsg("Unauthenticated session " .. client.id, "DEBUG")
+    return false
+end
+
 ---Dump headers for debugging
 ---@param client ClientTable
 local function dumpSession(client)
@@ -321,6 +381,11 @@ local function processSession(client)
 
     local h = findHandler(client.urlComponents.path, client.method)
     if h then
+        if h.authenticate and not authenticateSession(client) then
+            sendResponse(client, nil, nil, 401)
+            return
+        end
+
         local status, content, mime, code = pcall(h.handler, client)
         -- Check if the handler returned any valid response
         if status then
@@ -489,8 +554,9 @@ end
 ---@param path string pattern to match (no wildcards at the moment) Ex: "/api/status"
 ---@param method RequestMethod request type (e.g. GET, POST). If nil the handler will be called for all types.
 ---@param handler RequestPathHandler
-local function registerHandler(path, method, handler)
-    local h = { path = path, method = method, handler = handler }
+---@param authenticate boolean? Should the handler be authenticated. Defaults to true
+local function registerHandler(path, method, handler, authenticate)
+    local h = RequestPathHandlerTable.new(path, method, handler, authenticate)
     -- Already registered?
     local i = findHandlerIndex(path, method)
     if i == nil then

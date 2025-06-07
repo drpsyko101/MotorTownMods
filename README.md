@@ -24,6 +24,7 @@ Most of the settings can be configured using environment variables:
 | `MOD_LUA_PORT`        | `5001`        | Lua HTTP port. This only applies if `luasocket` module is installed  |
 | `MOD_WEBHOOK_URL`     | _none_        | Webhook URL to send the events to. Requires `luasec` to function     |
 | `MOD_SERVER_API_URL`  | _none_        | Server API to call from client side                                  |
+| `MOD_SERVER_PASSWORD` | _none_        | Authenticate server request with `Authorization: Basic ` header      |
 | `MOD_AUTO_FPS_ENABLE` | _none_        | Enable automatic server traffic adjustment based on the server's FPS |
 
 ## Documentation
