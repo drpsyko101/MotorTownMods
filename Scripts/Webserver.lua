@@ -1,6 +1,5 @@
 --------  To Do:  --------------
 -- Look into respecting a "keep open" request
--- think about authentication
 -- 405 response needs to add allowed methods header
 
 
@@ -59,18 +58,18 @@ local _mimeType = {
 }
 
 ---@class ClientTable
----@field id integer
+---@field id integer Client connection ID. No two clients should have the same ID unless connections are kept open
 ---@field client TCPSocketClient
----@field rawHeaders string[]
----@field headers table<string,string>
+---@field rawHeaders string[] Raw request header pairs in a case-sensitive table
+---@field headers table<string,string> Request headers in lowercase keys
 ---@field method RequestMethod
----@field urlString string
+---@field urlString string Full URL request path
 ---@field urlComponents table<string,string>?
----@field pathComponents string[]
+---@field pathComponents string[] URL request paths separated by '/'
 ---@field queryComponents table<string,string>
----@field version string
----@field contentLength number?
----@field content string
+---@field version string HTTP version used in the request
+---@field contentLength number? Returns a valid number if content is not empty
+---@field content string? Request body
 ---@field state ConnectionState
 local ClientTable = {}
 ClientTable.__index = ClientTable
@@ -211,7 +210,7 @@ end
 ---Assumes that the data is JSON
 ---@param content string? Content of the response
 ---@param contentType MimeType? Content mime type
----@param resCode ResponseStatus? Response code
+---@param resCode ResponseStatus? Response code, defaults to 200 OK
 local function buildHeaders(content, contentType, resCode)
     contentType = contentType or _mimeType.json
     local code = _resCode[resCode or 200]
@@ -278,16 +277,14 @@ local function sendResponse(client, content, contentType, resCode)
 end
 
 ---Parse the raw headers into a nice name/value dictionary
+---@param client ClientTable
 local function parseHeaders(client)
-    --print( string.format( "(%d) Request is '%s'", s.id, s.method ) )
-
     client.headers = {}
 
     -- TODO: handle a continued header line!
     for _, line in ipairs(client.rawHeaders) do
         local name, value = string.match(line, "(%S+)%s*:%s*(.+)%s*")
         if name ~= nil then
-            --print( string.format( "'%s' = '%s'", name, value ) )
             name = string.lower(name) -- convert to lowercase for simplified access
             client.headers[name] = value
         else
@@ -318,7 +315,7 @@ local function authenticateSession(client)
         return true
     end
 
-    local headerAuth = client.headers["authorization"] or client.headers["Authorization"] or nil
+    local headerAuth = client.headers["authorization"] or nil
     if headerAuth then
         local basicAuth = string.match(headerAuth, "Basic (.+)")
         if bcrypt then
@@ -491,7 +488,6 @@ local function handleClient(client)
                 end
             end
         else
-            --print( string.format( "(%d) BODY: %s", s.id, data ) )
             s.content = data
             processSession(s)
         end
@@ -499,7 +495,6 @@ local function handleClient(client)
         if err == "closed" then
             LogMsg("Client closed the connection: ", "DEBUG")
             markSessionForRemoval(s)
-            --print( "Size of client list is " .. #clients )
         elseif err == "timeout" then
             LogMsg("Receive timeout. Partial data: " .. partial, "ERROR")
             markSessionForRemoval(s)
@@ -516,8 +511,8 @@ end
 ---Note that if there is data to process this method may return sooner or later than the timeout time.
 ---@param timeout number Timout in seconds
 local function process(timeout)
-    local rclients, _, err = socket.select(clients, nil, timeout) ---@cast rclients TCPSocketClient[]
-    --print( #rclients, err )
+    local rclients, _, err = socket.select(clients, nil, timeout)
+    ---@cast rclients TCPSocketClient[]
     if err ~= nil then
         -- Either no data (timeout) or an error
         if err ~= "timeout" then
