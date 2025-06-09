@@ -7,6 +7,7 @@
 -- Declare everything that this module needs from outside
 local dir = os.getenv("PWD") or io.popen("cd"):read()
 package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?/core.dll"
+package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
 local socket = require("socket")
 local mime = require("mime")
 local url = require("socket.url")
@@ -15,9 +16,14 @@ local json = require("JsonParser")
 local auth = os.getenv("MOD_SERVER_PASSWORD")
 local bcrypt = nil
 if auth then
-    pcall(function()
-        bcrypt = require("lua-bcrypt")
+    local status, err = pcall(function()
+        LogMsg("Attempting to load bcrypt...", "DEBUG")
+        bcrypt = require("bcrypt")
+        LogMsg("Successfully loaded bcrypt", "DEBUG")
     end)
+    if not status then
+        LogMsg("Failed to load bcrypt, will use base64 as fallback: " .. err, "ERROR")
+    end
 end
 
 local string = string
@@ -31,6 +37,10 @@ local date = os.date
 local LogMsg = LogMsg
 local setmetatable = setmetatable
 local pcall = pcall
+local min = math.min
+local time = function ()
+    return socket.gettime() * 1000
+end
 
 -- Cut off external access
 _ENV = nil
@@ -65,12 +75,13 @@ local _mimeType = {
 ---@field method RequestMethod
 ---@field urlString string Full URL request path
 ---@field urlComponents table<string,string>?
----@field pathComponents string[] URL request paths separated by '/'
+---@field pathComponents string[] URL request paths separated by `/`
 ---@field queryComponents table<string,string>
 ---@field version string HTTP version used in the request
 ---@field contentLength number? Returns a valid number if content is not empty
 ---@field content string? Request body
 ---@field state ConnectionState
+---@field connTime number
 local ClientTable = {}
 ClientTable.__index = ClientTable
 
@@ -83,6 +94,7 @@ function ClientTable.new(newId, client)
     obj.id = newId
     obj.client = client
     obj.state = "init"
+    obj.connTime = time()
     return obj
 end
 
@@ -152,19 +164,6 @@ local function findHandlerIndex(path, method)
     return nil
 end
 
----Breaks string into specified bytes chunks
----@param input string String input
----@param chunkSize number? Chunk size, defaults to 40 bytes
----@return string[]
-local function BreakChunks(input, chunkSize)
-    chunkSize = chunkSize or 40
-    local s = {}
-    for i = 1, #input, chunkSize do
-        s[#s + 1] = input:sub(i, i + chunkSize - 1)
-    end
-    return s
-end
-
 ---Find a handler by path and methods
 ---@param path string Request path
 ---@param method? RequestMethod
@@ -206,11 +205,11 @@ local function getNewClients()
 end
 
 ---Build the headers for a normal response
----Content is optional and may be nil. If not nil, content type must be provided (ex: "application/json")
----Assumes that the data is JSON
+---Content is optional and may be `nil`. If not `nil`, content type must be provided (ex: `application/json`)
+---Assumes that the supplied data is JSON format by default
 ---@param content string? Content of the response
 ---@param contentType MimeType? Content mime type
----@param resCode ResponseStatus? Response code, defaults to 200 OK
+---@param resCode ResponseStatus? Response code, defaults to `200 OK`
 local function buildHeaders(content, contentType, resCode)
     contentType = contentType or _mimeType.json
     local code = _resCode[resCode or 200]
@@ -243,36 +242,49 @@ local function markSessionForRemoval(client)
     client.state = "close"
 end
 
+---Helper function to ensure all data is sent
+---@param client TCPSocketClient
+---@param data string
+local function send_all(client, data)
+    local total_sent = 0
+
+    local len = #data
+    while total_sent < len do
+        -- 'send' partial send method doesn't work, so we do our own string sub
+        -- 'send' method will send malformed data if exceeds 40 bytes
+        local endByte = min(total_sent + 40, len)
+        local partial = string.sub(data, total_sent + 1, endByte)
+        local sent, err, partial_sent_index = client:send(partial)
+        if sent == nil then
+            -- Handle error (e.g., connection closed, timeout)
+            LogMsg("ERROR: Failed to send data: " .. (err or "unknown error"), "ERROR")
+            return nil, err -- Return nil and error message
+        end
+        total_sent = total_sent + sent
+        -- If 'sent' is less than the remaining 'data', client:send might have returned only part
+        -- In LuaSocket, if 'send' succeeds but sends less than requested, 'sent' will be the actual amount.
+        -- The loop naturally handles this by advancing total_sent.
+    end
+    return total_sent -- Return the total bytes sent on success
+end
+
 ---Send a response to the clients
 ---@param client ClientTable
 ---@param content? string Response body
----@param contentType MimeType? Content mime type. defaults to application/json
----@param resCode ResponseStatus? Response code. Defaults to 200 OK
+---@param contentType MimeType? Content mime type. defaults to `application/json`
+---@param resCode ResponseStatus? Response code. Defaults to `200 OK`
 local function sendResponse(client, content, contentType, resCode)
     LogMsg("Sending the response", "DEBUG")
     local header = buildHeaders(content, contentType, resCode)
 
-    for index, headerValue in ipairs(BreakChunks(header)) do
-        local a, b, elast = client.client:send(headerValue)
-        if a == nil then
-            LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
-            break
-        else
-            LogMsg("Last byte sent: " .. a .. " header size: " .. #headerValue, "DEBUG")
-        end
-    end
+    local sent = send_all(client.client, header)
+    LogMsg("Last byte sent: " .. sent .. " header size: " .. #header, "DEBUG")
 
     if content then
-        for index, value in ipairs(BreakChunks(content)) do
-            local a, b, elast = client.client:send(value)
-            if a == nil then
-                LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
-                break
-            else
-                LogMsg("Last byte sent: " .. a .. " content size: " .. #value, "DEBUG")
-            end
-        end
+        local contentSent = send_all(client.client, content)
+        LogMsg("Last byte sent: " .. contentSent .. " content size: " .. #content, "DEBUG")
     end
+    LogMsg(string.format("%d \"%s\" %.1fms", resCode or 200, client.urlString, time() - client.connTime))
     markSessionForRemoval(client)
 end
 
@@ -546,9 +558,9 @@ local function process(timeout)
 end
 
 ---Register a new handler for the specified path and method
----@param path string pattern to match (no wildcards at the moment) Ex: "/api/status"
----@param method RequestMethod request type (e.g. GET, POST). If nil the handler will be called for all types.
----@param handler RequestPathHandler
+---@param path string pattern to match (e.g. `/api/status`)
+---@param method RequestMethod request type (e.g. `GET`, `POST`)
+---@param handler RequestPathHandler request handler function
 ---@param authenticate boolean? Should the handler be authenticated. Defaults to true
 local function registerHandler(path, method, handler, authenticate)
     local h = RequestPathHandlerTable.new(path, method, handler, authenticate)
@@ -567,14 +579,16 @@ end
 ---@param host string Host to bind to
 ---@param port number Port to bind to
 local function init(host, port)
-    LogMsg("Web Server binding to host '" .. host .. "' on port " .. port .. "...")
     g_server = socket.bind(host, port)
     if g_server == nil then
-        LogMsg("Unable to bind to port!", "ERROR");
+        LogMsg("Unable to bind to port " .. port, "ERROR");
         return
     end
 
-    -- g_server:settimeout(0.05)
+    local bindAddr, bindPort = g_server:getsockname()
+    LogMsg("Webserver listening to host " .. (bindAddr or host) .. " on port " .. (bindPort or port) .. "...")
+
+    g_server:settimeout(0.05)
 
     -- Add the server socket to the client arrays so we will wait on it in select()
     table.insert(clients, g_server)

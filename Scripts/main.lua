@@ -80,11 +80,9 @@ local function LoadWebserver()
     Webserver.run("*", tonumber(port))
     return nil
   end)
-  if err then
+  if not status then
     LogMsg("Unexpected error has occured in Webserver: " .. err, "ERROR")
-    return true
   end
-  return false
 end
 
 ExecuteAsync(LoadWebserver)
