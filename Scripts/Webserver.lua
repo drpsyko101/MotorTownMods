@@ -1,6 +1,7 @@
 --------  To Do:  --------------
 -- Look into respecting a "keep open" request
 -- 405 response needs to add allowed methods header
+-- Cover more cases that may results in timeout
 
 
 -- Import Section
@@ -284,7 +285,7 @@ local function sendResponse(client, content, contentType, resCode)
         local contentSent = send_all(client.client, content)
         LogMsg("Last byte sent: " .. contentSent .. " content size: " .. #content, "DEBUG")
     end
-    LogMsg(string.format("%d \"%s\" %.1fms", resCode or 200, client.urlString, time() - client.connTime))
+    LogMsg(string.format("%d %s \"%s\" %.1fms", resCode or 200, client.method, client.urlString, time() - client.connTime))
     markSessionForRemoval(client)
 end
 
