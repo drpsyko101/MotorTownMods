@@ -1,17 +1,31 @@
 --------  To Do:  --------------
 -- Look into respecting a "keep open" request
--- think about authentication
 -- 405 response needs to add allowed methods header
+-- Cover more cases that may results in timeout
 
 
 -- Import Section
 -- Declare everything that this module needs from outside
 local dir = os.getenv("PWD") or io.popen("cd"):read()
-package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/socket/core.dll"
+package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?/core.dll"
+package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
 local socket = require("socket")
+local mime = require("mime")
 local url = require("socket.url")
 local statics = require("Statics")
 local json = require("JsonParser")
+local auth = os.getenv("MOD_SERVER_PASSWORD")
+local bcrypt = nil
+if auth then
+    local status, err = pcall(function()
+        LogMsg("Attempting to load bcrypt...", "DEBUG")
+        bcrypt = require("bcrypt")
+        LogMsg("Successfully loaded bcrypt", "DEBUG")
+    end)
+    if not status then
+        LogMsg("Failed to load bcrypt, will use base64 as fallback: " .. err, "ERROR")
+    end
+end
 
 local string = string
 local table = table
@@ -24,6 +38,10 @@ local date = os.date
 local LogMsg = LogMsg
 local setmetatable = setmetatable
 local pcall = pcall
+local min = math.min
+local time = function ()
+    return socket.gettime() * 1000
+end
 
 -- Cut off external access
 _ENV = nil
@@ -51,19 +69,20 @@ local _mimeType = {
 }
 
 ---@class ClientTable
----@field id integer
+---@field id integer Client connection ID. No two clients should have the same ID unless connections are kept open
 ---@field client TCPSocketClient
----@field rawHeaders string[]
----@field headers table<string,string>
+---@field rawHeaders string[] Raw request header pairs in a case-sensitive table
+---@field headers table<string,string> Request headers in lowercase keys
 ---@field method RequestMethod
----@field urlString string
+---@field urlString string Full URL request path
 ---@field urlComponents table<string,string>?
----@field pathComponents string[]
+---@field pathComponents string[] URL request paths separated by `/`
 ---@field queryComponents table<string,string>
----@field version string
----@field contentLength number?
----@field content string
+---@field version string HTTP version used in the request
+---@field contentLength number? Returns a valid number if content is not empty
+---@field content string? Request body
 ---@field state ConnectionState
+---@field connTime number
 local ClientTable = {}
 ClientTable.__index = ClientTable
 
@@ -76,6 +95,7 @@ function ClientTable.new(newId, client)
     obj.id = newId
     obj.client = client
     obj.state = "init"
+    obj.connTime = time()
     return obj
 end
 
@@ -89,12 +109,39 @@ local _resCode = {
     [403] = "403 Forbidden",
     [404] = "404 Not Found",
     [405] = "405 Method Not Allowed",
-    [500] = "500 Internal Server Error"
+    [500] = "500 Internal Server Error",
+    [503] = "503 Service Unavailable"
 }
 
 ---Request handler for the specified path
 ---@alias RequestPathHandler fun(session: ClientTable): resContent: string?, resType: MimeType?, resCode: ResponseStatus?
----@alias RequestPathHandlerTable { path: string, method: RequestMethod, handler: RequestPathHandler }
+
+---@class RequestPathHandlerTable
+---@field path string
+---@field method RequestMethod
+---@field handler RequestPathHandler
+---@field authenticate boolean
+local RequestPathHandlerTable = {}
+RequestPathHandlerTable.__index = RequestPathHandlerTable
+
+---Create a new request handler
+---@param path string
+---@param method RequestMethod
+---@param handler RequestPathHandler
+---@param authenticate boolean?
+---@return RequestPathHandlerTable
+function RequestPathHandlerTable.new(path, method, handler, authenticate)
+    local obj = setmetatable({}, RequestPathHandlerTable)
+    obj.path = path
+    obj.method = method
+    obj.handler = handler
+    if authenticate == nil then
+        obj.authenticate = true
+    else
+        obj.authenticate = authenticate
+    end
+    return obj
+end
 
 local serverString = statics.ModName .. " server " .. statics.ModVersion
 local clients = {} ---@type TCPSocketClient[]
@@ -116,19 +163,6 @@ local function findHandlerIndex(path, method)
     end
 
     return nil
-end
-
----Breaks string into specified bytes chunks
----@param input string String input
----@param chunkSize number? Chunk size, defaults to 40 bytes
----@return string[]
-local function BreakChunks(input, chunkSize)
-    chunkSize = chunkSize or 40
-    local s = {}
-    for i = 1, #input, chunkSize do
-        s[#s + 1] = input:sub(i, i + chunkSize - 1)
-    end
-    return s
 end
 
 ---Find a handler by path and methods
@@ -172,11 +206,11 @@ local function getNewClients()
 end
 
 ---Build the headers for a normal response
----Content is optional and may be nil. If not nil, content type must be provided (ex: "application/json")
----Assumes that the data is JSON
+---Content is optional and may be `nil`. If not `nil`, content type must be provided (ex: `application/json`)
+---Assumes that the supplied data is JSON format by default
 ---@param content string? Content of the response
 ---@param contentType MimeType? Content mime type
----@param resCode ResponseStatus? Response code
+---@param resCode ResponseStatus? Response code, defaults to `200 OK`
 local function buildHeaders(content, contentType, resCode)
     contentType = contentType or _mimeType.json
     local code = _resCode[resCode or 200]
@@ -209,50 +243,61 @@ local function markSessionForRemoval(client)
     client.state = "close"
 end
 
+---Helper function to ensure all data is sent
+---@param client TCPSocketClient
+---@param data string
+local function send_all(client, data)
+    local total_sent = 0
+
+    local len = #data
+    while total_sent < len do
+        -- 'send' partial send method doesn't work, so we do our own string sub
+        -- 'send' method will send malformed data if exceeds 40 bytes
+        local endByte = min(total_sent + 40, len)
+        local partial = string.sub(data, total_sent + 1, endByte)
+        local sent, err, partial_sent_index = client:send(partial)
+        if sent == nil then
+            -- Handle error (e.g., connection closed, timeout)
+            LogMsg("ERROR: Failed to send data: " .. (err or "unknown error"), "ERROR")
+            return nil, err -- Return nil and error message
+        end
+        total_sent = total_sent + sent
+        -- If 'sent' is less than the remaining 'data', client:send might have returned only part
+        -- In LuaSocket, if 'send' succeeds but sends less than requested, 'sent' will be the actual amount.
+        -- The loop naturally handles this by advancing total_sent.
+    end
+    return total_sent -- Return the total bytes sent on success
+end
+
 ---Send a response to the clients
 ---@param client ClientTable
 ---@param content? string Response body
----@param contentType MimeType? Content mime type. defaults to application/json
----@param resCode ResponseStatus? Response code. Defaults to 200 OK
+---@param contentType MimeType? Content mime type. defaults to `application/json`
+---@param resCode ResponseStatus? Response code. Defaults to `200 OK`
 local function sendResponse(client, content, contentType, resCode)
     LogMsg("Sending the response", "DEBUG")
     local header = buildHeaders(content, contentType, resCode)
 
-    for index, headerValue in ipairs(BreakChunks(header)) do
-        local a, b, elast = client.client:send(headerValue)
-        if a == nil then
-            LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
-            break
-        else
-            LogMsg("Last byte sent: " .. a .. " header size: " .. #headerValue, "DEBUG")
-        end
-    end
+    local sent = send_all(client.client, header)
+    LogMsg("Last byte sent: " .. sent .. " header size: " .. #header, "DEBUG")
 
     if content then
-        for index, value in ipairs(BreakChunks(content)) do
-            local a, b, elast = client.client:send(value)
-            if a == nil then
-                LogMsg("Error: " .. b .. "  last byte sent: " .. elast, "ERROR")
-                break
-            else
-                LogMsg("Last byte sent: " .. a .. " content size: " .. #value, "DEBUG")
-            end
-        end
+        local contentSent = send_all(client.client, content)
+        LogMsg("Last byte sent: " .. contentSent .. " content size: " .. #content, "DEBUG")
     end
+    LogMsg(string.format("%d %s \"%s\" %.1fms", resCode or 200, client.method, client.urlString, time() - client.connTime))
     markSessionForRemoval(client)
 end
 
 ---Parse the raw headers into a nice name/value dictionary
+---@param client ClientTable
 local function parseHeaders(client)
-    --print( string.format( "(%d) Request is '%s'", s.id, s.method ) )
-
     client.headers = {}
 
     -- TODO: handle a continued header line!
     for _, line in ipairs(client.rawHeaders) do
         local name, value = string.match(line, "(%S+)%s*:%s*(.+)%s*")
         if name ~= nil then
-            --print( string.format( "'%s' = '%s'", name, value ) )
             name = string.lower(name) -- convert to lowercase for simplified access
             client.headers[name] = value
         else
@@ -273,6 +318,31 @@ local function processHeaders(client)
     if len ~= nil then
         client.contentLength = tonumber(len)
     end
+end
+
+---Authenticate header if applicable
+---@param client ClientTable
+local function authenticateSession(client)
+    -- If no password is set, don't authenticate
+    if not auth then
+        return true
+    end
+
+    local headerAuth = client.headers["authorization"] or nil
+    if headerAuth then
+        local basicAuth = string.match(headerAuth, "Basic (.+)")
+        if bcrypt then
+            if bcrypt.verify(auth, basicAuth) then
+                return true
+            end
+        else
+            -- Fallback to base64 encoding
+            return basicAuth == mime.b64(auth)
+        end
+    end
+
+    LogMsg("Unauthenticated session " .. client.id, "DEBUG")
+    return false
 end
 
 ---Dump headers for debugging
@@ -321,6 +391,11 @@ local function processSession(client)
 
     local h = findHandler(client.urlComponents.path, client.method)
     if h then
+        if h.authenticate and not authenticateSession(client) then
+            sendResponse(client, nil, nil, 401)
+            return
+        end
+
         local status, content, mime, code = pcall(h.handler, client)
         -- Check if the handler returned any valid response
         if status then
@@ -426,7 +501,6 @@ local function handleClient(client)
                 end
             end
         else
-            --print( string.format( "(%d) BODY: %s", s.id, data ) )
             s.content = data
             processSession(s)
         end
@@ -434,7 +508,6 @@ local function handleClient(client)
         if err == "closed" then
             LogMsg("Client closed the connection: ", "DEBUG")
             markSessionForRemoval(s)
-            --print( "Size of client list is " .. #clients )
         elseif err == "timeout" then
             LogMsg("Receive timeout. Partial data: " .. partial, "ERROR")
             markSessionForRemoval(s)
@@ -451,8 +524,8 @@ end
 ---Note that if there is data to process this method may return sooner or later than the timeout time.
 ---@param timeout number Timout in seconds
 local function process(timeout)
-    local rclients, _, err = socket.select(clients, nil, timeout) ---@cast rclients TCPSocketClient[]
-    --print( #rclients, err )
+    local rclients, _, err = socket.select(clients, nil, timeout)
+    ---@cast rclients TCPSocketClient[]
     if err ~= nil then
         -- Either no data (timeout) or an error
         if err ~= "timeout" then
@@ -486,11 +559,12 @@ local function process(timeout)
 end
 
 ---Register a new handler for the specified path and method
----@param path string pattern to match (no wildcards at the moment) Ex: "/api/status"
----@param method RequestMethod request type (e.g. GET, POST). If nil the handler will be called for all types.
----@param handler RequestPathHandler
-local function registerHandler(path, method, handler)
-    local h = { path = path, method = method, handler = handler }
+---@param path string pattern to match (e.g. `/api/status`)
+---@param method RequestMethod request type (e.g. `GET`, `POST`)
+---@param handler RequestPathHandler request handler function
+---@param authenticate boolean? Should the handler be authenticated. Defaults to true
+local function registerHandler(path, method, handler, authenticate)
+    local h = RequestPathHandlerTable.new(path, method, handler, authenticate)
     -- Already registered?
     local i = findHandlerIndex(path, method)
     if i == nil then
@@ -506,14 +580,16 @@ end
 ---@param host string Host to bind to
 ---@param port number Port to bind to
 local function init(host, port)
-    LogMsg("Web Server binding to host '" .. host .. "' on port " .. port .. "...")
     g_server = socket.bind(host, port)
     if g_server == nil then
-        LogMsg("Unable to bind to port!", "ERROR");
+        LogMsg("Unable to bind to port " .. port, "ERROR");
         return
     end
 
-    -- g_server:settimeout(0.05)
+    local bindAddr, bindPort = g_server:getsockname()
+    LogMsg("Webserver listening to host " .. (bindAddr or host) .. " on port " .. (bindPort or port) .. "...")
+
+    g_server:settimeout(0.05)
 
     -- Add the server socket to the client arrays so we will wait on it in select()
     table.insert(clients, g_server)
