@@ -39,6 +39,9 @@ end
 
 Init()
 
+---Get actor from hit result
+---@param HitResult FHitResult
+---@return AActor
 local function GetActorFromHitResult(HitResult)
   if UnrealVersion:IsBelow(5, 0) then
     return HitResult.Actor:Get()
@@ -55,53 +58,56 @@ local selectedActor = CreateInvalidObject()
 ---Get selected actor
 ---@return AActor
 function GetSelectedActor()
+  if selectedActor:IsValid() then return selectedActor end
+
+  local wasHit, hitResult = GetHitResultFromCenterLineTrace()
+  if wasHit then
+    selectedActor = GetActorFromHitResult(hitResult)
+    LogMsg("Selected actor: " .. selectedActor:GetFullName())
+  end
   return selectedActor
 end
 
----Get actor from line trace
-local function GetObjectFromLineTrace()
-  if not IsInitialized then return selectedActor end
+---Get a hit result from the camera center line trace
+---@return boolean
+---@return FHitResult
+function GetHitResultFromCenterLineTrace()
+  if not IsInitialized then return false, {} end
 
-  local PlayerController = GetMyPlayerController()
-  local PlayerPawn = PlayerController.Pawn
-  local CameraManager = PlayerController.PlayerCameraManager
-  local StartVector = CameraManager:GetCameraLocation()
-  local AddValue = GetKismetMathLibrary():Multiply_VectorInt(
-    GetKismetMathLibrary():GetForwardVector(CameraManager:GetCameraRotation()), 50000.0)
-  local EndVector = GetKismetMathLibrary():Add_VectorVector(StartVector, AddValue)
-  local TraceColor = {
+  local playerController = GetMyPlayerController()
+  local playerPawn = playerController.Pawn
+  local cameraManager = playerController.PlayerCameraManager
+  local startVector = cameraManager:GetCameraLocation()
+  local addValue = GetKismetMathLibrary():Multiply_VectorInt(
+    GetKismetMathLibrary():GetForwardVector(cameraManager:GetCameraRotation()), 50000.0)
+  local endVector = GetKismetMathLibrary():Add_VectorVector(startVector, addValue)
+  local traceColor = {
     ["R"] = 0,
     ["G"] = 0,
     ["B"] = 0,
     ["A"] = 0,
   }
-  local TraceHitColor = TraceColor
-  local EDrawDebugTrace_Type_None = 0
-  local ETraceTypeQuery_TraceTypeQuery1 = 0
-  local ActorsToIgnore = {
+  local traceHitColor = traceColor
+  local drawDebugTrace_Type_None = 0
+  local traceTypeQuery_TraceTypeQuery1 = 0
+  local actorsToIgnore = {
   }
-  local HitResult = {}
-  local WasHit = GetKismetSystemLibrary():LineTraceSingle(
-    PlayerPawn,
-    StartVector,
-    EndVector,
-    ETraceTypeQuery_TraceTypeQuery1,
+  local hitResult = {}
+  local wasHit = GetKismetSystemLibrary():LineTraceSingle(
+    playerPawn,
+    startVector,
+    endVector,
+    traceTypeQuery_TraceTypeQuery1,
     false,
-    ActorsToIgnore,
-    EDrawDebugTrace_Type_None,
-    HitResult,
+    actorsToIgnore,
+    drawDebugTrace_Type_None,
+    hitResult,
     true,
-    TraceColor,
-    TraceHitColor,
+    traceColor,
+    traceHitColor,
     0.0
   )
-
-  if WasHit then
-    selectedActor = GetActorFromHitResult(HitResult)
-    LogMsg("Selected actor: " .. selectedActor:GetFullName())
-    return
-  end
-  selectedActor = CreateInvalidObject()
+  return wasHit, hitResult
 end
 
 local function DeselectActor()
@@ -109,7 +115,7 @@ local function DeselectActor()
   LogMsg("Selected actor: none")
 end
 
-RegisterKeyBind(Key.F, { ModifierKey.CONTROL, ModifierKey.SHIFT }, GetObjectFromLineTrace)
+RegisterKeyBind(Key.F, { ModifierKey.CONTROL, ModifierKey.SHIFT }, GetSelectedActor)
 RegisterKeyBind(Key.D, { ModifierKey.CONTROL, ModifierKey.SHIFT }, DeselectActor)
 RegisterConsoleCommandHandler("deselectactor", function(Cmd, CommandParts, Ar)
   DeselectActor()

@@ -9,6 +9,7 @@ local propertyManager = require("PropertyManager")
 local cargoManager = require("CargoManager")
 local chatManager = require("ChatManager")
 local vehicleManager = require("VehicleManager")
+local assetManager = require("AssetManager")
 
 ---@enum (key) LogLevel
 local logLevel = {
@@ -75,6 +76,10 @@ local function LoadWebserver()
     Webserver.registerHandler("/vehicles", "GET", vehicleManager.HandleGetVehicles)
     Webserver.registerHandler("/vehicles/*/despawn", "POST", vehicleManager.HandleDespawnVehicle)
     Webserver.registerHandler("/vehicles/*", "GET", vehicleManager.HandleGetVehicles)
+
+    -- Asset management
+    Webserver.registerHandler("/assets/spawn", "POST", assetManager.HandleSpawnActor)
+    Webserver.registerHandler("/assets/despawn", "POST", assetManager.HandleDespawnActor)
 
     local port = os.getenv("MOD_LUA_PORT") or "5001"
     Webserver.run("*", tonumber(port))
