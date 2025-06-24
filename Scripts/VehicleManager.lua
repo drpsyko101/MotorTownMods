@@ -1176,7 +1176,7 @@ local function VehicleToTable(vehicle)
     ConnectionType = vehicle.TrailerHitch.ConnectionType
   } or nil
   data.PoliceComponent = PoliceVehicleCompToTable(vehicle.PoliceComponent)
-  data.SellerComponent = vehicle.SellerComponent:IsValid() and {
+  data.SellerComponent = vehicle.SellerComponent:IsValid() and vehicle.SellerComponent.Marker:IsValid() and {
     Marker = VectorToTable(vehicle.SellerComponent.Marker:K2_GetActorLocation())
   } or nil
   -- data.CraneComponent = vehicle.CraneComponent
@@ -1545,7 +1545,7 @@ end)
 local function HandleGetVehicles(session)
   local id = tonumber(session.pathComponents[2]) or nil
   local fields = SplitString(session.queryComponents.filters, ",")
-  local limit = tonumber(session.queryComponents.limit) or nil
+  local limit = session.queryComponents.limit and tonumber(session.queryComponents.limit) or nil
 
   local serverStatus = json.stringify {
     data = GetVehicles(id, fields, limit)
