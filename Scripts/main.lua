@@ -81,8 +81,7 @@ local function LoadWebserver()
     Webserver.registerHandler("/assets/spawn", "POST", assetManager.HandleSpawnActor)
     Webserver.registerHandler("/assets/despawn", "POST", assetManager.HandleDespawnActor)
 
-    local port = os.getenv("MOD_LUA_PORT") or "5001"
-    Webserver.run("*", tonumber(port))
+    Webserver.run("*")
     return nil
   end)
   if not status then
