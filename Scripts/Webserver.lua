@@ -39,7 +39,10 @@ local LogMsg = LogMsg
 local setmetatable = setmetatable
 local pcall = pcall
 local min = math.min
-local time = function ()
+local port = tonumber(os.getenv("MOD_SERVER_PORT")) or 5001
+local isServerRunning = true
+local RegisterConsoleCommandHandler = RegisterConsoleCommandHandler
+local time = function()
     return socket.gettime() * 1000
 end
 
@@ -213,7 +216,7 @@ end
 ---@param resCode ResponseStatus? Response code, defaults to `200 OK`
 local function buildHeaders(content, contentType, resCode)
     contentType = contentType or _mimeType.json
-    local code = _resCode[resCode or 200]
+    local code = _resCode[resCode or (content and 200) or 204]
     local h = {}
 
     local function add(name, value)
@@ -285,7 +288,8 @@ local function sendResponse(client, content, contentType, resCode)
         local contentSent = send_all(client.client, content)
         LogMsg("Last byte sent: " .. contentSent .. " content size: " .. #content, "DEBUG")
     end
-    LogMsg(string.format("%d %s \"%s\" %.1fms", resCode or 200, client.method, client.urlString, time() - client.connTime))
+    LogMsg(string.format("%d %s \"%s\" %.1fms", resCode or 200, client.method, client.urlString, time() - client
+        .connTime))
     markSessionForRemoval(client)
 end
 
@@ -595,13 +599,30 @@ local function init(host, port)
     table.insert(clients, g_server)
 end
 
-local function run(host, port)
-    init(host, port)
+---Start the web server
+---@param bindHost string Host IP to bind to
+---@param bindPort number? Port to bind to
+local function run(bindHost, bindPort)
+    bindPort = bindPort or port
 
-    while 1 do
+    -- Register core webserver command
+    registerHandler("/stop", "POST", function(session)
+        isServerRunning = false
+        return '{"status":"ok"}'
+    end)
+
+    init(bindHost, bindPort)
+
+    while isServerRunning do
         process(5.0)
     end
+    LogMsg("Webserver stopped")
 end
+
+RegisterConsoleCommandHandler("stopwebserver", function (Cmd, CommandParts, Ar)
+    isServerRunning = false
+    return true
+end)
 
 return {
     run = run,

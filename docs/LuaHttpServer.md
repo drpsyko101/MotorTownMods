@@ -4,6 +4,19 @@
 
 Query parameter and/or request body is not needed unless specified. A basic HTTP authentication header `Authorization: Basic <token>` is required for all request unless specified otherwise. The `token` can be either hashed with `bcrypt` or a simple `base64` encoding.
 
+### Webserver control
+
+#### POST `/stop`
+
+Stop the webserver. Useful for restarting the Lua mods. Note that it will still try to complete any ongoing request before stopping. Future request will be rejected.
+
+<details>
+<summary>Response data:</summary>
+
+Returns `200 OK` for successful stop command. Will output `Webserver stopped` in the log to confirm the full webserver shutdown.
+
+</details>
+
 ### General server settings
 
 #### GET `/status`

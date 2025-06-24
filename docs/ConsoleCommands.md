@@ -4,6 +4,7 @@ List of Motor Town console commands.
 
 ## General
 
+* `stopwebserver` - Stop the webserver. Useful for restarting Lua mods.
 * `setnpctraffic <amount>` - Set the current traffic amount. Defaults to `1.0`.
 
 ## Player management
