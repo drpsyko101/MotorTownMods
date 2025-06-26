@@ -1,5 +1,5 @@
 return {
     ModName = "MotorTownMods",
-    ModVersion = "0.4.3",
+    ModVersion = "0.4.4",
     ModLogLevel = 2,
 }
