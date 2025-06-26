@@ -25,7 +25,7 @@ jobs:
       - name: Checkout UE4SS
         uses: actions/checkout@v4
         with:
-          repository: https://github.com/drpsyko101/RE-UE4SS.git
+          repository: drpsyko101/RE-UE4SS
           path: RE-UE4SS
           submodules: recursive
           token: ${{ secrets.UEPSEUDO_PAT }}
