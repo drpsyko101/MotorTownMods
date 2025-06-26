@@ -406,7 +406,7 @@ RegisterHook(
 ---@type RequestPathHandler
 local function HandleGetDeliveryPoints(session)
   local guid = session.urlComponents[3] or nil
-  local limit = tonumber(session.queryComponents.limit) or nil
+  local limit = session.queryComponents.limit and tonumber(session.queryComponents.limit) or nil
 
   local rawFilters = session.queryComponents.filters
   local filters = SplitString(rawFilters, ",")
