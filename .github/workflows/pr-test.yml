@@ -41,4 +41,4 @@ jobs:
       - name: Lint Lua
         uses: lunarmodules/luacheck@v1
         with:
-          args: Scripts
+          args: current/Scripts
