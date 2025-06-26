@@ -27,6 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: drpsyko101/RE-UE4SS
+          ref: amc
           path: RE-UE4SS
           submodules: recursive
           token: ${{ secrets.UEPSEUDO_PAT }}
