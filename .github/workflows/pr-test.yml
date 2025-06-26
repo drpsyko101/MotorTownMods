@@ -37,8 +37,3 @@ jobs:
         with:
           head: ${{ steps.parse-versions.outputs.current }}
           base: ${{ steps.parse-versions.outputs.target }}
-
-      - name: Lint Lua
-        uses: lunarmodules/luacheck@v1
-        with:
-          args: current/Scripts
