@@ -70,6 +70,7 @@ jobs:
         id: package-build
         shell: pwsh
         run: |
+          New-Item -ItemType Directory .\MotorTownMods\dlls
           Copy-Item .\Binaries\Game__Shipping__Win64\MotorTownMods\MotorTownMods.dll .\MotorTownMods\dlls\main.dll
           $staticsFile = Get-Content -Raw .\MotorTownMods\Scripts\Statics.lua
           [regex]$versionRegex = 'ModVersion = "(.*)",'
