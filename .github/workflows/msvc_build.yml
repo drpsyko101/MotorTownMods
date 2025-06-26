@@ -1,0 +1,79 @@
+name: Build release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - src/**
+      - xmake.lua
+
+permissions:
+  contents: read
+
+jobs:
+  make-release:
+    permissions: write-all
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout working repository
+        uses: actions/checkout@v4
+        with:
+          path: MotorTownMods
+
+      - name: Checkout UE4SS
+        uses: actions/checkout@v4
+        with:
+          repository: https://github.com/drpsyko101/RE-UE4SS.git
+          path: RE-UE4SS
+          submodules: recursive
+          token: ${{ secrets.UEPSEUDO_PAT }}
+
+      - name: Prep xmake
+        shell: pwsh
+        run: Write-Output "includes(`"RE-UE4SS`")`r`nincludes(`"MotorTownMods`")" | Out-File xmake.lua
+
+      # Specifically use MSVC toolset v19.39.33523
+      - name: Install VS2022 BuildTools 17.9.7
+        run: choco install -y visualstudio2022buildtools --version=117.9.7.0 --params "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --installChannelUri https://aka.ms/vs/17/release/180911598_-255012421/channel"
+
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: "2.9.3"
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .xmake
+            Binaries
+            Intermediates
+            C:/Users/runneradmin/AppData/Local/.xmake
+          key: ${{ runner.os }}-xmake-${{ hashFiles('**/xmake.lua') }}
+
+      - name: Build
+        run: |
+          xmake f -m "Game__Shipping__Win64" -y
+          xmake project -k vsxmake2022 -m "Game__Shipping__Win64" -y
+          xmake build
+
+      - name: Package build
+        id: package-build
+        shell: pwsh
+        run: |
+          Copy-Item .\Binaries\Game__Shipping__Win64\MotorTownMods\MotorTownMods.dll .\MotorTownMods\dlls\main.dll
+          $staticsFile = Get-Content -Raw .\MotorTownMods\Scripts\Statics.lua
+          [regex]$versionRegex = 'ModVersion = "(.*)",'
+          $modVersion = $versionRegex.Match($staticsFile).Groups[1].Value
+          Compress-Archive -Path .\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
+          Write-Output "version=$modVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MotorTownMods v${{ steps.package-build.outputs.version }}
+          tag_name: v${{ steps.package-build.outputs.version }}
+          body: ${{ github.event.head_commit.message }}
+          files: MotorTownMods_v*.zip
