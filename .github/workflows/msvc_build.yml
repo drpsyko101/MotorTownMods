@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - src/**
+      - "**/*.lua"
       - xmake.lua
 
 permissions:
@@ -77,3 +78,4 @@ jobs:
           tag_name: v${{ steps.package-build.outputs.version }}
           body: ${{ github.event.head_commit.message }}
           files: MotorTownMods_v*.zip
+          make_latest: true

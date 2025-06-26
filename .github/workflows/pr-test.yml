@@ -1,0 +1,39 @@
+name: Check version
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  semver-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout current
+        uses: actions/checkout@v4
+        with:
+          path: current
+
+      - name: Checkout target
+        uses: actions/checkout@v4
+        with:
+          path: target
+          ref: main
+          sparse-checkout: |
+            Scripts/Statics.lua
+
+      - name: Parse versions
+        id: parse-versions
+        run: |
+          sed -nE 's/.*ModVersion = "(.*)"./current=\1/p' current/Scripts/Statics.lua >> $GITHUB_OUTPUT
+          sed -nE 's/.*ModVersion = "(.*)"./target=\1/p' target/Scripts/Statics.lua >> $GITHUB_OUTPUT
+
+      - name: Compare version
+        uses: jackbilestech/semver-compare@1.0.4
+        with:
+          head: ${{ steps.parse-versions.outputs.current }}
+          base: ${{ steps.parse-versions.outputs.target }}
