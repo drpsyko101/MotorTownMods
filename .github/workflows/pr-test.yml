@@ -2,10 +2,6 @@ name: Check version
 
 on:
   pull_request:
-    types:
-      - opened
-      - edited
-      - reopened
     branches:
       - main
 
