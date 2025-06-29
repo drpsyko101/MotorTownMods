@@ -39,7 +39,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: "3.9"
 
       # Specifically use MSVC toolset v19.39.33523
       - name: Install VS2022 BuildTools 17.9.7
@@ -76,9 +76,18 @@ jobs:
           [regex]$versionRegex = 'ModVersion = "(.*)",'
           $modVersion = $versionRegex.Match($staticsFile).Groups[1].Value
           Compress-Archive -Path .\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
-          Write-Output "version=$modVersion" >> $env:GITHUB_OUTPUT
+          [regex]$majorMinorVersionRegex = '^([0-9]+\.[0-9]+)'
+          Write-Output "version=$($majorMinorVersionRegex.Match($modVersion).Groups[1].Value)" >> $env:GITHUB_OUTPUT
 
-      - name: Create release
+      - name: Delete old release assets
+        uses: mknejp/delete-release-assets@v1
+        continue-on-error: true
+        with:
+          token: ${{ github.token }}
+          tag: v${{ steps.package-build.outputs.version }}
+          assets: "*"
+
+      - name: Create/update release
         uses: softprops/action-gh-release@v2
         with:
           name: MotorTownMods v${{ steps.package-build.outputs.version }}

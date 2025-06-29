@@ -3,6 +3,8 @@ local webhook = require("Webclient")
 local json = require("JsonParser")
 local cargo = require("CargoManager")
 
+local vehicleDealerSoftPath = "/Script/MotorTown.MTDealerVehicleSpawnPoint"
+
 ---Convert FMTVehicleColorSlot to JSON serializable table
 ---@param slot FMTVehicleColorSlot
 local function ColorSlotToTable(slot)
@@ -1472,6 +1474,79 @@ local function DespawnVehicleById(id, playerGuid)
   return false
 end
 
+---Spawn vehicle dealer plot at given location
+---@param location FVector Location to spawn
+---@param rotation FRotator? Plot world rotation
+---@param vehicleClass string? Vehicle blueprint class path
+---@param vehicleParam table? Optional vehicle parameter
+---@return boolean Success
+---@return string? AssetTag Generated asset tag
+local function SpawnVehicleDealer(location, rotation, vehicleClass, vehicleParam)
+  local world = UEHelpers.GetWorld()
+  if world and world:IsValid() then
+    local vehicleDealerClass = StaticFindObject(vehicleDealerSoftPath)
+    ---@cast vehicleDealerClass UClass
+
+    local assetTag = ""
+    local actor = CreateInvalidObject() ---@cast actor AActor
+    local vehicleUClass = CreateInvalidObject() ---@cast vehicleUClass UClass
+
+    ExecuteInGameThread(function()
+      if vehicleClass then
+        LoadAsset(vehicleClass)
+        vehicleUClass = StaticFindObject(vehicleClass)
+      end
+
+      ---@type AActor
+      actor = world:SpawnActor(
+        vehicleDealerClass,
+        {
+          X = location and location.X or 0,
+          Y = location and location.Y or 0,
+          Z = location and location.Z or 0,
+        },
+        {
+          Pitch = rotation and rotation.Pitch or 0,
+          Roll = rotation and rotation.Roll or 0,
+          Yaw = rotation and rotation.Yaw or 0
+        }
+      )
+      if actor:IsValid() then
+        ---@cast actor AMTDealerVehicleSpawnPoint
+        LogMsg("Spawned actor " .. actor:GetFullName(), "DEBUG")
+
+        local str = SplitString(actor:GetFullName())
+
+        if str and str[2] then
+          assetTag = str[2]
+        else
+          error("Invalid asset tag")
+        end
+
+        -- Apply actor tag for easy retrieval later
+        actor.Tags[#actor.Tags + 1] = FName(assetTag)
+        LogMsg("Spawned actor tagged: " .. assetTag, "DEBUG")
+
+        if vehicleUClass:IsValid() then
+          actor.VehicleClass = vehicleUClass
+        end
+
+        if vehicleParam then
+          actor.VehicleParams[1] = {
+            Customizations = {},
+            Parts = {},
+            VehicleKey = FName(vehicleParam.VehicleKey or "")
+          }
+        end
+      end
+    end)
+    if assetTag then
+      return true, assetTag
+    end
+  end
+  return false
+end
+
 -- Console commands
 
 RegisterConsoleCommandHandler("despawnvehicle", function()
@@ -1565,17 +1640,44 @@ local function HandleDespawnVehicle(session)
   end
 
   if not id then
-    return "Invalid vehicle ID", nil, 400
+    return '{"message":"Invalid vehicle ID"}', nil, 400
   end
 
   if DespawnVehicleById(id, playerGuid) then
     return nil, nil, 204
   else
-    return "Failed to despawn vehicle", nil, 400
+    return '{"message":"Failed to despawn vehicle"}', nil, 400
   end
+end
+
+---Handle vehicle dealer spawn point
+---@type RequestPathHandler
+local function HandleCreateVehicleDealerSpawnPoint(session)
+  local data = json.parse(session.content)
+  if data then
+    local status, tag = SpawnVehicleDealer(
+      {
+        X = data.Location.X,
+        Y = data.Location.Y,
+        Z = data.Location.Z
+      },
+      {
+        Pitch = data.Rotation and data.Rotation.Pitch or 0,
+        Roll = data.Rotation and data.Rotation.Roll or 0,
+        Yaw = data.Rotation and data.Rotation.Yaw or 0
+      },
+      data.VehicleClass,
+      data.VehicleParam
+    )
+    if status then
+      return json.stringify { data = { tag = tag } }, nil, 201
+    end
+  end
+  return nil, nil, 400
 end
 
 return {
   HandleGetVehicles = HandleGetVehicles,
-  HandleDespawnVehicle = HandleDespawnVehicle
+  HandleDespawnVehicle = HandleDespawnVehicle,
+  HandleCreateVehicleDealerSpawnPoint = HandleCreateVehicleDealerSpawnPoint
 }
