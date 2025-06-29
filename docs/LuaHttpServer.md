@@ -1354,6 +1354,39 @@ Get selected vehicle guid. This is currently only works for player owned vehicle
 
 Despawn selected vehicle with the given guid. This is currently only works for player owned vehicles as NPC vehicles are marked with -1 guid. Returns a `204` for a successful request.
 
+#### POST `/dealers/spawn`
+
+Spawn a vehicle dealer spawn point at given location, along with optional vehicle parameter. The vehicle pricing is calculated based on the vehicle base value and equipped parts.
+
+<details>
+<summary>Request body:</summary>
+
+```json
+{
+  "Location": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+  "Rotation": { "Pitch": 0.0, "Roll": 0.0, "Yaw": 0.0 },
+  "VehicleClass": "",
+  "VehicleParam": {
+    "VehicleKey": ""
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "data": {
+    "tag": ""
+  }
+}
+```
+
+</details>
+
 ### Properties management
 
 #### GET `/houses`
@@ -2070,7 +2103,6 @@ Returns a delivery point given the guid in-game. Uses the same queries as above.
 
 </details>
 
-
 ### Assets
 
 #### POST `/assets/spawn`
@@ -2127,9 +2159,7 @@ Spawning multiple actors:
 
 ```json
 {
-  "Data": [
-    "AssetTagHere"
-  ]
+  "Data": ["AssetTagHere"]
 }
 ```
 
@@ -2154,10 +2184,7 @@ Despawn using multiple tags:
 
 ```json
 {
-  "Tags": [
-    "Tag1",
-    "Tag2"
-  ]
+  "Tags": ["Tag1", "Tag2"]
 }
 ```
 
