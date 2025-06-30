@@ -78,6 +78,8 @@ jobs:
           Compress-Archive -Path .\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
           [regex]$majorMinorVersionRegex = '^([0-9]+\.[0-9]+)'
           Write-Output "version=$($majorMinorVersionRegex.Match($modVersion).Groups[1].Value)" >> $env:GITHUB_OUTPUT
+          "${{ github.event.head_commit.message }}" > commit_msg.txt
+          Write-Output "message=$(Get-Content -Raw commit_msg.txt | select -skip 2)" >> $env:GITHUB_OUTPUT
 
       - name: Delete old release assets
         uses: mknejp/delete-release-assets@v1
@@ -92,6 +94,6 @@ jobs:
         with:
           name: MotorTownMods v${{ steps.package-build.outputs.version }}
           tag_name: v${{ steps.package-build.outputs.version }}
-          body: ${{ github.event.head_commit.message }}
+          body: ${{ steps.package-build.outputs.message }}
           files: MotorTownMods_v*.zip
           make_latest: true

@@ -2,6 +2,7 @@ local UEHelpers = require("UEHelpers")
 local webhook = require("Webclient")
 local json = require("JsonParser")
 local cargo = require("CargoManager")
+local socket = require("socket")
 
 local vehicleDealerSoftPath = "/Script/MotorTown.MTDealerVehicleSpawnPoint"
 
@@ -1490,57 +1491,62 @@ local function SpawnVehicleDealer(location, rotation, vehicleClass, vehicleParam
     local assetTag = ""
     local actor = CreateInvalidObject() ---@cast actor AActor
     local vehicleUClass = CreateInvalidObject() ---@cast vehicleUClass UClass
+    local isProcessing = true
 
     ExecuteInGameThread(function()
-      if vehicleClass then
-        LoadAsset(vehicleClass)
-        vehicleUClass = StaticFindObject(vehicleClass)
-      end
-
-      ---@type AActor
-      actor = world:SpawnActor(
-        vehicleDealerClass,
-        {
-          X = location and location.X or 0,
-          Y = location and location.Y or 0,
-          Z = location and location.Z or 0,
-        },
-        {
-          Pitch = rotation and rotation.Pitch or 0,
-          Roll = rotation and rotation.Roll or 0,
-          Yaw = rotation and rotation.Yaw or 0
-        }
-      )
-      if actor:IsValid() then
-        ---@cast actor AMTDealerVehicleSpawnPoint
-        LogMsg("Spawned actor " .. actor:GetFullName(), "DEBUG")
-
-        local str = SplitString(actor:GetFullName())
-
-        if str and str[2] then
-          assetTag = str[2]
-        else
-          error("Invalid asset tag")
+      pcall(function()
+        if vehicleClass then
+          LoadAsset(vehicleClass)
+          vehicleUClass = StaticFindObject(vehicleClass)
         end
 
-        -- Apply actor tag for easy retrieval later
-        actor.Tags[#actor.Tags + 1] = FName(assetTag)
-        LogMsg("Spawned actor tagged: " .. assetTag, "DEBUG")
-
-        if vehicleUClass:IsValid() then
-          actor.VehicleClass = vehicleUClass
-        end
-
-        if vehicleParam then
-          actor.VehicleParams[1] = {
-            Customizations = {},
-            Parts = {},
-            VehicleKey = FName(vehicleParam.VehicleKey or "")
+        ---@type AActor
+        actor = world:SpawnActor(
+          vehicleDealerClass,
+          {
+            X = location and location.X or 0,
+            Y = location and location.Y or 0,
+            Z = location and location.Z or 0,
+          },
+          {
+            Pitch = rotation and rotation.Pitch or 0,
+            Roll = rotation and rotation.Roll or 0,
+            Yaw = rotation and rotation.Yaw or 0
           }
-        end
-      end
+        )
+      end)
+      isProcessing = false
     end)
-    if assetTag then
+    while isProcessing do
+      socket.sleep(0.01)
+    end
+    if actor:IsValid() then
+      ---@cast actor AMTDealerVehicleSpawnPoint
+      LogMsg("Spawned actor " .. actor:GetFullName(), "DEBUG")
+
+      local str = SplitString(actor:GetFullName())
+
+      if str and str[2] then
+        assetTag = str[2]
+      else
+        error("Invalid asset tag")
+      end
+
+      -- Apply actor tag for easy retrieval later
+      actor.Tags[#actor.Tags + 1] = FName(assetTag)
+      LogMsg("Spawned actor tagged: " .. assetTag, "DEBUG")
+
+      if vehicleUClass:IsValid() then
+        actor.VehicleClass = vehicleUClass
+      end
+
+      if vehicleParam then
+        actor.VehicleParams[1] = {
+          Customizations = {},
+          Parts = {},
+          VehicleKey = FName(vehicleParam.VehicleKey or "")
+        }
+      end
       return true, assetTag
     end
   end
