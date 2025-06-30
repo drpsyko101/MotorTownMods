@@ -78,8 +78,9 @@ jobs:
           [regex]$versionRegex = 'ModVersion = "(.*)",'
           $modVersion = $versionRegex.Match($staticsFile).Groups[1].Value
           Compress-Archive -Path .\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
+          Write-Output "version=$modVersion" >> $env:GITHUB_OUTPUT
           [regex]$majorMinorVersionRegex = '^([0-9]+\.[0-9]+)'
-          Write-Output "version=$($majorMinorVersionRegex.Match($modVersion).Groups[1].Value)" >> $env:GITHUB_OUTPUT
+          Write-Output "majorMinorVersion=$($majorMinorVersionRegex.Match($modVersion).Groups[1].Value)" >> $env:GITHUB_OUTPUT
           "$env:COMMIT_MESSAGE" > commit_msg.txt
           Get-Content -Raw commit_msg.txt | select -skip 2 > release_description.md
 
@@ -88,14 +89,14 @@ jobs:
         continue-on-error: true
         with:
           token: ${{ github.token }}
-          tag: v${{ steps.package-build.outputs.version }}
+          tag: v${{ steps.package-build.outputs.majorMinorVersion }}
           assets: "*"
 
       - name: Create/update release
         uses: softprops/action-gh-release@v2
         with:
           name: MotorTownMods v${{ steps.package-build.outputs.version }}
-          tag_name: v${{ steps.package-build.outputs.version }}
+          tag_name: v${{ steps.package-build.outputs.majorMinorVersion }}
           body_path: release_description.md
           files: MotorTownMods_v*.zip
           make_latest: true
