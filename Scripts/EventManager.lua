@@ -373,6 +373,7 @@ RegisterHook(
         EventGuid = eventGuid
       }
     }
+    LogMsg("ServerRemoveEvent: " .. res, "DEBUG")
     webhook.CreateWebhookRequest(res)
   end
 )
@@ -385,21 +386,61 @@ RegisterHook(
 
     if not PC:IsValid() then return end
 
-    local PS = PC.PlayerState ---@cast PS AMotorTownPlayerState
-
-    if not PS:IsValid() then return end
-
     local res = json.stringify {
       hook = passRaceSection,
       data = {
-        SenderGuid = GuidToString(PS.CharacterGuid),
+        SenderGuid = GetPlayerGuid(PC),
         EventGuid = GuidToString(eventGuid:get()),
         SectionIndex = sectionIndex:get(),
         TotalTimeSeconds = totalTimeSeconds:get(),
         LaptimeSeconds = laptimeSeconds:get()
       }
     }
-    LogMsg(res, "DEBUG")
+    LogMsg("ServerPassedRaceSection: " .. res, "DEBUG")
+    webhook.CreateWebhookRequest(res)
+  end
+)
+
+local serverJoinEvent = "/Script/MotorTown.MotorTownPlayerController:ServerJoinEvent"
+RegisterHook(
+  serverJoinEvent,
+  function(self, eventGuid)
+    local PC = self:get() ---@cast PC APlayerController
+
+    if not PC:IsValid() then return end
+
+    local guid = GuidToString(eventGuid:get())
+
+    local res = json.stringify {
+      hook = serverJoinEvent,
+      data = {
+        SenderGuid = GetPlayerGuid(PC),
+        EventGuid = guid
+      }
+    }
+    LogMsg("serverJoinEvent: " .. res, "DEBUG")
+    webhook.CreateWebhookRequest(res)
+  end
+)
+
+local serverLeaveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerLeaveEvent"
+RegisterHook(
+  serverLeaveEvent,
+  function(self, eventGuid)
+    local PC = self:get() ---@cast PC APlayerController
+
+    if not PC:IsValid() then return end
+
+    local guid = GuidToString(eventGuid:get())
+
+    local res = json.stringify {
+      hook = serverLeaveEvent,
+      data = {
+        SenderGuid = GetPlayerGuid(PC),
+        EventGuid = guid
+      }
+    }
+    LogMsg("serverLeaveEvent: " .. res, "DEBUG")
     webhook.CreateWebhookRequest(res)
   end
 )

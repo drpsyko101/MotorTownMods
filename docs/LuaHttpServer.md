@@ -2333,6 +2333,44 @@ Called when a player passed an event checkpoint.
 
 </details>
 
+#### Player joined an event
+
+Called when a player joined an event.
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "hook": "/Script/MotorTown.MotorTownPlayerController:ServerJoinEvent",
+  "data": {
+    "SenderGuid": "",
+    "EventGuid": ""
+  }
+}
+```
+
+</details>
+
+#### Player left an event
+
+Called when a player left an event.
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "hook": "/Script/MotorTown.MotorTownPlayerController:ServerLeaveEvent",
+  "data": {
+    "SenderGuid": "",
+    "EventGuid": ""
+  }
+}
+```
+
+</details>
+
 ### Cargo
 
 #### Cargo accept delivery
