@@ -1,15 +1,11 @@
 require("Helpers")
 
 local statics = require("Statics")
-local UEHelpers = require("UEHelpers")
 local playerManager = require("PlayerManager")
 local eventManager = require("EventManager")
 local serverManager = require("ServerManager")
-local propertyManager = require("PropertyManager")
 local cargoManager = require("CargoManager")
 local chatManager = require("ChatManager")
-local vehicleManager = require("VehicleManager")
-local assetManager = require("AssetManager")
 
 ---@enum (key) LogLevel
 local logLevel = {
@@ -31,6 +27,12 @@ end
 local function LoadWebserver()
   local status, err = pcall(function()
     Webserver = require("Webserver")
+
+    -- Local imports are placed here due to socket dependency
+
+    local propertyManager = require("PropertyManager")
+    local vehicleManager = require("VehicleManager")
+    local assetManager = require("AssetManager")
 
     -- Note that the ordering of the path registration matters.
     -- Put more specific paths before more general ones
@@ -67,6 +69,7 @@ local function LoadWebserver()
 
     -- Properties management
     Webserver.registerHandler("/houses", "GET", propertyManager.HandleGetAllHouses)
+    Webserver.registerHandler("/houses/spawn", "POST", propertyManager.HandleSpawnHouse)
 
     -- Cargo management
     Webserver.registerHandler("/delivery/points", "GET", cargoManager.HandleGetDeliveryPoints)
@@ -76,6 +79,7 @@ local function LoadWebserver()
     Webserver.registerHandler("/vehicles", "GET", vehicleManager.HandleGetVehicles)
     Webserver.registerHandler("/vehicles/*/despawn", "POST", vehicleManager.HandleDespawnVehicle)
     Webserver.registerHandler("/vehicles/*", "GET", vehicleManager.HandleGetVehicles)
+    Webserver.registerHandler("/dealers/spawn", "POST", vehicleManager.HandleCreateVehicleDealerSpawnPoint)
 
     -- Asset management
     Webserver.registerHandler("/assets/spawn", "POST", assetManager.HandleSpawnActor)

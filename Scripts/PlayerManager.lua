@@ -60,11 +60,37 @@ local function GetPlayerStates(guid)
   return arr
 end
 
+---Get my current pawn transform
+---@return FVector? location
+---@return FRotator? rotation
+local function GetMyCurrentTransform()
+  local PC = GetMyPlayerController()
+  if PC:IsValid() then
+    local pawn = PC:K2_GetPawn()
+    if pawn:IsValid() then
+      local location = pawn:K2_GetActorLocation()
+      local rotation = pawn:K2_GetActorRotation()
+      return location, rotation
+    end
+  end
+  return nil, nil
+end
+
+-- Console commands
+
 RegisterConsoleCommandHandler("getplayers", function(Cmd, CommandParts, Ar)
   local playerStates = json.stringify(GetPlayerStates(CommandParts[1]))
   LogMsg(playerStates)
   return true
 end)
+
+RegisterConsoleCommandHandler("getplayertransform", function(Cmd, CommandParts, Ar)
+  local location, rotation = GetMyCurrentTransform()
+  LogMsg("Actor transform: " .. json.stringify({ Location = location, Rotation = rotation }))
+  return true
+end)
+
+-- HTTP request handlers
 
 ---Handle request for player states
 ---@param session ClientTable
@@ -87,5 +113,6 @@ end
 
 return {
   HandleGetPlayerStates = HandleGetPlayerStates,
-  HandleGetSpecifcPlayerStates = HandleGetSpecifcPlayerStates
+  HandleGetSpecifcPlayerStates = HandleGetSpecifcPlayerStates,
+  GetMyCurrentTransform = GetMyCurrentTransform
 }

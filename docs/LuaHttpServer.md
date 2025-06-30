@@ -1354,6 +1354,39 @@ Get selected vehicle guid. This is currently only works for player owned vehicle
 
 Despawn selected vehicle with the given guid. This is currently only works for player owned vehicles as NPC vehicles are marked with -1 guid. Returns a `204` for a successful request.
 
+#### POST `/dealers/spawn`
+
+Spawn a vehicle dealer spawn point at given location, along with optional vehicle parameter. The vehicle pricing is calculated based on the vehicle base value and equipped parts. Can be despawned using POST `/assets/despawn` with the given tag.
+
+<details>
+<summary>Request body:</summary>
+
+```json
+{
+  "Location": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+  "Rotation": { "Pitch": 0.0, "Roll": 0.0, "Yaw": 0.0 },
+  "VehicleClass": "",
+  "VehicleParam": {
+    "VehicleKey": ""
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "data": {
+    "tag": ""
+  }
+}
+```
+
+</details>
+
 ### Properties management
 
 #### GET `/houses`
@@ -1388,6 +1421,52 @@ Returns all houses in the game.
       "Rotation": { "Pitch": 0.0, "Roll": 0.0, "Yaw": 96.066780090332 }
     }
   ]
+}
+```
+
+</details>
+
+#### POST `/houses/spawn`
+
+Spawn a house plot for sale. Returns a `201` status if the plot successfully spawned. Can be despawned using POST `/assets/despawn` with the resulting GUID.
+
+<details>
+<summary>Request body:</summary>
+
+```json
+{
+  "Location": {
+    "Z": -19719.254892776,
+    "Y": -102554.50214499,
+    "X": -16507.28222902
+  },
+  "Rotation": {
+    "Roll": 0.0,
+    "Pitch": 0.0,
+    "Yaw": -24.493621826172
+  },
+  "HouseParam": {
+    "AreaSize": {
+      "X": 4500.0,
+      "Y": 4500.0,
+      "Z": 5000.0
+    },
+    "HouseKey": "KambingHouse",
+    "HouseGuid": "8BADB28B13C6345A9487E957D0D5D4D8"
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "data": {
+    "HouseGuid": "8BADB28B13C6345A9487E957D0D5D4D8"
+  }
 }
 ```
 
@@ -2070,7 +2149,6 @@ Returns a delivery point given the guid in-game. Uses the same queries as above.
 
 </details>
 
-
 ### Assets
 
 #### POST `/assets/spawn`
@@ -2127,9 +2205,7 @@ Spawning multiple actors:
 
 ```json
 {
-  "Data": [
-    "AssetTagHere"
-  ]
+  "Data": ["AssetTagHere"]
 }
 ```
 
@@ -2154,10 +2230,7 @@ Despawn using multiple tags:
 
 ```json
 {
-  "Tags": [
-    "Tag1",
-    "Tag2"
-  ]
+  "Tags": ["Tag1", "Tag2"]
 }
 ```
 

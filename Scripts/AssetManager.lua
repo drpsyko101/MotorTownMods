@@ -1,5 +1,6 @@
 local UEHelpers = require("UEHelpers")
 local json = require("JsonParser")
+local socket = require("socket")
 
 ---Spawn an actor at the desired place
 ---@param assetPath string
@@ -15,75 +16,85 @@ local function SpawnActor(assetPath, location, rotation, tag)
     ---@cast staticMeshActorClass UClass
     local staticMeshClass = StaticFindObject("/Script/Engine.StaticMesh")
     ---@cast staticMeshClass UClass
+    local actor = CreateInvalidObject() ---@cast actor AActor
+    local object = StaticFindObject(assetPath)
+    local isProcessing = true
 
     local assetTag = tag
     ExecuteInGameThread(function()
-      LoadAsset(assetPath)
-      local assetClass = {}
-      local object = StaticFindObject(assetPath)
+      pcall(function()
+        LoadAsset(assetPath)
+        local assetClass = {}
 
-      if object:IsA(staticMeshClass) then
-        assetClass = staticMeshActorClass
-      else
-        assetClass = object
-      end
-
-      LogMsg("Loaded and found asset " .. assetClass:GetFullName(), "DEBUG")
-      if not assetClass:IsValid() then
-        error("Invalid asset loaded: " .. assetPath)
-      end
-
-      ---@type AActor
-      local actor = world:SpawnActor(
-        assetClass,
-        {
-          X = location and location.X or 0,
-          Y = location and location.Y or 0,
-          Z = location and location.Z or 0,
-        },
-        {
-          Pitch = rotation and rotation.Pitch or 0,
-          Roll = rotation and rotation.Roll or 0,
-          Yaw = rotation and rotation.Yaw or 0
-        }
-      )
-      if actor:IsValid() then
-        LogMsg("Spawned actor " .. actor:GetFullName(), "DEBUG")
-
-        if not assetTag then
-          local str = SplitString(actor:GetFullName())
-
-          if str and str[2] then
-            assetTag = str[2]
-          else
-            error("Invalid asset tag")
-          end
+        if object:IsA(staticMeshClass) then
+          assetClass = staticMeshActorClass
+        else
+          assetClass = object
         end
 
-        -- Apply actor tag for easy retrieval later
-        actor.Tags[#actor.Tags + 1] = FName(assetTag)
-        LogMsg("Spawned actor tagged: " .. assetTag, "DEBUG")
-
-        if actor:IsA(staticMeshActorClass) then
-          ---@cast actor AStaticMeshActor
-          ---@cast object UStaticMesh
-
-          -- Set actor to movable
-          actor:SetMobility(2)
-          if actor.StaticMeshComponent:SetStaticMesh(object) then
-            actor:SetReplicates(true)
-          else
-            error("Failed to set " .. object:GetFullName())
-          end
+        LogMsg("Loaded and found asset " .. assetClass:GetFullName(), "DEBUG")
+        if not assetClass:IsValid() then
+          error("Invalid asset loaded: " .. assetPath)
         end
-      end
+
+        ---@type AActor
+        actor = world:SpawnActor(
+          assetClass,
+          {
+            X = location and location.X or 0,
+            Y = location and location.Y or 0,
+            Z = location and location.Z or 0,
+          },
+          {
+            Pitch = rotation and rotation.Pitch or 0,
+            Roll = rotation and rotation.Roll or 0,
+            Yaw = rotation and rotation.Yaw or 0
+          }
+        )
+      end)
+      isProcessing = false
     end)
-    return true, assetTag
+    while isProcessing do
+      socket.sleep(0.01)
+    end
+    if actor:IsValid() then
+      LogMsg("Spawned actor " .. actor:GetFullName(), "DEBUG")
+
+      if not assetTag then
+        local str = SplitString(actor:GetFullName())
+
+        if str and str[2] then
+          assetTag = str[2]
+        else
+          error("Invalid asset tag")
+        end
+      end
+
+      -- Apply actor tag for easy retrieval later
+      actor.Tags[#actor.Tags + 1] = FName(assetTag)
+      LogMsg("Spawned actor tagged: " .. assetTag, "DEBUG")
+
+      if actor:IsA(staticMeshActorClass) then
+        ---@cast actor AStaticMeshActor
+        ---@cast object UStaticMesh
+
+        -- Set actor to movable
+        actor:SetMobility(2)
+        if actor.StaticMeshComponent:SetStaticMesh(object) then
+          actor:SetReplicates(true)
+        else
+          error("Failed to set " .. object:GetFullName())
+        end
+      end
+      return true, assetTag
+    end
   end
   return false
 end
 
----Destroy actor given its tag
+---Destroy actor given its tag.
+---This function does not immediately destroy object(s) on completion.
+---We're just marking the object for destruction in the latent GameThread.
 ---@param assetTag string
 local function DestroyActor(assetTag)
   if assetTag == nil or type(assetTag) ~= "string" then
@@ -95,16 +106,16 @@ local function DestroyActor(assetTag)
   UEHelpers.GetGameplayStatics():GetAllActorsWithTag(world, FName(assetTag), actors)
 
   LogMsg("Found " .. #actors .. " actor(s) for deletion", "DEBUG")
-  for i = 1, #actors, 1 do
-    local actor = actors[i]:get() ---@type AActor
-    local actorName = actor:GetFullName()
-    LogMsg("Found actor with tag: " .. actorName .. " for deletion", "DEBUG")
+  ExecuteInGameThread(function()
+    for i = 1, #actors, 1 do
+      local actor = actors[i]:get() ---@type AActor
+      local actorName = actor:GetFullName()
+      LogMsg("Found actor with tag: " .. actorName .. " for deletion", "DEBUG")
 
-    ExecuteInGameThread(function()
       actor:K2_DestroyActor()
-    end)
-    LogMsg("Destroyed actor: " .. actorName, "DEBUG")
-  end
+      LogMsg("Destroyed actor: " .. actorName, "DEBUG")
+    end
+  end)
 end
 
 ---Offset a selected actor location
