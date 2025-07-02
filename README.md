@@ -65,6 +65,13 @@ Most of the server settings can be configured using environment variables:
 | `MOD_SERVER_PASSWORD` | _none_        | Authenticate server request with `Authorization: Basic ` header      |
 | `MOD_AUTO_FPS_ENABLE` | _none_        | Enable automatic server traffic adjustment based on the server's FPS |
 
+### Reloading mod
+
+Due to the webserver being ran on a separate thread, a stop command must be issued before reloading the mods.
+
+1. Send **POST** `/stop` to the `MOD_LUA_PORT` server. A message `Webserver stopped` will show up in the `UE4SS.log` indicating the webserver has stopped.
+2. Send **POST** `/mods/reload` to the `MOD_MANAGEMENT_PORT` server. This will reload all the Lua mods including this mod.
+
 ## Documentation
 
 More detailed instructions can be found in the [docs](./docs).
