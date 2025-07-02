@@ -288,6 +288,7 @@ end
 
 ---Convert FGameplayTagContainer to string
 ---@param gameplayTag FGameplayTagContainer
+---@return string[]
 function GameplayTagContainerToString(gameplayTag)
   local arr = {}
   gameplayTag.GameplayTags:ForEach(function(index, element)

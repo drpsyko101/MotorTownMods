@@ -3,6 +3,7 @@ local webhook = require("Webclient")
 local json = require("JsonParser")
 local cargo = require("CargoManager")
 local socket = require("socket")
+local assetManager = require("AssetManager")
 
 local vehicleDealerSoftPath = "/Script/MotorTown.MTDealerVehicleSpawnPoint"
 
@@ -1387,6 +1388,20 @@ local function VehicleToTable(vehicle)
   return data
 end
 
+---Convert AMTGarageActor to JSON serializable table
+---@param garage AMTGarageActor
+local function GarageToTable(garage)
+  local data = {}
+
+  data.GarageFlags = garage.GarageFlags
+  data.GameplayTags = GameplayTagContainerToString(garage.GameplayTags)
+  data.AvailableVehiclePartTagQuery = GameplayTagQueryToTable(garage.AvailableVehiclePartTagQuery)
+  data.Location = VectorToTable(garage:K2_GetActorLocation())
+  data.Rotation = RotatorToTable(garage:K2_GetActorRotation())
+
+  return data
+end
+
 ---Get all or selected vehicle state(s)
 ---@param id number?
 ---@param fields string[]?
@@ -1483,72 +1498,51 @@ end
 ---@return boolean Success
 ---@return string? AssetTag Generated asset tag
 local function SpawnVehicleDealer(location, rotation, vehicleClass, vehicleParam)
-  local world = UEHelpers.GetWorld()
-  if world and world:IsValid() then
-    local vehicleDealerClass = StaticFindObject(vehicleDealerSoftPath)
-    ---@cast vehicleDealerClass UClass
+  local status, assetTag, actor = assetManager.SpawnActor(vehicleDealerSoftPath, location, rotation)
 
-    local assetTag = ""
-    local actor = CreateInvalidObject() ---@cast actor AActor
-    local vehicleUClass = CreateInvalidObject() ---@cast vehicleUClass UClass
-    local isProcessing = true
+  if status and actor and actor:IsValid() then
+    ---@cast actor AMTDealerVehicleSpawnPoint
 
-    ExecuteInGameThread(function()
-      pcall(function()
-        if vehicleClass then
-          LoadAsset(vehicleClass)
-          vehicleUClass = StaticFindObject(vehicleClass)
-        end
+    if vehicleParam then
+      actor.VehicleParams[1] = {
+        Customizations = vehicleParam.Customizations or {},
+        Parts = vehicleParam.Parts or {},
+        VehicleKey = FName(vehicleParam.VehicleKey or "")
+      }
+    end
+    return true, assetTag
+  end
+  return false
+end
 
-        ---@type AActor
-        actor = world:SpawnActor(
-          vehicleDealerClass,
-          {
-            X = location and location.X or 0,
-            Y = location and location.Y or 0,
-            Z = location and location.Z or 0,
-          },
-          {
-            Pitch = rotation and rotation.Pitch or 0,
-            Roll = rotation and rotation.Roll or 0,
-            Yaw = rotation and rotation.Yaw or 0
-          }
-        )
-      end)
-      isProcessing = false
+---Get all garages
+---@return table[]
+local function GetGarages()
+  local data = {}
+  local gameState = GetMotorTownGameState()
+
+  if gameState:IsValid() then
+    gameState.Garages:ForEach(function(index, element)
+      table.insert(data, GarageToTable(element:get()))
     end)
-    while isProcessing do
-      socket.sleep(0.01)
-    end
-    if actor:IsValid() then
-      ---@cast actor AMTDealerVehicleSpawnPoint
-      LogMsg("Spawned actor " .. actor:GetFullName(), "DEBUG")
+  end
 
-      local str = SplitString(actor:GetFullName())
+  return data
+end
 
-      if str and str[2] then
-        assetTag = str[2]
-      else
-        error("Invalid asset tag")
-      end
+---Spawn garage at the given location and rotation
+---@param location FVector
+---@param rotation FRotator
+local function SpawnGarage(location, rotation)
+  local status, assetTag, actor = assetManager.SpawnActor(vehicleDealerSoftPath, location, rotation)
+  local gameState = GetMotorTownGameState()
 
-      -- Apply actor tag for easy retrieval later
-      actor.Tags[#actor.Tags + 1] = FName(assetTag)
-      LogMsg("Spawned actor tagged: " .. assetTag, "DEBUG")
+  if status and actor and actor:IsValid() and gameState:IsValid() then
+    ---@cast actor AMTGarageActor
 
-      if vehicleUClass:IsValid() then
-        actor.VehicleClass = vehicleUClass
-      end
-
-      if vehicleParam then
-        actor.VehicleParams[1] = {
-          Customizations = {},
-          Parts = {},
-          VehicleKey = FName(vehicleParam.VehicleKey or "")
-        }
-      end
-      return true, assetTag
-    end
+    actor.SizeBoxComponent:SetCollisionProfileName(FName("OverlapAllDynamic"), false)
+    gameState.Garages[#gameState.Garages + 1] = actor
+    return true, assetTag
   end
   return false
 end
@@ -1682,8 +1676,43 @@ local function HandleCreateVehicleDealerSpawnPoint(session)
   return nil, nil, 400
 end
 
+---Handle the get garages request
+---@type RequestPathHandler
+local function HandleGetGarages(session)
+  local res = json.stringify {
+    data = GetGarages()
+  }
+  return res, nil, 200
+end
+
+---Handle garage spawn request
+---@type RequestPathHandler
+local function HandleSpawnGarage(session)
+  local data = json.parse(session.content)
+  if data then
+    local status, tag = SpawnGarage(
+      {
+        X = data.Location.X,
+        Y = data.Location.Y,
+        Z = data.Location.Z
+      },
+      {
+        Pitch = data.Rotation and data.Rotation.Pitch or 0,
+        Roll = data.Rotation and data.Rotation.Roll or 0,
+        Yaw = data.Rotation and data.Rotation.Yaw or 0
+      }
+    )
+    if status then
+      return json.stringify { data = { tag = tag } }, nil, 201
+    end
+  end
+  return nil, nil, 400
+end
+
 return {
   HandleGetVehicles = HandleGetVehicles,
   HandleDespawnVehicle = HandleDespawnVehicle,
-  HandleCreateVehicleDealerSpawnPoint = HandleCreateVehicleDealerSpawnPoint
+  HandleCreateVehicleDealerSpawnPoint = HandleCreateVehicleDealerSpawnPoint,
+  HandleGetGarages = HandleGetGarages,
+  HandleSpawnGarage = HandleSpawnGarage
 }
