@@ -117,7 +117,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: MotorTownMods_release
+          name: MotorTownMods_deps_release
           path: |
             MotorTownMods_v*.zip
             release_description.md
@@ -131,7 +131,7 @@ jobs:
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          name: MotorTownMods_lua_deps
+          name: MotorTownMods_deps_lua
 
       - uses: ilammy/msvc-dev-cmd@v1
         if: hashFiles('shared.zip') == '' || contains(github.event.pull_request.labels.*.name, 'build-deps')
@@ -184,9 +184,8 @@ jobs:
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
-        if: hashFiles('shared.zip') == '' || contains(github.event.pull_request.labels.*.name, 'build-deps')
         with:
-          name: MotorTownMods_lua_deps
+          name: MotorTownMods_deps_lua
           path: shared.zip
           overwrite: true
 
@@ -202,7 +201,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: MotorTownMods_release,MotorTownMods_lua_deps
+          pattern: MotorTownMods_deps_*
 
       - name: Delete old release assets
         uses: mknejp/delete-release-assets@v1
