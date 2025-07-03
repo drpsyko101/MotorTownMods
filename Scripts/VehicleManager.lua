@@ -1689,7 +1689,7 @@ end
 ---@type RequestPathHandler
 local function HandleSpawnGarage(session)
   local data = json.parse(session.content)
-  if data then
+  if data and data.Location then
     local status, tag = SpawnGarage(
       {
         X = data.Location.X,
