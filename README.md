@@ -1,6 +1,6 @@
 # Motor Town Mods
 
-Powered by UE4SS lua scripts!
+Powered by UE4SS lua scripts! This mod focuses primarily towards dedicated server. Some commands work on client-side, though results may vary depending on the game's replication system.
 
 ## Usage
 
