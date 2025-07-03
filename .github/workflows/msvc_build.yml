@@ -39,6 +39,7 @@ jobs:
       - name: Download previous main.dll if src not changed
         if: steps.check-src-changes.outputs.src_changed != 'true'
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: MotorTownMods_main_dll
           path: Binaries/Game__Shipping__Win64/MotorTownMods
@@ -128,6 +129,7 @@ jobs:
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: MotorTownMods_lua_deps
 
