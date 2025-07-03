@@ -36,6 +36,15 @@ jobs:
           git -C MotorTownMods diff --quiet ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} -- src/ || echo "src_changed=true" >> $GITHUB_OUTPUT
         shell: bash
 
+      - name: Checkout UE4SS
+        uses: actions/checkout@v4
+        with:
+          repository: drpsyko101/RE-UE4SS
+          ref: amc
+          path: RE-UE4SS
+          submodules: recursive
+          token: ${{ secrets.UEPSEUDO_PAT }}
+
       - name: Cache
         uses: actions/cache@v4
         with:
@@ -45,16 +54,6 @@ jobs:
             Intermediates
             C:/Users/runneradmin/AppData/Local/.xmake
           key: ${{ runner.os }}-xmake-${{ hashFiles('**/xmake.lua') }}
-
-      - name: Checkout UE4SS
-        uses: actions/checkout@v4
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
-        with:
-          repository: drpsyko101/RE-UE4SS
-          ref: amc
-          path: RE-UE4SS
-          submodules: recursive
-          token: ${{ secrets.UEPSEUDO_PAT }}
 
       - name: Prep xmake
         if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
