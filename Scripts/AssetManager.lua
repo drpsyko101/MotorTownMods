@@ -9,6 +9,7 @@ local socket = require("socket")
 ---@param tag string?
 ---@return boolean
 ---@return string? AssetTag
+---@return AActor? SpawnedActor
 local function SpawnActor(assetPath, location, rotation, tag)
   local world = UEHelpers.GetWorld()
   if world and world:IsValid() then
@@ -86,7 +87,7 @@ local function SpawnActor(assetPath, location, rotation, tag)
           error("Failed to set " .. object:GetFullName())
         end
       end
-      return true, assetTag
+      return true, assetTag, actor
     end
   end
   return false
@@ -329,6 +330,7 @@ RegisterKeyBind(Key.UP_ARROW, { ModifierKey.CONTROL, ModifierKey.SHIFT, Modifier
 end)
 
 return {
+  SpawnActor = SpawnActor,
   HandleSpawnActor = HandleSpawnActor,
   HandleDespawnActor = HandleDespawnActor
 }

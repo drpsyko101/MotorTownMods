@@ -1,6 +1,7 @@
 local UEHelper = require("UEHelpers")
 local json = require("JsonParser")
 local socket = require("socket")
+local assetManager = require("AssetManager")
 
 ---Convert house to JSON serializable table
 ---@param house AMTHouse
@@ -48,56 +49,24 @@ end
 ---@return boolean Status
 ---@return string? HouseGuid
 local function SpawnHouse(location, rotation, houseParam)
-  local world = UEHelper.GetWorld()
+  local housePath = "/Game/Objects/Housing/House.House_C"
   local gameState = GetMotorTownGameState()
-  local isProcessing = true
-  local actor = CreateInvalidObject() ---@cast actor AActor
+  local status, assetTag, actor = assetManager.SpawnActor(housePath, location, rotation)
 
-  if world:IsValid() and gameState:IsValid() then
-    ExecuteInGameThread(function()
-      pcall(function()
-        local housePath = "/Game/Objects/Housing/House.House_C"
-        LoadAsset(housePath)
+  if status and actor and actor:IsValid() and gameState:IsValid() then
+    ---@cast actor AMTHouse
 
-        local houseClass = StaticFindObject(housePath)
-        ---@cast houseClass UClass
+    actor.AreaSize = houseParam.AreaSize
+    actor.HousegKey = FName(houseParam.HouseKey)
+    actor.HouseGuid = StringToGuid(houseParam.HouseGuid)
 
-        ---@type AActor
-        actor = world:SpawnActor(
-          houseClass,
-          {
-            X = location and location.X or 0,
-            Y = location and location.Y or 0,
-            Z = location and location.Z or 0,
-          },
-          {
-            Pitch = rotation and rotation.Pitch or 0,
-            Roll = rotation and rotation.Roll or 0,
-            Yaw = rotation and rotation.Yaw or 0
-          }
-        )
-      end)
-      isProcessing = false
-    end)
-    while isProcessing do
-      socket.sleep(0.01)
-    end
+    local guid = GuidToString(actor.HouseGuid)
+    actor.Tags[#actor.Tags + 1] = FName(guid)
 
-    if actor:IsValid() then
-      ---@cast actor AMTHouse
+    LogMsg("Spawned a new house: " .. actor:GetFullName())
+    gameState.Houses[#gameState.Houses + 1] = actor
 
-      actor.AreaSize = houseParam.AreaSize
-      actor.HousegKey = FName(houseParam.HouseKey)
-      actor.HouseGuid = StringToGuid(houseParam.HouseGuid)
-
-      local guid = GuidToString(actor.HouseGuid)
-      actor.Tags[#actor.Tags + 1] = FName(guid)
-
-      LogMsg("Spawned a new house: " .. actor:GetFullName())
-      gameState.Houses[#gameState.Houses + 1] = actor
-
-      return true, guid
-    end
+    return true, guid
   end
   return false
 end

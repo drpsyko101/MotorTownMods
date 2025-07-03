@@ -1387,6 +1387,68 @@ Spawn a vehicle dealer spawn point at given location, along with optional vehicl
 
 </details>
 
+#### GET `/garages`
+
+Get all of the garage instances in-game.
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "GameplayTags": {},
+  "GarageFlags": 0,
+  "AvailableVehiclePartTagQuery": {
+    "AutoDescription": "",
+    "QueryTokenStream": {},
+    "TagDictionary": {},
+    "UserDescription": "",
+    "TokenStreamVersion": 0
+  },
+  "Rotation": { "Yaw": 90.0, "Pitch": 0.0, "Roll": 0.0 },
+  "Location": { "Y": 153460.28125, "X": -48329.17578125, "Z": -20990.1640625 }
+}
+```
+
+</details>
+
+#### POST `/garages/spawn`
+
+Spawn a new garage instance at given location.
+
+<details>
+<summary>Request body:</summary>
+
+```json
+{
+  "Location": {
+    "X": 0.0,
+    "Y": 0.0,
+    "Z": 0.0
+  },
+  "Rotation": {
+    "Pitch": 0.0,
+    "Roll": 0.0,
+    "Yaw": 0.0
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "data": {
+    "tag": "6E6705764C17B7F764098091A10567E7"
+  }
+}
+```
+
+</details>
+
 ### Properties management
 
 #### GET `/houses`

@@ -23,6 +23,19 @@ jobs:
         with:
           path: MotorTownMods
 
+      - name: Check for src changes
+        id: check-src-changes
+        run: |
+          git -C MotorTownMods diff --quiet ${{ github.event.before }} ${{ github.sha }} -- src/ || echo "src_changed=true" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Download previous main.dll if src not changed
+        if: steps.check-src-changes.outputs.src_changed != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: MotorTownMods_main_dll
+          path: Binaries/Game__Shipping__Win64/MotorTownMods
+
       - name: Checkout UE4SS
         uses: actions/checkout@v4
         with:
@@ -43,14 +56,17 @@ jobs:
 
       # Specifically use MSVC toolset v19.39.33523
       - name: Install VS2022 BuildTools 17.9.7
+        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         run: choco install -y visualstudio2022buildtools --version=117.9.7.0 --params "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --installChannelUri https://aka.ms/vs/17/release/180911598_-255012421/channel"
 
       - name: Setup xmake
+        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: "2.9.3"
 
       - name: Cache
+        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         uses: actions/cache@v4
         with:
           path: |
@@ -61,6 +77,7 @@ jobs:
           key: ${{ runner.os }}-xmake-${{ hashFiles('**/xmake.lua') }}
 
       - name: Build
+        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         run: |
           xmake f -m "Game__Shipping__Win64" -y
           xmake project -k vsxmake2022 -m "Game__Shipping__Win64" -y
@@ -69,8 +86,6 @@ jobs:
       - name: Package build
         id: package-build
         shell: pwsh
-        env:
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           New-Item -ItemType Directory .\MotorTownMods\dlls
           Copy-Item .\Binaries\Game__Shipping__Win64\MotorTownMods\MotorTownMods.dll .\MotorTownMods\dlls\main.dll
@@ -81,15 +96,23 @@ jobs:
           Write-Output "version=$modVersion" >> $env:GITHUB_OUTPUT
           [regex]$majorMinorVersionRegex = '^([0-9]+\.[0-9]+)'
           Write-Output "majorMinorVersion=$($majorMinorVersionRegex.Match($modVersion).Groups[1].Value)" >> $env:GITHUB_OUTPUT
-          Write-Output "$env:COMMIT_MESSAGE" > commit_msg.txt
+          (Get-Content -Path $env:GITHUB_EVENT_PATH | ConvertFrom-Json).head_commit.message > commit_msg.txt
           Get-Content -Raw commit_msg.txt | select -skip 2 > release_description.md
+
+      - name: Upload main.dll as artifact for future runs
+        uses: actions/upload-artifact@v4
+        with:
+          name: MotorTownMods_main_dll
+          path: Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
           name: MotorTownMods_release
-          path: release_description.md
+          path: |
+            release_description.md
+            commit_msg.txt
           if-no-files-found: warn
           overwrite: true
 

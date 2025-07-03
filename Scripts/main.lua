@@ -80,6 +80,8 @@ local function LoadWebserver()
     Webserver.registerHandler("/vehicles/*/despawn", "POST", vehicleManager.HandleDespawnVehicle)
     Webserver.registerHandler("/vehicles/*", "GET", vehicleManager.HandleGetVehicles)
     Webserver.registerHandler("/dealers/spawn", "POST", vehicleManager.HandleCreateVehicleDealerSpawnPoint)
+    Webserver.registerHandler("/garages", "GET", vehicleManager.HandleGetGarages)
+    Webserver.registerHandler("/garages/spawn", "POST", vehicleManager.HandleGetGarages)
 
     -- Asset management
     Webserver.registerHandler("/assets/spawn", "POST", assetManager.HandleSpawnActor)
