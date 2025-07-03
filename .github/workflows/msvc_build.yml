@@ -202,6 +202,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: MotorTownMods_deps_*
+          merge-multiple: true
 
       - name: Delete old release assets
         uses: mknejp/delete-release-assets@v1
@@ -217,5 +218,5 @@ jobs:
           name: MotorTownMods v${{ needs.build-core.outputs.version }}
           tag_name: v${{ needs.build-core.outputs.majorMinorVersion }}
           body_path: release_description.md
-          files: "*.zip"
+          files: "**/*.zip"
           make_latest: true
