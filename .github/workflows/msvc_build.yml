@@ -36,16 +36,19 @@ jobs:
           git -C MotorTownMods diff --quiet ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} -- src/ || echo "src_changed=true" >> $GITHUB_OUTPUT
         shell: bash
 
-      - name: Download previous main.dll if src not changed
-        if: steps.check-src-changes.outputs.src_changed != 'true'
-        uses: actions/download-artifact@v4
-        continue-on-error: true
+      - name: Cache
+        uses: actions/cache@v4
         with:
-          name: MotorTownMods_main_dll
-          path: Binaries/Game__Shipping__Win64/MotorTownMods
+          path: |
+            .xmake
+            Binaries
+            Intermediates
+            C:/Users/runneradmin/AppData/Local/.xmake
+          key: ${{ runner.os }}-xmake-${{ hashFiles('**/xmake.lua') }}
 
       - name: Checkout UE4SS
         uses: actions/checkout@v4
+        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         with:
           repository: drpsyko101/RE-UE4SS
           ref: amc
@@ -54,11 +57,13 @@ jobs:
           token: ${{ secrets.UEPSEUDO_PAT }}
 
       - name: Prep xmake
+        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         shell: pwsh
         run: Write-Output "includes(`"RE-UE4SS`")`r`nincludes(`"MotorTownMods`")" | Out-File xmake.lua
 
       - name: Setup Python
         uses: actions/setup-python@v4
+        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         with:
           python-version: "3.9"
 
@@ -72,17 +77,6 @@ jobs:
         uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: "2.9.3"
-
-      - name: Cache
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
-        uses: actions/cache@v4
-        with:
-          path: |
-            .xmake
-            Binaries
-            Intermediates
-            C:/Users/runneradmin/AppData/Local/.xmake
-          key: ${{ runner.os }}-xmake-${{ hashFiles('**/xmake.lua') }}
 
       - name: Build
         if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
@@ -106,13 +100,6 @@ jobs:
           Write-Output "majorMinorVersion=$($majorMinorVersionRegex.Match($modVersion).Groups[1].Value)" >> $env:GITHUB_OUTPUT
           (Get-Content -Path $env:GITHUB_EVENT_PATH | ConvertFrom-Json).head_commit.message > commit_msg.txt
           Get-Content commit_msg.txt | select -skip 2 > release_description.md
-
-      - name: Upload main.dll as artifact for future runs
-        uses: actions/upload-artifact@v4
-        with:
-          name: MotorTownMods_main_dll
-          path: Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll
-          overwrite: true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -202,6 +189,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: MotorTownMods_deps_*
+          merge-multiple: true
 
       - name: Delete old release assets
         uses: mknejp/delete-release-assets@v1
@@ -217,5 +205,5 @@ jobs:
           name: MotorTownMods v${{ needs.build-core.outputs.version }}
           tag_name: v${{ needs.build-core.outputs.majorMinorVersion }}
           body_path: release_description.md
-          files: "*.zip"
+          files: "**/*.zip"
           make_latest: true
