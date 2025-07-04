@@ -106,79 +106,9 @@ jobs:
             release_description.md
           overwrite: true
 
-  build-deps:
-    runs-on: windows-2022
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: MotorTownMods_deps_lua
-
-      - uses: ilammy/msvc-dev-cmd@v1
-        if: hashFiles('shared.zip') == ''
-        with:
-          arch: x64
-          sdk: "10.0.19041.0"
-          toolset: "14.38"
-
-      - uses: ilammy/setup-nasm@v1
-        if: hashFiles('shared.zip') == ''
-
-      - uses: luarocks/gh-actions-lua@v11
-        if: hashFiles('shared.zip') == ''
-
-      - uses: luarocks/gh-actions-luarocks@v6
-        if: hashFiles('shared.zip') == ''
-
-      - uses: shogo82148/actions-setup-perl@v1
-        if: hashFiles('shared.zip') == ''
-        with:
-          perl-version: "5.40"
-          distribution: strawberry
-
-      - name: Checkout OpenSSL
-        uses: actions/checkout@v4
-        if: hashFiles('shared.zip') == ''
-        with:
-          repository: openssl/openssl
-          path: OpenSSL
-          ref: openssl-3.0
-
-      - name: Build OpenSSL
-        if: hashFiles('shared.zip') == ''
-        run: |
-          cd OpenSSL
-          perl Configure VC-WIN64A
-          nmake
-
-      - name: install modules
-        if: hashFiles('shared.zip') == ''
-        run: |
-          luarocks install --local luasocket
-          luarocks install --local luasec OPENSSL_DIR=${{ github.workspace }}\OpenSSL
-          luarocks install --local bcrypt
-
-      - name: Package modules
-        if: hashFiles('shared.zip') == ''
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory shared
-          Copy-Item -Recurse -Force $env:APPDATA\luarocks\lib\lua\5.4\* .\shared\
-          Copy-Item -Recurse -Force $env:APPDATA\luarocks\share\lua\5.4\* .\shared\
-          Compress-Archive -Path .\shared ".\shared.zip"
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: MotorTownMods_deps_lua
-          path: shared.zip
-          overwrite: true
-
   create-release:
     needs:
       - build-core
-      - build-deps
     permissions: write-all
     runs-on: ubuntu-latest
 

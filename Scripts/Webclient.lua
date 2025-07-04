@@ -13,7 +13,6 @@ local function __createWebhookRequest(url, content)
     package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?/core.dll"
     package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
     local http = require("socket.http")
-    local https = require("ssl.https")
     local ltn12 = require("ltn12")
 
     local bheaders = {
@@ -29,15 +28,7 @@ local function __createWebhookRequest(url, content)
 
     LogMsg("Sending POST request to " .. url .. " with payload size: " .. #content, "DEBUG")
     if string.match(url, "^https:") then
-        resState, resCode, resHeaders, resSecure = https.request {
-            url = url,
-            method = "POST",
-            headers = bheaders,
-            source = ltn12.source.string(content),
-            sink = ltn12.sink.table(res),
-            protocol = "any",
-            verify = "none",
-        }
+        error("HTTPS webhook endpoint is not currently supported.")
     else
         resState, resCode, resHeaders = http.request {
             url = url,
