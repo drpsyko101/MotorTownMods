@@ -118,8 +118,8 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         if: hashFiles('shared.zip') == ''
         with:
-          toolset: "14.39"
           arch: x64
+          sdk: "10.0.19041.0"
 
       - uses: ilammy/setup-nasm@v1
         if: hashFiles('shared.zip') == ''
