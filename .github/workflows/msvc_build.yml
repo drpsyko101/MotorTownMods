@@ -1,9 +1,7 @@
 name: Build release
 
 on:
-  pull_request:
-    types:
-      - closed
+  push:
     branches:
       - main
     paths:
@@ -18,7 +16,6 @@ permissions:
 jobs:
   build-core:
     runs-on: windows-2022
-    if: github.event.pull_request.merged == true
     outputs:
       version: ${{ steps.package-build.outputs.version }}
       majorMinorVersion: ${{ steps.package-build.outputs.majorMinorVersion }}
@@ -33,7 +30,7 @@ jobs:
       - name: Check for src changes
         id: check-src-changes
         run: |
-          git -C MotorTownMods diff --quiet ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} -- src/ || echo "src_changed=true" >> $GITHUB_OUTPUT
+          git -C MotorTownMods diff --quiet ${{ github.event.before }} ${{ github.sha }} -- src/ || echo "src_changed=true" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Checkout UE4SS
@@ -45,6 +42,11 @@ jobs:
           submodules: recursive
           token: ${{ secrets.UEPSEUDO_PAT }}
 
+      - name: Prep xmake
+        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
+        shell: pwsh
+        run: Write-Output "includes(`"RE-UE4SS`")`r`nincludes(`"MotorTownMods`")" | Out-File xmake.lua
+
       - name: Cache
         uses: actions/cache@v4
         with:
@@ -54,11 +56,6 @@ jobs:
             Intermediates
             C:/Users/runneradmin/AppData/Local/.xmake
           key: ${{ runner.os }}-xmake-${{ hashFiles('**/xmake.lua') }}
-
-      - name: Prep xmake
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
-        shell: pwsh
-        run: Write-Output "includes(`"RE-UE4SS`")`r`nincludes(`"MotorTownMods`")" | Out-File xmake.lua
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -110,8 +107,7 @@ jobs:
           overwrite: true
 
   build-deps:
-    runs-on: windows-latest
-    if: github.event.pull_request.merged == true
+    runs-on: windows-2022
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -119,48 +115,53 @@ jobs:
         with:
           name: MotorTownMods_deps_lua
 
+      # Specifically use MSVC toolset v19.39.33523
+      - name: Install VS2022 BuildTools 17.9.7
+        if: hashFiles('shared.zip') == ''
+        run: choco install -y visualstudio2022buildtools --version=117.9.7.0 --params "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --installChannelUri https://aka.ms/vs/17/release/180911598_-255012421/channel"
+
       - uses: ilammy/msvc-dev-cmd@v1
-        if: hashFiles('shared.zip') == '' || contains(github.event.pull_request.labels.*.name, 'build-deps')
+        if: hashFiles('shared.zip') == ''
 
       - uses: ilammy/setup-nasm@v1
-        if: hashFiles('shared.zip') == '' || contains(github.event.pull_request.labels.*.name, 'build-deps')
+        if: hashFiles('shared.zip') == ''
 
       - uses: luarocks/gh-actions-lua@v11
-        if: hashFiles('shared.zip') == '' || contains(github.event.pull_request.labels.*.name, 'build-deps')
+        if: hashFiles('shared.zip') == ''
 
       - uses: luarocks/gh-actions-luarocks@v6
-        if: hashFiles('shared.zip') == '' || contains(github.event.pull_request.labels.*.name, 'build-deps')
+        if: hashFiles('shared.zip') == ''
 
       - uses: shogo82148/actions-setup-perl@v1
-        if: hashFiles('shared.zip') == '' || contains(github.event.pull_request.labels.*.name, 'build-deps')
+        if: hashFiles('shared.zip') == ''
         with:
-          perl-version: "5.32"
+          perl-version: "5.40"
           distribution: strawberry
 
       - name: Checkout OpenSSL
         uses: actions/checkout@v4
-        if: hashFiles('shared.zip') == '' || contains(github.event.pull_request.labels.*.name, 'build-deps')
+        if: hashFiles('shared.zip') == ''
         with:
           repository: openssl/openssl
           path: OpenSSL
           ref: openssl-3.0
 
       - name: Build OpenSSL
-        if: hashFiles('shared.zip') == '' || contains(github.event.pull_request.labels.*.name, 'build-deps')
+        if: hashFiles('shared.zip') == ''
         run: |
           cd OpenSSL
           perl Configure VC-WIN64A
           nmake
 
       - name: install modules
-        if: hashFiles('shared.zip') == '' || contains(github.event.pull_request.labels.*.name, 'build-deps')
+        if: hashFiles('shared.zip') == ''
         run: |
           luarocks install --local luasocket
           luarocks install --local luasec OPENSSL_DIR=${{ github.workspace }}\OpenSSL
           luarocks install --local bcrypt
 
       - name: Package modules
-        if: hashFiles('shared.zip') == '' || contains(github.event.pull_request.labels.*.name, 'build-deps')
+        if: hashFiles('shared.zip') == ''
         shell: pwsh
         run: |
           New-Item -ItemType Directory shared
@@ -176,7 +177,6 @@ jobs:
           overwrite: true
 
   create-release:
-    if: github.event.pull_request.merged == true
     needs:
       - build-core
       - build-deps
