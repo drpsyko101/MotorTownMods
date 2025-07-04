@@ -1,0 +1,59 @@
+name: Build Lua dependencies
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          sdk: "10.0.19041.0"
+
+      - uses: ilammy/setup-nasm@v1
+
+      - uses: luarocks/gh-actions-lua@v11
+
+      - uses: luarocks/gh-actions-luarocks@v6
+
+      - uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: "5.40"
+          distribution: strawberry
+
+      - name: Checkout OpenSSL
+        uses: actions/checkout@v4
+        with:
+          repository: openssl/openssl
+          path: OpenSSL
+          ref: openssl-3.0
+
+      - name: Build OpenSSL
+        run: |
+          cd OpenSSL
+          perl Configure VC-WIN64A no-shared
+          nmake
+
+      - name: install modules
+        run: |
+          luarocks install --local luasocket CFLAGS="/MT"
+          luarocks install --local https://github.com/drpsyko101/luasec/raw/refs/heads/static/luasec-1.3.2-1.rockspec CFLAGS="/MT" OPENSSL_DIR=${{ github.workspace }}\OpenSSL
+          luarocks install --local bcrypt CFLAGS="/MT"
+
+      - name: Package modules
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory shared
+          Copy-Item -Recurse -Force $env:APPDATA\luarocks\lib\lua\5.4\* .\shared\
+          Copy-Item -Recurse -Force $env:APPDATA\luarocks\share\lua\5.4\* .\shared\
+          Compress-Archive -Path .\shared ".\shared.zip"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MotorTownMods_deps_lua
+          path: shared.zip
+          overwrite: true
