@@ -6,7 +6,7 @@ Powered by UE4SS lua scripts! This mod focuses primarily towards dedicated serve
 
 ### Installation
 
-Download the latest releases [here](https://github.com/drpsyko101/MotorTownMods/releases). Extract its contents to `path/to/ue4ss/Mods/` directory.
+Download the latest releases [here](https://github.com/drpsyko101/MotorTownMods/releases). Extract its contents to `path/to/ue4ss/Mods/` directory. Get the Lua static modules [here](https://github.com/alain-riedinger/luasocket/releases/latest) and extract the contents in `x64` into the `path/to/ue4ss/Mods/shared` directory.
 
 ### Building from source
 
