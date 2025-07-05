@@ -33,7 +33,7 @@ local function SpawnActor(assetPath, location, rotation, tag)
           assetClass = object
         end
 
-        LogMsg("Loaded and found asset " .. assetClass:GetFullName(), "DEBUG")
+        LogOutput("DEBUG", "Loaded and found asset %s", assetClass:GetFullName())
         if not assetClass:IsValid() then
           error("Invalid asset loaded: " .. assetPath)
         end
@@ -59,7 +59,7 @@ local function SpawnActor(assetPath, location, rotation, tag)
       socket.sleep(0.01)
     end
     if actor:IsValid() then
-      LogMsg("Spawned actor " .. actor:GetFullName(), "DEBUG")
+      LogOutput("DEBUG", "Spawned actor %s", actor:GetFullName())
 
       if not assetTag then
         local str = SplitString(actor:GetFullName())
@@ -73,7 +73,7 @@ local function SpawnActor(assetPath, location, rotation, tag)
 
       -- Apply actor tag for easy retrieval later
       actor.Tags[#actor.Tags + 1] = FName(assetTag)
-      LogMsg("Spawned actor tagged: " .. assetTag, "DEBUG")
+      LogOutput("DEBUG", "Spawned actor tagged: %s", assetTag)
 
       if actor:IsA(staticMeshActorClass) then
         ---@cast actor AStaticMeshActor
@@ -106,15 +106,15 @@ local function DestroyActor(assetTag)
   local actors = {}
   UEHelpers.GetGameplayStatics():GetAllActorsWithTag(world, FName(assetTag), actors)
 
-  LogMsg("Found " .. #actors .. " actor(s) for deletion", "DEBUG")
+  LogOutput("DEBUG", "Found %i actor(s) for deletion", #actors)
   ExecuteInGameThread(function()
     for i = 1, #actors, 1 do
       local actor = actors[i]:get() ---@type AActor
       local actorName = actor:GetFullName()
-      LogMsg("Found actor with tag: " .. actorName .. " for deletion", "DEBUG")
+      LogOutput("DEBUG", "Found actor with tag: %s for deletion", actorName)
 
       actor:K2_DestroyActor()
-      LogMsg("Destroyed actor: " .. actorName, "DEBUG")
+      LogOutput("DEBUG", "Destroyed actor: %s", actorName)
     end
   end)
 end
@@ -139,7 +139,8 @@ local function AddAssetTransformOffset(offset)
             Yaw = rotation.Yaw + (offset.Rotation and offset.Rotation.Yaw or 0)
           }
         ) then
-      LogMsg("Moved " .. actor:GetFullName() .. " to " .. json.stringify(VectorToTable(actor:K2_GetActorLocation())))
+      local newLoc = json.stringify(VectorToTable(actor:K2_GetActorLocation()))
+      LogOutput("INFO", "Moved actor %s to %s", actor:GetFullName(), newLoc)
       return true
     end
   end
@@ -273,12 +274,12 @@ end)
 local changeRate = 1.0
 RegisterKeyBind(Key.PAGE_UP, { ModifierKey.CONTROL }, function()
   changeRate = changeRate * 10
-  LogMsg("Transform multiplier: " .. tostring(changeRate))
+  LogOutput("INFO", "Transform multiplier: %.1f", changeRate)
 end)
 
 RegisterKeyBind(Key.PAGE_DOWN, { ModifierKey.CONTROL }, function()
   changeRate = math.max(changeRate / 10, 0.1)
-  LogMsg("Transform multiplier: " .. tostring(changeRate))
+  LogOutput("INFO", "Transform multiplier: %.1f", changeRate)
 end)
 
 RegisterKeyBind(Key.LEFT_ARROW, { ModifierKey.CONTROL }, function()

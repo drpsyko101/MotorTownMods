@@ -15,6 +15,7 @@ local logLevel = {
   DEBUG = 3
 }
 
+---@deprecated Use LogOutput instead to avoid concat errors
 ---Print a message to the console
 ---@param message string
 ---@param severity LogLevel?
@@ -22,6 +23,18 @@ function LogMsg(message, severity)
   local lvl = severity or "INFO"
   if logLevel[lvl] > statics.ModLogLevel then return end
   print(string.format("[%s] %s: %s\n", statics.ModName, lvl, message))
+end
+
+---Print a message to the console
+---Uses the `string.format()` under the hood to parse the message
+---@param severity LogLevel
+---@param message string|number
+---@param ... any
+function LogOutput(severity, message, ...)
+  if logLevel[severity] <= statics.ModLogLevel then
+    local msg = string.format(message, ...)
+    print(string.format("[%s] %s: %s\n", statics.ModName, severity, msg))
+  end
 end
 
 local function LoadWebserver()
@@ -91,9 +104,9 @@ local function LoadWebserver()
     return nil
   end)
   if not status then
-    LogMsg("Unexpected error has occured in Webserver: " .. err, "ERROR")
+    LogOutput("INFO", "Unexpected error has occured in Webserver: %s", err)
   end
 end
 
 ExecuteAsync(LoadWebserver)
-LogMsg("Mod loaded")
+LogOutput("INFO", "Mod loaded")

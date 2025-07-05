@@ -63,7 +63,7 @@ function GetSelectedActor()
   local wasHit, hitResult = GetHitResultFromCenterLineTrace()
   if wasHit then
     selectedActor = GetActorFromHitResult(hitResult)
-    LogMsg("Selected actor: " .. selectedActor:GetFullName())
+    LogOutput("INFO", "Selected actor: %s", selectedActor:GetFullName())
   end
   return selectedActor
 end
@@ -112,7 +112,7 @@ end
 
 local function DeselectActor()
   selectedActor = CreateInvalidObject()
-  LogMsg("Selected actor: none")
+  LogOutput("INFO", "Selected actor: none")
 end
 
 RegisterKeyBind(Key.F, { ModifierKey.CONTROL, ModifierKey.SHIFT }, GetSelectedActor)

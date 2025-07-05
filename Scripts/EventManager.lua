@@ -305,7 +305,7 @@ end
 -- Console command registration
 
 RegisterConsoleCommandHandler("getevents", function(Cmd, CommandParts, Ar)
-  LogMsg(json.stringify(GetEvents()))
+  LogOutput("INFO", json.stringify(GetEvents()))
   return true
 end)
 
@@ -313,7 +313,7 @@ RegisterConsoleCommandHandler("updateeventname", function(Cmd, CommandParts, Ar)
   local eventGuid = table.remove(CommandParts, 1)
   local eventName = table.concat(CommandParts, " ")
   if UpdateEventName(eventGuid, eventName) then
-    LogMsg(string.format("Updated event %s name to %s", eventGuid, eventName))
+    LogOutput("INFO", "Updated event %s name to %s", eventGuid, eventName)
   end
   return true
 end)
@@ -326,7 +326,7 @@ RegisterHook(
   function(self, eventParam)
     local event = eventParam:get() ---@type FMTEvent
 
-    LogMsg("New event " .. GuidToString(event.EventGuid) .. " created", "DEBUG")
+    LogOutput("DEBUG", "New event %s created", GuidToString(event.EventGuid))
 
     local eventTable = EventToTable(event)
     local res = json.stringify {
@@ -343,9 +343,9 @@ RegisterHook(
   function(self, eventParam, stateParam)
     local guid = eventParam:get() ---@type FGuid
     local eventState = stateParam:get() ---@type EMTEventState
-    local eventGuid = EventStateToString(eventState)
+    local eventGuid = GuidToString(guid)
 
-    LogMsg("Event " .. guid .. " state changed to " .. eventGuid .. "", "DEBUG")
+    LogOutput("DEBUG", "Event %s state changed to %i", eventGuid, eventState)
 
     local event = GetEvents(eventGuid)
 
@@ -366,14 +366,14 @@ RegisterHook(
   function(self, eventParam)
     local event = eventParam:get() ---@type FGuid
     local eventGuid = GuidToString(event)
-    LogMsg("Event " .. eventGuid .. " removed", "DEBUG")
+    LogOutput("DEBUG", "Event %s removed", eventGuid)
     local res = json.stringify {
       hook = serverRemoveEvent,
       data = {
         EventGuid = eventGuid
       }
     }
-    LogMsg("ServerRemoveEvent: " .. res, "DEBUG")
+    LogOutput("DEBUG", "ServerRemoveEvent: %s", res)
     webhook.CreateWebhookRequest(res)
   end
 )
@@ -381,8 +381,8 @@ RegisterHook(
 local passRaceSection = "/Script/MotorTown.MotorTownPlayerController:ServerPassedRaceSection"
 RegisterHook(
   passRaceSection,
-  function(self, eventGuid, sectionIndex, totalTimeSeconds, laptimeSeconds)
-    local PC = self:get() ---@cast PC APlayerController
+  function(context, eventGuid, sectionIndex, totalTimeSeconds, laptimeSeconds)
+    local PC = context:get() ---@cast PC APlayerController
 
     if not PC:IsValid() then return end
 
@@ -396,7 +396,7 @@ RegisterHook(
         LaptimeSeconds = laptimeSeconds:get()
       }
     }
-    LogMsg("ServerPassedRaceSection: " .. res, "DEBUG")
+    LogOutput("DEBUG", "ServerPassedRaceSection: %s", res)
     webhook.CreateWebhookRequest(res)
   end
 )
@@ -418,7 +418,7 @@ RegisterHook(
         EventGuid = guid
       }
     }
-    LogMsg("serverJoinEvent: " .. res, "DEBUG")
+    LogOutput("DEBUG", "serverJoinEvent: %s", res)
     webhook.CreateWebhookRequest(res)
   end
 )
@@ -440,7 +440,7 @@ RegisterHook(
         EventGuid = guid
       }
     }
-    LogMsg("serverLeaveEvent: " .. res, "DEBUG")
+    LogOutput("DEBUG", "serverLeaveEvent: %s", res)
     webhook.CreateWebhookRequest(res)
   end
 )
@@ -475,7 +475,7 @@ local function HandleCreateNewEvent(session)
     ---@cast content EventTable
     local status, guid = CreateNewEvent(content)
     if status then
-      LogMsg("Created new event " .. guid, "DEBUG")
+      LogOutput("DEBUG", "Created new event %s", guid)
       local events = json.stringify {
         data = GetEvents(guid)
       }

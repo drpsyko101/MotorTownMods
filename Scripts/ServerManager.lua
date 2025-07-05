@@ -102,7 +102,7 @@ local npcAmount = 100
 ---@param amount number New density in %
 local function AdjustTrafficDensity(amount)
     if amount ~= npcAmount then
-        LogMsg("Changing traffic amount from " .. npcAmount .. "% to " .. amount .. "%")
+        LogOutput("INFO", "Changing traffic amount from %.1f% to %.1f%", npcAmount, amount)
         npcAmount = amount
     end
     local gameState = GetMotorTownGameState()
@@ -173,7 +173,7 @@ end
 -- Register console commands
 
 RegisterConsoleCommandHandler("getserverstate", function(Cmd, CommandParts, Ar)
-    LogMsg(json.stringify(GetServerState()))
+    LogOutput("INFO", json.stringify(GetServerState()))
     return true
 end)
 
@@ -181,7 +181,7 @@ RegisterConsoleCommandHandler("setnpctraffic", function(Cmd, CommandParts, Ar)
     local density = tonumber(CommandParts[1]) or 1.0
     npcVehicleDensity = density
     AutoAdjustServerCaps(true)
-    LogMsg("Set NPC traffic density to " .. density * 100 .. "%")
+    LogOutput("INFO", "Set NPC traffic density to %.1f", density * 100)
     return true
 end)
 
