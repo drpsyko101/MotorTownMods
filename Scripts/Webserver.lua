@@ -18,12 +18,12 @@ local auth = os.getenv("MOD_SERVER_PASSWORD")
 local bcrypt = nil
 if auth then
     local status, err = pcall(function()
-        LogMsg("Attempting to load bcrypt...", "DEBUG")
+        LogOutput("DEBUG", "Attempting to load bcrypt...")
         bcrypt = require("bcrypt")
-        LogMsg("Successfully loaded bcrypt", "DEBUG")
+        LogOutput("DEBUG", "Successfully loaded bcrypt")
     end)
     if not status then
-        LogMsg("Failed to load bcrypt, will use base64 as fallback: " .. err, "ERROR")
+        LogOutput("ERROR", "Failed to load bcrypt, will use base64 as fallback: %s", err)
     end
 end
 
@@ -35,7 +35,7 @@ local ipairs = ipairs
 local tonumber = tonumber
 local tostring = tostring
 local date = os.date
-local LogMsg = LogMsg
+local LogOutput = LogOutput
 local setmetatable = setmetatable
 local pcall = pcall
 local min = math.min
@@ -174,14 +174,14 @@ end
 ---@return RequestPathHandlerTable|nil
 local function findHandler(path, method)
     for i, h in ipairs(handlers) do
-        LogMsg("Checking " .. h.path .. "  " .. h.method, "DEBUG")
+        LogOutput("DEBUG", "Checking %s %s", h.path, h.method)
 
         local base = string.gsub(h.path, "%*", ".*") -- Turn asterisks into Lua wild patterns
         local pat = string.format("^%s$", base)      -- Add anchors to pattern
         if string.find(path, pat) == 1 then
             --if path == h.path then
             if method == nil or h.method == "*" or method == h.method then
-                LogMsg("Match for " .. h.path, "DEBUG")
+                LogOutput("DEBUG", "Match for %s", h.path)
                 return h
             end
         end
@@ -195,10 +195,10 @@ local function getNewClients()
 
     if client == nil then
         if err ~= "timeout" then
-            LogMsg("Error from accept: " .. err, "ERROR")
+            LogOutput("ERROR", "Error from accept: %s", err)
         end
     else
-        LogMsg("Accepted connection from client", "DEBUG")
+        LogOutput("DEBUG", "Accepted connection from client")
         client:settimeout(1)
         table.insert(clients, client)
 
@@ -235,14 +235,14 @@ local function buildHeaders(content, contentType, resCode)
     end
 
     local header = table.concat(h, "\n") .. "\n\n"
-    LogMsg("Adding header: " .. header, "DEBUG")
+    LogOutput("DEBUG", "Adding header: %s", header)
     return header
 end
 
 ---Safely mark a session for removal
 ---@param client ClientTable
 local function markSessionForRemoval(client)
-    LogMsg("Marking client " .. client.id .. " for removal", "DEBUG")
+    LogOutput("DEBUG", "Marking client %i for removal", client.id)
     client.state = "close"
 end
 
@@ -261,7 +261,7 @@ local function send_all(client, data)
         local sent, err, partial_sent_index = client:send(partial)
         if sent == nil then
             -- Handle error (e.g., connection closed, timeout)
-            LogMsg("ERROR: Failed to send data: " .. (err or "unknown error"), "ERROR")
+            LogOutput("ERROR", "ERROR: Failed to send data: " .. (err or "unknown error"))
             return nil, err -- Return nil and error message
         end
         total_sent = total_sent + sent
@@ -278,18 +278,18 @@ end
 ---@param contentType MimeType? Content mime type. defaults to `application/json`
 ---@param resCode ResponseStatus? Response code. Defaults to `200 OK`
 local function sendResponse(client, content, contentType, resCode)
-    LogMsg("Sending the response", "DEBUG")
+    LogOutput("DEBUG", "Sending the response")
     local header = buildHeaders(content, contentType, resCode)
 
     local sent = send_all(client.client, header)
-    LogMsg("Last byte sent: " .. sent .. " header size: " .. #header, "DEBUG")
+    LogOutput("DEBUG", "Last byte sent: %i, header size: %i", sent, #header)
 
     if content then
         local contentSent = send_all(client.client, content)
-        LogMsg("Last byte sent: " .. contentSent .. " content size: " .. #content, "DEBUG")
+        LogOutput("DEBUG", "Last byte sent: %i, content size: %i", contentSent, #content)
     end
-    LogMsg(string.format("%d %s \"%s\" %.1fms", resCode or 200, client.method, client.urlString, time() - client
-        .connTime))
+    local resDuration = time() - client.connTime
+    LogOutput("INFO", "%d %s \"%s\" %.1fms", resCode or 200, client.method, client.urlString, resDuration)
     markSessionForRemoval(client)
 end
 
@@ -305,7 +305,7 @@ local function parseHeaders(client)
             name = string.lower(name) -- convert to lowercase for simplified access
             client.headers[name] = value
         else
-            LogMsg("Malformed header line:\n" .. line, "ERROR")
+            LogOutput("ERROR", "Malformed header line:\n%s", line)
             return -1
         end
     end
@@ -345,47 +345,47 @@ local function authenticateSession(client)
         end
     end
 
-    LogMsg("Unauthenticated session " .. client.id, "DEBUG")
+    LogOutput("DEBUG", "Unauthenticated session %i", client.id)
     return false
 end
 
 ---Dump headers for debugging
 ---@param client ClientTable
 local function dumpSession(client)
-    LogMsg("==============================", "DEBUG")
-    LogMsg("URL string:" .. client.urlString, "DEBUG")
-    LogMsg(string.format("Method: %s", client.method), "DEBUG")
-    LogMsg(string.format("Version: %s", client.version), "DEBUG")
+    LogOutput("DEBUG", "==============================")
+    LogOutput("DEBUG", "URL string: %s", client.urlString)
+    LogOutput("DEBUG", "Method: %s", client.method)
+    LogOutput("DEBUG", "Version: %s", client.version)
 
-    LogMsg("Headers:", "DEBUG")
+    LogOutput("DEBUG", "Headers:")
     for name, value in pairs(client.headers) do
-        LogMsg(string.format("    '%s' = '%s'", name, value), "DEBUG")
+        LogOutput("DEBUG", "    '%s' = '%s'", name, value)
     end
 
-    LogMsg("URL components:", "DEBUG")
+    LogOutput("DEBUG", "URL components:")
     for k, v in pairs(client.urlComponents) do
-        LogMsg(string.format("     %s:  %s", k, tostring(v)), "DEBUG")
+        LogOutput("DEBUG", "     %s:  %s", k, tostring(v))
     end
 
     if client.queryComponents ~= nil then
-        LogMsg("URL Query components", "DEBUG")
+        LogOutput("DEBUG", "URL Query components")
         for k, v in pairs(client.queryComponents) do
-            LogMsg(string.format("     %s =  %s", k, tostring(v)), "DEBUG")
+            LogOutput("DEBUG", "     %s =  %s", k, tostring(v))
         end
     end
 
-    LogMsg("URL Path: " .. client.urlComponents.path, "DEBUG")
-    LogMsg("URL Params: " .. (client.urlComponents.params or ""), "DEBUG")
-    LogMsg("URL url: " .. (client.urlComponents.url or ""), "DEBUG")
+    LogOutput("DEBUG", "URL Path: %s", client.urlComponents.path)
+    LogOutput("DEBUG", "URL Params: %s", client.urlComponents.params)
+    LogOutput("DEBUG", "URL url: %s", client.urlComponents.url)
 
-    LogMsg("URL path components:", "DEBUG")
+    LogOutput("DEBUG", "URL path components:")
     for k, v in pairs(client.pathComponents) do
-        LogMsg(string.format("     %s:  %s", k, tostring(v)), "DEBUG")
+        LogOutput("DEBUG", "     %s:  %s", k, tostring(v))
     end
 
-    LogMsg(string.format("Content Length: %d", client.contentLength), "DEBUG")
-    LogMsg(string.format("Content: %s", client.content), "DEBUG")
-    LogMsg("==============================", "DEBUG")
+    LogOutput("DEBUG", "Content Length: %d", client.contentLength)
+    LogOutput("DEBUG", "Content: %s", client.content)
+    LogOutput("DEBUG", "==============================")
 end
 
 ---This is called when we have a complete request ready to be processed.
@@ -407,7 +407,7 @@ local function processSession(client)
         else
             if not pcall(function()
                     local errMsg = content or "Unknown error"
-                    LogMsg("Handler error: " .. content, "ERROR")
+                    LogOutput("ERROR", "Handler error: %s", content)
                     -- TODO: Fix perser failed to escape certain characters
                     local err = json.stringify {
                         error = errMsg
@@ -457,7 +457,7 @@ local function handleClient(client)
 
     if data then
         if s.state == "init" then
-            LogMsg(string.format("(%d) INIT: '%s'", s.id, data), "DEBUG")
+            LogOutput("DEBUG", "(%d) INIT: '%s'", s.id, data)
             s.rawHeaders = {}
             local method, urlString, ver = string.match(data, "(%S+)%s+(%S+)%s+(%S+)")
             if method ~= nil then
@@ -469,7 +469,7 @@ local function handleClient(client)
 
                 s.pathComponents = url.parse_path(s.urlComponents.path)
 
-                LogMsg("Query Components " .. (s.urlComponents.query or ""), "DEBUG")
+                LogOutput("DEBUG", "Query Components %s", s.urlComponents.query or "")
                 if s.urlComponents.query ~= nil then
                     s.queryComponents = decodeQuery(s.urlComponents.query)
                 end
@@ -478,15 +478,15 @@ local function handleClient(client)
 
                 s.state = "header"
             else
-                LogMsg("Malformed initial line", "ERROR")
+                LogOutput("ERROR", "Malformed initial line")
                 sendResponse(s, nil, nil, 400)
             end
         elseif s.state == "header" then
-            LogMsg(string.format("(%d)  HDR: %s", s.id, data), "DEBUG")
+            LogOutput("DEBUG", "(%d)  HDR: %s", s.id, data)
             if data ~= "" then
                 table.insert(s.rawHeaders, data)
             else
-                LogMsg(string.format("(%d)  End Headers", s.id), "DEBUG")
+                LogOutput("DEBUG", "(%d)  End Headers", s.id)
                 local rc = parseHeaders(s)
                 if rc ~= 0 then
                     sendResponse(s, nil, nil, 400)
@@ -496,11 +496,11 @@ local function handleClient(client)
                 processHeaders(s)
 
                 if s.contentLength == 0 then
-                    LogMsg("Content length = 0, not waiting for content", "DEBUG")
+                    LogOutput("DEBUG", "Content length = 0, not waiting for content")
                     -- Processing the session will result in it being closed
                     processSession(s)
                 else
-                    LogMsg("Waiting for content", "DEBUG")
+                    LogOutput("DEBUG", "Waiting for content")
                     s.state = "body"
                 end
             end
@@ -510,13 +510,13 @@ local function handleClient(client)
         end
     else
         if err == "closed" then
-            LogMsg("Client closed the connection: ", "DEBUG")
+            LogOutput("DEBUG", "Client closed the connection: ")
             markSessionForRemoval(s)
         elseif err == "timeout" then
-            LogMsg("Receive timeout. Partial data: " .. partial, "ERROR")
+            LogOutput("ERROR", "Receive timeout. Partial data: %s", partial)
             markSessionForRemoval(s)
         else
-            LogMsg("Receive error: " .. err, "ERROR")
+            LogOutput("ERROR", "Receive error: %s", err)
             markSessionForRemoval(s)
         end
     end
@@ -533,7 +533,7 @@ local function process(timeout)
     if err ~= nil then
         -- Either no data (timeout) or an error
         if err ~= "timeout" then
-            LogMsg("Select error: " .. err, "ERROR")
+            LogOutput("ERROR", "Select error: %s", err)
         end
     else
         -- Some clients have data for us
@@ -553,7 +553,7 @@ local function process(timeout)
         local client_to_check = clients[i]
         local s = sessions[client_to_check]
         if s and s.state == "close" then
-            LogMsg("Cleaning up client " .. s.id, "DEBUG")
+            LogOutput("DEBUG", "Cleaning up client %i", s.id)
             client_to_check:close()
             table.remove(clients, i)
             sessions[client_to_check] = nil
@@ -586,12 +586,12 @@ end
 local function init(host, port)
     g_server = socket.bind(host, port)
     if g_server == nil then
-        LogMsg("Unable to bind to port " .. port, "ERROR");
+        LogOutput("ERROR", "Unable to bind to port %s", port);
         return
     end
 
     local bindAddr, bindPort = g_server:getsockname()
-    LogMsg("Webserver listening to host " .. (bindAddr or host) .. " on port " .. (bindPort or port) .. "...")
+    LogOutput("INFO", "Webserver listening to host %s on port %i", (bindAddr or host), (bindPort or port))
 
     g_server:settimeout(0.05)
 
@@ -616,10 +616,10 @@ local function run(bindHost, bindPort)
     while isServerRunning do
         process(5.0)
     end
-    LogMsg("Webserver stopped")
+    LogOutput("INFO", "Webserver stopped")
 end
 
-RegisterConsoleCommandHandler("stopwebserver", function (Cmd, CommandParts, Ar)
+RegisterConsoleCommandHandler("stopwebserver", function(Cmd, CommandParts, Ar)
     isServerRunning = false
     return true
 end)

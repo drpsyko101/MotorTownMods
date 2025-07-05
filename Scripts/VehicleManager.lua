@@ -1553,7 +1553,7 @@ RegisterConsoleCommandHandler("despawnvehicle", function()
   local actor = GetSelectedActor()
 
   if not actor:IsValid() then
-    LogMsg("No actor selected", "ERROR")
+    LogOutput("ERROR", "No actor selected")
     return false
   end
 
@@ -1561,12 +1561,12 @@ RegisterConsoleCommandHandler("despawnvehicle", function()
   ---@cast vehicleClass UClass
 
   if not vehicleClass:IsValid() then
-    LogMsg("Vehicle class not found", "ERROR")
+    LogOutput("ERROR", "Vehicle class not found")
     return false
   end
 
   if not actor:IsA(vehicleClass) then
-    LogMsg("Selected actor is not a vehicle", "ERROR")
+    LogOutput("ERROR", "Selected actor is not a vehicle")
     return false
   end
 
@@ -1575,7 +1575,7 @@ RegisterConsoleCommandHandler("despawnvehicle", function()
 
     local vehicleName = actor:GetFullName()
     if DespawnVehicleById(actor.Net_VehicleId, GetPlayerGuid(GetMyPlayerController())) then
-      LogMsg("Despawned vehicle: " .. vehicleName)
+      LogOutput("INFO", "Despawned vehicle: %s", vehicleName)
     end
   end
   return true
@@ -1587,12 +1587,12 @@ RegisterConsoleCommandHandler("setvehicleparam", function(Cmd, CommandParts, Ar)
         local value = CommandParts[1]
 
         if not fields then
-          LogMsg("No fields value given.", "ERROR")
+          LogOutput("ERROR", "No fields value given.")
           return true
         end
 
         if value == nil then
-          LogMsg("No valid value given.", "ERROR")
+          LogOutput("ERROR", "No valid value given.")
           return true
         end
 
@@ -1607,7 +1607,7 @@ RegisterConsoleCommandHandler("setvehicleparam", function(Cmd, CommandParts, Ar)
           end
         end
       end) then
-    LogMsg("Failed to change " .. CommandParts[2] .. " field for pawn")
+    LogOutput("WARN", "Failed to change %s field for pawn", CommandParts[2])
   end
 
   return true
@@ -1640,13 +1640,13 @@ local function HandleDespawnVehicle(session)
   end
 
   if not id then
-    return '{"message":"Invalid vehicle ID"}', nil, 400
+    return json.stringify { message = "Invalid vehicle ID" }, nil, 400
   end
 
   if DespawnVehicleById(id, playerGuid) then
     return nil, nil, 204
   else
-    return '{"message":"Failed to despawn vehicle"}', nil, 400
+    return json.stringify { message = "Failed to despawn vehicle" }, nil, 400
   end
 end
 

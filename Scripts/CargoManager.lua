@@ -395,7 +395,7 @@ RegisterHook(
         DeliveryId = DeliveryId:get()
       }
     }
-    LogMsg(res, "DEBUG")
+    LogOutput("DEBUG", res)
     webhook.CreateWebhookRequest(res)
   end
 )

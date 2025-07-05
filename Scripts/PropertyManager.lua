@@ -63,7 +63,7 @@ local function SpawnHouse(location, rotation, houseParam)
     local guid = GuidToString(actor.HouseGuid)
     actor.Tags[#actor.Tags + 1] = FName(guid)
 
-    LogMsg("Spawned a new house: " .. actor:GetFullName())
+    LogOutput("INFO", "Spawned a new house: %s", actor:GetFullName())
     gameState.Houses[#gameState.Houses + 1] = actor
 
     return true, guid

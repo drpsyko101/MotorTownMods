@@ -12,7 +12,7 @@ local function GetPlayerStates(guid)
 
   local playerStates = gameState.PlayerArray
 
-  LogMsg(string.format("%i player state(s) found", #playerStates), "DEBUG")
+  LogOutput("DEBUG", "%i player state(s) found", #playerStates)
 
   playerStates:ForEach(function(index, element)
     local playerState = element:get() ---@type AMotorTownPlayerState
@@ -80,13 +80,13 @@ end
 
 RegisterConsoleCommandHandler("getplayers", function(Cmd, CommandParts, Ar)
   local playerStates = json.stringify(GetPlayerStates(CommandParts[1]))
-  LogMsg(playerStates)
+  LogOutput("INFO", playerStates)
   return true
 end)
 
 RegisterConsoleCommandHandler("getplayertransform", function(Cmd, CommandParts, Ar)
   local location, rotation = GetMyCurrentTransform()
-  LogMsg("Actor transform: " .. json.stringify({ Location = location, Rotation = rotation }))
+  LogOutput("INFO", "Actor transform: %s", json.stringify({ Location = location, Rotation = rotation }))
   return true
 end)
 

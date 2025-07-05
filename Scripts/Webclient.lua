@@ -26,7 +26,7 @@ local function __createWebhookRequest(url, content)
     local resHeaders = {}
     local resSecure = {}
 
-    LogMsg("Sending POST request to " .. url .. " with payload size: " .. #content, "DEBUG")
+    LogOutput("DEBUG", "Sending POST request to %s with payload size: %i", url, #content)
     if string.match(url, "^https:") then
         error("HTTPS webhook endpoint is not currently supported.")
     else
@@ -39,10 +39,10 @@ local function __createWebhookRequest(url, content)
         }
     end
     if resCode == 200 then
-        LogMsg("Res OK:\n" .. json.stringify(res), "DEBUG")
+        LogOutput("DEBUG", "Res OK:\n%s", json.stringify(res))
         return
     end
-    error("Request failure: Exit code: " .. resCode)
+    error(string.format("Request failure: Exit code: %i", resCode))
 end
 
 ---Send a request synchronously to the specified webhook URL
@@ -55,7 +55,7 @@ local function CreateWebhookRequest(content)
 
     local state, err = pcall(__createWebhookRequest, url, content)
     if not state then
-        LogMsg("Failed to create webhook request: " .. err, "ERROR")
+        LogOutput("ERROR", "Failed to create webhook request: %s", err)
         webhookFailure = true
     end
     return state
@@ -72,7 +72,7 @@ local function CreateServerRequest(path, content)
 
     local state, err = pcall(__createWebhookRequest, url .. path, content)
     if not state then
-        LogMsg("Failed to create server API request: " .. err, "ERROR")
+        LogOutput("ERROR", "Failed to create server API request: %s", err)
     end
     return state
 end
