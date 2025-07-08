@@ -225,6 +225,7 @@ jobs:
   create-release:
     needs:
       - build-core
+      - build-deps
     permissions: write-all
     runs-on: ubuntu-latest
 
