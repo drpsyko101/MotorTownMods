@@ -6,7 +6,7 @@ Powered by UE4SS lua scripts! This mod focuses primarily towards dedicated serve
 
 ### Installation
 
-Download the latest releases [here](https://github.com/drpsyko101/MotorTownMods/releases). Extract its contents to `path/to/ue4ss/Mods/` directory. Get the Lua static modules [here](https://github.com/alain-riedinger/luasocket/releases/latest) and extract the contents in `x64` into the `path/to/ue4ss/Mods/shared` directory.
+Download the latest releases [here](https://github.com/drpsyko101/MotorTownMods/releases). Extract its contents to `path/to/ue4ss/Mods/` directory. The Lua static modules are also available in the relase as `shared.zip`. Download and extract the contents into the `path/to/ue4ss/Mods/shared` directory.
 
 ### Building from source
 
@@ -56,14 +56,17 @@ The C++ module are included in the release. Any changes to the C++ files need a 
 
 Most of the server settings can be configured using environment variables:
 
-| Variable name         | Default value | Description                                                          |
-| --------------------- | ------------- | -------------------------------------------------------------------- |
-| `MOD_MANAGEMENT_PORT` | `5000`        | Management port. Used for managing mods in the dedicated server      |
-| `MOD_LUA_PORT`        | `5001`        | Lua HTTP port. This only applies if `luasocket` module is installed  |
-| `MOD_WEBHOOK_URL`     | _none_        | Webhook URL to send the events to. Requires `luasec` to function     |
-| `MOD_SERVER_API_URL`  | _none_        | Server API to call from client side                                  |
-| `MOD_SERVER_PASSWORD` | _none_        | Authenticate server request with `Authorization: Basic ` header      |
-| `MOD_AUTO_FPS_ENABLE` | _none_        | Enable automatic server traffic adjustment based on the server's FPS |
+| Variable name               | Default value | Description                                                                                  |
+| --------------------------- | ------------- | -------------------------------------------------------------------------------------------- |
+| `MOD_MANAGEMENT_PORT`       | `5000`        | Management port. Used for managing mods in the dedicated server                              |
+| `MOD_LUA_PORT`              | `5001`        | Lua HTTP port. This only applies if `luasocket` module is installed                          |
+| `MOD_WEBHOOK_URL`           | _none_        | Webhook URL to send the events to. Requires `luasec` to function                             |
+| `MOD_WEBHOOK_METHOD`        | `POST`        | Webhook request method                                                                       |
+| `MOD_WEBHOOK_EXTRA_HEADERS` | _none_        | Webhook extra headers in a JSON object                                                       |
+| `MOD_SERVER_API_URL`        | _none_        | Server API to call from client side                                                          |
+| `MOD_SERVER_PASSWORD`       | _none_        | Authenticate server request with `Authorization: Basic ` header                              |
+| `MOD_SERVER_SEND_PARTIAL`   | _none_        | Limit server response chunks to 40 bytes (Set to `true` for older `luasocket` compatibility) |
+| `MOD_AUTO_FPS_ENABLE`       | _none_        | Enable automatic server traffic adjustment based on the server's FPS                         |
 
 ### Reloading mod
 

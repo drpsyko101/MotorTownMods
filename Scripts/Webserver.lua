@@ -15,17 +15,8 @@ local url = require("socket.url")
 local statics = require("Statics")
 local json = require("JsonParser")
 local auth = os.getenv("MOD_SERVER_PASSWORD")
-local bcrypt = nil
-if auth then
-    local status, err = pcall(function()
-        LogOutput("DEBUG", "Attempting to load bcrypt...")
-        bcrypt = require("bcrypt")
-        LogOutput("DEBUG", "Successfully loaded bcrypt")
-    end)
-    if not status then
-        LogOutput("ERROR", "Failed to load bcrypt, will use base64 as fallback: %s", err)
-    end
-end
+local usePartialSend = os.getenv("MOD_SERVER_SEND_PARTIAL")
+local bcrypt = RequireSafe("bcrypt")
 
 local string = string
 local table = table
@@ -256,7 +247,7 @@ local function send_all(client, data)
     while total_sent < len do
         -- 'send' partial send method doesn't work, so we do our own string sub
         -- 'send' method will send malformed data if exceeds 40 bytes
-        local endByte = min(total_sent + 40, len)
+        local endByte = min(total_sent + 42, len)
         local partial = string.sub(data, total_sent + 1, endByte)
         local sent, err, partial_sent_index = client:send(partial)
         if sent == nil then
@@ -281,13 +272,19 @@ local function sendResponse(client, content, contentType, resCode)
     LogOutput("DEBUG", "Sending the response")
     local header = buildHeaders(content, contentType, resCode)
 
-    local sent = send_all(client.client, header)
-    LogOutput("DEBUG", "Last byte sent: %i, header size: %i", sent, #header)
+    if usePartialSend then
+        local sent = send_all(client.client, header)
+        LogOutput("DEBUG", "Last byte sent: %i, header size: %i", sent, #header)
 
-    if content then
-        local contentSent = send_all(client.client, content)
-        LogOutput("DEBUG", "Last byte sent: %i, content size: %i", contentSent, #content)
+        if content then
+            local contentSent = send_all(client.client, content)
+            LogOutput("DEBUG", "Last byte sent: %i, content size: %i", contentSent, #content)
+        end
+    else
+        local sent, err, sent_index = client.client:send(header .. (content or ""))
+        LogOutput("DEBUG", "Last byte sent: %i, size: %i", sent, #header + (content and #content or 0))
     end
+
     local resDuration = time() - client.connTime
     LogOutput("INFO", "%d %s \"%s\" %.1fms", resCode or 200, client.method, client.urlString, resDuration)
     markSessionForRemoval(client)
