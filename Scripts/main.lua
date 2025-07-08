@@ -6,6 +6,7 @@ local eventManager = require("EventManager")
 local serverManager = require("ServerManager")
 local cargoManager = require("CargoManager")
 local chatManager = require("ChatManager")
+local widgetManager = require("ViewportManager")
 
 ---@enum (key) LogLevel
 local logLevel = {
