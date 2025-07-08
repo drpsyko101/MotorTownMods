@@ -106,6 +106,122 @@ jobs:
             release_description.md
           overwrite: true
 
+  build-deps:
+    runs-on: windows-2022
+    steps:
+      - name: Fetch existing artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: MotorTownMods_deps_lua
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: hashFiles('shared.zip') == ''
+        with:
+          arch: x64
+          sdk: "10.0.19041.0"
+
+      - name: Build static Lua
+        if: hashFiles('shared.zip') == ''
+        run: |
+          curl -L -o lua-5.4.8.tar.gz https://www.lua.org/ftp/lua-5.4.8.tar.gz
+          tar -xzf lua-5.4.8.tar.gz
+          cd lua-5.4.8/src
+
+          cl /c /O2 /W3 /DLUA_COMPAT_5_3 lapi.c lcode.c lctype.c ldebug.c ldo.c ldump.c lfunc.c lgc.c llex.c lmem.c lobject.c lopcodes.c lparser.c lstate.c lstring.c ltable.c ltm.c lundump.c lvm.c lzio.c lauxlib.c lbaselib.c lcorolib.c ldblib.c liolib.c lmathlib.c loslib.c lstrlib.c ltablib.c lutf8lib.c loadlib.c linit.c
+
+          lib /out:lua54.lib *.obj
+
+          cl /O2 lua.c lua54.lib /Fe:lua.exe
+
+          mkdir ..\..\lua\bin
+          mkdir ..\..\lua\include
+          mkdir ..\..\lua\lib
+
+          copy lua.exe ..\..\lua\bin\
+          copy lua.h ..\..\lua\include\
+          copy luaconf.h ..\..\lua\include\
+          copy lualib.h ..\..\lua\include\
+          copy lauxlib.h ..\..\lua\include\
+          copy lua54.lib ..\..\lua\lib\
+        shell: cmd
+
+      - name: Setup Lua PATH
+        if: hashFiles('shared.zip') == ''
+        run: |
+          "${{ github.workspace }}\lua\bin" | Out-File -FilePath "$env:GITHUB_PATH" -Append
+          "LUA=${{ github.workspace }}\lua\bin\lua.exe" | Out-File -FilePath "$env:GITHUB_ENV" -Append
+          "LUA_INCDIR=${{ github.workspace }}\lua\include" | Out-File -FilePath "$env:GITHUB_ENV" -Append
+          "LUA_LIBDIR=${{ github.workspace }}\lua\lib" | Out-File -FilePath "$env:GITHUB_ENV" -Append
+        shell: pwsh
+
+      - name: Verify Lua installation
+        if: hashFiles('shared.zip') == ''
+        run: |
+          lua -v
+          where lua
+        shell: cmd
+
+      - uses: luarocks/gh-actions-luarocks@v6
+        if: hashFiles('shared.zip') == ''
+        with:
+          withLuaPath: ${{ github.workspace }}\lua
+
+      - name: Install main modules
+        if: hashFiles('shared.zip') == ''
+        run: |
+          luarocks install --local luasocket CFLAGS="/MT"
+
+      - uses: ilammy/setup-nasm@v1
+        continue-on-error: true
+        if: hashFiles('shared.zip') == ''
+
+      - uses: shogo82148/actions-setup-perl@v1
+        continue-on-error: true
+        if: hashFiles('shared.zip') == ''
+        with:
+          perl-version: "5.40"
+          distribution: strawberry
+
+      - name: Checkout OpenSSL
+        uses: actions/checkout@v4
+        continue-on-error: true
+        if: hashFiles('shared.zip') == ''
+        with:
+          repository: openssl/openssl
+          path: OpenSSL
+          ref: openssl-3.0
+
+      - name: Build OpenSSL
+        continue-on-error: true
+        if: hashFiles('shared.zip') == ''
+        run: |
+          cd OpenSSL
+          perl Configure VC-WIN64A no-shared
+          nmake
+
+      - name: install additional modules
+        continue-on-error: true
+        if: hashFiles('shared.zip') == ''
+        run: |
+          luarocks install --local https://github.com/drpsyko101/luasec/raw/refs/heads/static/luasec-1.3.2-1.rockspec CFLAGS="/MT" OPENSSL_DIR=${{ github.workspace }}\OpenSSL
+          luarocks install --local bcrypt CFLAGS="/MT"
+
+      - name: Package modules
+        if: hashFiles('shared.zip') == ''
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory shared
+          Copy-Item -Recurse -Force $env:APPDATA\luarocks\*\lua\5.4\* .\shared\
+          Compress-Archive -Path .\shared ".\shared.zip"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: hashFiles('shared.zip') == ''
+        with:
+          name: MotorTownMods_deps_lua
+          path: shared.zip
+
   create-release:
     needs:
       - build-core
