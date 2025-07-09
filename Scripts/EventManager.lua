@@ -323,24 +323,20 @@ end)
 local serverAddEvent = "/Script/MotorTown.MotorTownPlayerController:ServerAddEvent"
 RegisterHook(
   serverAddEvent,
-  function(self, eventParam)
+  function(context, eventParam)
     local event = eventParam:get() ---@type FMTEvent
 
     LogOutput("DEBUG", "New event %s created", GuidToString(event.EventGuid))
 
     local eventTable = EventToTable(event)
-    local res = json.stringify {
-      hook = serverAddEvent,
-      data = eventTable
-    }
-    webhook.CreateWebhookRequest(res)
+    webhook.CreateEventWebhook(serverAddEvent, eventTable)
   end
 )
 
 local serverEventState = "/Script/MotorTown.MotorTownPlayerController:ServerChangeEventState"
 RegisterHook(
   serverEventState,
-  function(self, eventParam, stateParam)
+  function(context, eventParam, stateParam)
     local guid = eventParam:get() ---@type FGuid
     local eventState = stateParam:get() ---@type EMTEventState
     local eventGuid = GuidToString(guid)
@@ -352,29 +348,18 @@ RegisterHook(
     if #event == 0 then return end
 
     local eventTable = EventToTable(event[1])
-    local res = json.stringify {
-      hook = serverEventState,
-      data = eventTable
-    }
-    webhook.CreateWebhookRequest(res)
+    webhook.CreateEventWebhook(serverEventState, eventTable)
   end
 )
 
 local serverRemoveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerRemoveEvent"
 RegisterHook(
   serverRemoveEvent,
-  function(self, eventParam)
+  function(context, eventParam)
     local event = eventParam:get() ---@type FGuid
     local eventGuid = GuidToString(event)
     LogOutput("DEBUG", "Event %s removed", eventGuid)
-    local res = json.stringify {
-      hook = serverRemoveEvent,
-      data = {
-        EventGuid = eventGuid
-      }
-    }
-    LogOutput("DEBUG", "ServerRemoveEvent: %s", res)
-    webhook.CreateWebhookRequest(res)
+    webhook.CreateEventWebhook(serverRemoveEvent, { EventGuid = eventGuid })
   end
 )
 
@@ -386,62 +371,55 @@ RegisterHook(
 
     if not PC:IsValid() then return end
 
-    local res = json.stringify {
-      hook = passRaceSection,
-      data = {
-        SenderGuid = GetPlayerGuid(PC),
-        EventGuid = GuidToString(eventGuid:get()),
-        SectionIndex = sectionIndex:get(),
-        TotalTimeSeconds = totalTimeSeconds:get(),
-        LaptimeSeconds = laptimeSeconds:get()
-      }
+    local data = {
+      SenderGuid = GetPlayerGuid(PC),
+      EventGuid = GuidToString(eventGuid:get()),
+      SectionIndex = sectionIndex:get(),
+      TotalTimeSeconds = totalTimeSeconds:get(),
+      LaptimeSeconds = laptimeSeconds:get()
     }
-    LogOutput("DEBUG", "ServerPassedRaceSection: %s", res)
-    webhook.CreateWebhookRequest(res)
+    LogOutput("DEBUG", "ServerPassedRaceSection: %s", json.stringify(data))
+    webhook.CreateEventWebhook(passRaceSection, data)
   end
 )
 
 local serverJoinEvent = "/Script/MotorTown.MotorTownPlayerController:ServerJoinEvent"
 RegisterHook(
   serverJoinEvent,
-  function(self, eventGuid)
-    local PC = self:get() ---@cast PC APlayerController
+  function(context, eventGuid)
+    local PC = context:get() ---@cast PC APlayerController
 
     if not PC:IsValid() then return end
 
     local guid = GuidToString(eventGuid:get())
 
-    local res = json.stringify {
-      hook = serverJoinEvent,
-      data = {
-        SenderGuid = GetPlayerGuid(PC),
-        EventGuid = guid
-      }
+    local data = {
+      SenderGuid = GetPlayerGuid(PC),
+      EventGuid = guid
     }
-    LogOutput("DEBUG", "serverJoinEvent: %s", res)
-    webhook.CreateWebhookRequest(res)
+
+    LogOutput("DEBUG", "serverJoinEvent: %s", json.stringify(data))
+    webhook.CreateEventWebhook(serverJoinEvent, data)
   end
 )
 
 local serverLeaveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerLeaveEvent"
 RegisterHook(
   serverLeaveEvent,
-  function(self, eventGuid)
-    local PC = self:get() ---@cast PC APlayerController
+  function(context, eventGuid)
+    local PC = context:get() ---@cast PC APlayerController
 
     if not PC:IsValid() then return end
 
     local guid = GuidToString(eventGuid:get())
 
-    local res = json.stringify {
-      hook = serverLeaveEvent,
-      data = {
-        SenderGuid = GetPlayerGuid(PC),
-        EventGuid = guid
-      }
+    local data = {
+      SenderGuid = GetPlayerGuid(PC),
+      EventGuid = guid
     }
-    LogOutput("DEBUG", "serverLeaveEvent: %s", res)
-    webhook.CreateWebhookRequest(res)
+
+    LogOutput("DEBUG", "serverLeaveEvent: %s", json.stringify(data))
+    webhook.CreateEventWebhook(serverLeaveEvent, data)
   end
 )
 
