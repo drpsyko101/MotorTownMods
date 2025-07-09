@@ -108,5 +108,5 @@ local function LoadWebserver()
   end
 end
 
-ExecuteAsync(LoadWebserver)
+LoadWebserver()
 LogOutput("INFO", "Mod loaded")

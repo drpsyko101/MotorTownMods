@@ -98,15 +98,17 @@ local function CreateEventWebhook(event, data, callback)
     if socket then
         local payload = json.stringify {
             hook = event,
-            timestamp = socket.gettime() * 1000,
+            timestamp = math.floor(socket.gettime() * 1000),
             data = data
         }
+        Webserver.pause()
         ExecuteAsync(function()
             LogOutput("DEBUG", "Sending webhook content:\n%s", payload)
             local status = pcall(__createWebhookRequest, webhookUrl, payload)
             if callback then
                 callback(status)
             end
+            Webserver.run()
         end)
     end
 end

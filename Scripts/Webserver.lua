@@ -27,11 +27,13 @@ local tonumber = tonumber
 local tostring = tostring
 local date = os.date
 local LogOutput = LogOutput
+local ExecuteAsync = ExecuteAsync
 local setmetatable = setmetatable
 local pcall = pcall
 local min = math.min
 local port = tonumber(os.getenv("MOD_SERVER_PORT")) or 5001
 local isServerRunning = true
+local isServerPaused = false
 local RegisterConsoleCommandHandler = RegisterConsoleCommandHandler
 local time = function()
     return socket.gettime() * 1000
@@ -596,24 +598,47 @@ local function init(host, port)
     table.insert(clients, g_server)
 end
 
+local function recurseProcess(timeout)
+    ExecuteAsync(function()
+        process(timeout)
+        if isServerRunning then
+            recurseProcess(timeout)
+        end
+    end)
+end
+
 ---Start the web server
----@param bindHost string Host IP to bind to
+---@param bindHost string? Host IP to bind to
 ---@param bindPort number? Port to bind to
 local function run(bindHost, bindPort)
+    bindHost = bindHost or "*"
     bindPort = bindPort or port
 
-    -- Register core webserver command
-    registerHandler("/stop", "POST", function(session)
-        isServerRunning = false
-        return '{"status":"ok"}'
-    end)
+    if not isServerPaused then
+        -- Register core webserver command
+        registerHandler("/stop", "POST", function(session)
+            isServerRunning = false
+            return '{"status":"ok"}'
+        end)
 
-    init(bindHost, bindPort)
-
-    while isServerRunning do
-        process(5.0)
+        init(bindHost, bindPort)
     end
-    LogOutput("INFO", "Webserver stopped")
+    isServerPaused = false
+    ExecuteAsync(function()
+        while isServerRunning and not isServerPaused do
+            process(1)
+        end
+        if isServerPaused then
+            LogOutput("DEBUG", "Webserver temporarily paused")
+        else
+            LogOutput("INFO", "Webserver stopped")
+        end
+    end)
+end
+
+local function pause()
+    LogOutput("DEBUG", "Pausing webserver")
+    isServerPaused = true
 end
 
 RegisterConsoleCommandHandler("stopwebserver", function(Cmd, CommandParts, Ar)
@@ -623,5 +648,6 @@ end)
 
 return {
     run = run,
+    pause = pause,
     registerHandler = registerHandler,
 }
