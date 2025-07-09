@@ -16,58 +16,67 @@ local extraHeaders = json.parse(os.getenv("MOD_WEBHOOK_EXTRA_HEADERS") or "{}") 
 ---@param url string
 ---@param content string?
 local function __createWebhookRequest(url, content)
-    if url and socket and http and ltn12 then
-        ---Function start time
-        local time = socket.gettime() * 1000
-        local bheaders = {
-            ["content-type"] = "application/json",
-            ["content-length"] = #content,
-            ["user-agent"] = statics.ModName .. " client " .. statics.ModVersion
-        }
-        local res = {}
-        local resState = nil ---@type string|number|nil
-        local resCode = 0 ---@type string|number
-        local resHeaders = {}
-        local resSecure = {}
+    if url then
+        if socket and http and ltn12 then
+            ---Function start time
+            local time = socket.gettime() * 1000
+            local bheaders = {
+                ["content-type"] = "application/json",
+                ["content-length"] = #content,
+                ["user-agent"] = statics.ModName .. " client " .. statics.ModVersion
+            }
+            local res = {}
+            local resState = nil ---@type string|number|nil
+            local resCode = 0 ---@type string|number
+            local resHeaders = {}
+            local resSecure = {}
 
-        -- Merge additional headers i.e. basic/bearer authentication
-        if type(extraHeaders) == "table" then
-            MergeTable(bheaders, extraHeaders)
-        end
-
-        LogOutput("DEBUG", "Sending POST request to %s with payload size: %i", url, #content)
-        if string.match(url, "^https:") then
-            if https == nil then
-                error("Unable to send HTTPS request: Failed to load luasec module")
+            -- Merge additional headers i.e. basic/bearer authentication
+            if type(extraHeaders) == "table" then
+                MergeTable(bheaders, extraHeaders)
             end
 
-            resState, resCode, resHeaders, resSecure = https.request {
-                url = url,
-                method = method,
-                headers = bheaders,
-                source = ltn12.source.string(content),
-                sink = ltn12.sink.table(res),
-                protocol = "any",
-                verify = "none",
-            }
+            LogOutput("DEBUG", "Sending POST request to %s with payload size: %i", url, #content)
+            if string.match(url, "^https:") then
+                if https == nil then
+                    error("Unable to send HTTPS request: Failed to load luasec module")
+                end
+
+                resState, resCode, resHeaders, resSecure = https.request {
+                    url = url,
+                    method = method,
+                    headers = bheaders,
+                    source = ltn12.source.string(content),
+                    sink = ltn12.sink.table(res),
+                    protocol = "any",
+                    verify = "none",
+                }
+            else
+                resState, resCode, resHeaders = http.request {
+                    url = url,
+                    method = method,
+                    headers = bheaders,
+                    source = ltn12.source.string(content),
+                    sink = ltn12.sink.table(res),
+                }
+            end
+            local execTime = socket.gettime() * 1000 - time
+            LogOutput("INFO", "Webhook: %s \"%s\" %.1fms", method, url, execTime)
+            if resCode == 200 then
+                LogOutput("DEBUG", "Res OK:\n%s", json.stringify(res))
+            else
+                error(string.format("Wehbhook request failure: Exit code: %i", resCode))
+            end
         else
-            resState, resCode, resHeaders = http.request {
-                url = url,
-                method = method,
-                headers = bheaders,
-                source = ltn12.source.string(content),
-                sink = ltn12.sink.table(res),
-            }
+            error(
+                string.format(
+                    "Failed to send webhook: Required module(s) not loaded: %s %s %s",
+                    socket and "socket" or nil,
+                    http and "http" or nil,
+                    ltn12 and "ltn12" or nil
+                )
+            )
         end
-        if resCode == 200 then
-            LogOutput("DEBUG", "Res OK:\n%s", json.stringify(res))
-        else
-            error(string.format("Wehbhook request failure: Exit code: %i", resCode))
-        end
-        local execTime = socket.gettime() * 1000 - time
-        LogOutput("INFO", "Webhook: %s \"%s\" %.1fms", method, url, execTime)
-    else
-        LogOutput("WARN", "Failed to send webhook: Invalid URL %s or module not loaded", url)
     end
 end
 
@@ -78,6 +87,28 @@ local function CreateWebhookRequest(content)
         LogOutput("DEBUG", "Sending webhook content:\n%s", content)
         pcall(__createWebhookRequest, webhookUrl, content)
     end)
+end
+
+---Create a webhook request from and event and its data.
+---The request will be made asynchronously
+---@param event string Event name. Usually the full path to the function hook.
+---@param data table Payload to send to the webhook endpoint
+---@param callback fun(status: boolean)? Optional callback after handling the request
+local function CreateEventWebhook(event, data, callback)
+    if socket then
+        local payload = json.stringify {
+            hook = event,
+            timestamp = socket.gettime() * 1000,
+            data = data
+        }
+        ExecuteAsync(function()
+            LogOutput("DEBUG", "Sending webhook content:\n%s", payload)
+            local status = pcall(__createWebhookRequest, webhookUrl, payload)
+            if callback then
+                callback(status)
+            end
+        end)
+    end
 end
 
 ---Send a request synchronously to the specified webhook URL
@@ -97,6 +128,8 @@ local function CreateServerRequest(path, content)
 end
 
 return {
+    ---@deprecated Use `CreateEventWebhook` instead for additional functionality
     CreateWebhookRequest = CreateWebhookRequest,
-    CreateServerRequest = CreateServerRequest
+    CreateServerRequest = CreateServerRequest,
+    CreateEventWebhook = CreateEventWebhook
 }

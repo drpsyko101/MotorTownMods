@@ -15,15 +15,13 @@ RegisterHook(
 
     if not PS:IsValid() then return end
 
-    local res = json.stringify {
-      hook = serverSendChat,
-      data = {
-        Sender = GuidToString(PS.CharacterGuid),
-        Message = message:get():ToString(),
-        Category = category:get()
-      }
+    local data = {
+      Sender = GuidToString(PS.CharacterGuid),
+      Message = message:get():ToString(),
+      Category = category:get()
     }
-    LogOutput("DEBUG", res)
-    webhook.CreateWebhookRequest(res)
+
+    LogOutput("DEBUG", json.stringify(data))
+    webhook.CreateEventWebhook(serverSendChat, data)
   end
 )
