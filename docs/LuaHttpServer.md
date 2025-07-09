@@ -2312,6 +2312,7 @@ Returns the new event data.
 ```json
 {
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerAddEvent",
+  "timestamp": 1752044853012,
   "data": [
     {
       "State": 1,
@@ -2347,6 +2348,7 @@ Returns the GUID of the event and the new event state.
 ```json
 {
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerChangeEventState",
+  "timestamp": 1752044853012,
   "data": [
     // similar event structure as above
   ]
@@ -2364,7 +2366,8 @@ Returns the GUID of the removed event.
 
 ```json
 {
-  "hook": "",
+  "hook": "/Script/MotorTown.MotorTownPlayerController:ServerRemoveEvent",
+  "timestamp": 1752044853012,
   "data": {
     "EventGuid": "835BB8FD4104E369D33C6BA74C41922A"
   }
@@ -2383,6 +2386,7 @@ Called when a player passed an event checkpoint.
 ```json
 {
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerPassedRaceSection",
+  "timestamp": 1752044853012,
   "data": {
     "SenderGuid": "",
     "EventGuid": "",
@@ -2405,6 +2409,7 @@ Called when a player joined an event.
 ```json
 {
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerJoinEvent",
+  "timestamp": 1752044853012,
   "data": {
     "SenderGuid": "",
     "EventGuid": ""
@@ -2424,6 +2429,7 @@ Called when a player left an event.
 ```json
 {
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerLeaveEvent",
+  "timestamp": 1752044853012,
   "data": {
     "SenderGuid": "",
     "EventGuid": ""
@@ -2445,6 +2451,7 @@ Called when a player accepted a cargo delivery.
 ```json
 {
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerAcceptDelivery",
+  "timestamp": 1752044853012,
   "data": { "DeliveryId": 27, "Sender": "EA50F9CE42B8A468F4FBFE8C42AD87ED" }
 }
 ```
