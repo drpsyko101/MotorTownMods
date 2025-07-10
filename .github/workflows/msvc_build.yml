@@ -85,12 +85,14 @@ jobs:
         id: package-build
         shell: pwsh
         run: |
-          New-Item -ItemType Directory .\MotorTownMods\dlls
-          Copy-Item .\Binaries\Game__Shipping__Win64\MotorTownMods\MotorTownMods.dll .\MotorTownMods\dlls\main.dll
+          New-Item -ItemType Directory -Force .\output\MotorTownMods\dlls
+          New-Item -ItemType File .\output\MotorTownMods\enabled.txt
+          Copy-Item .\Binaries\Game__Shipping__Win64\MotorTownMods\MotorTownMods.dll .\output\MotorTownMods\dlls\main.dll
+          Copy-Item -Recurse .\MotorTownMods\Scripts .\output\MotorTownMods\
           $staticsFile = Get-Content -Raw .\MotorTownMods\Scripts\Statics.lua
           [regex]$versionRegex = 'ModVersion = "(.*)",'
           $modVersion = $versionRegex.Match($staticsFile).Groups[1].Value
-          Compress-Archive -Path .\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
+          Compress-Archive -Path .\output\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
           Write-Output "version=$modVersion" >> $env:GITHUB_OUTPUT
           [regex]$majorMinorVersionRegex = '^([0-9]+\.[0-9]+)'
           Write-Output "majorMinorVersion=$($majorMinorVersionRegex.Match($modVersion).Groups[1].Value)" >> $env:GITHUB_OUTPUT
