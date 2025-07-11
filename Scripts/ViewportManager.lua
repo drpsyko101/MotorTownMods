@@ -1,4 +1,5 @@
 local config = require("ModConfig")
+local json = require("JsonParser")
 
 ---Get the in game HUD widget
 ---@return UInGameHUDWidget
@@ -34,16 +35,51 @@ local function SetWidgetOpacity(widget, opacity)
   end
 end
 
----Set the mini map visibility
----@param isVisible boolean
-local function SetMiniMapVisibility(isVisible)
+---Set the widget visibility based on the mod configurations
+---@param widget ModConfigKey Set widget correspond to the enum value
+---@param inverse boolean? Set true to invert the mod config value
+local function SetWidgetVisibility(widget, inverse)
   LogOutput("DEBUG", "Getting hud widget")
-  local widget = GetHudWidget()
-  if widget:IsValid() then
-    if widget.MinimapWidget:IsValid() then
-      LogOutput("DEBUG", "Setting %s visibility to %q", widget.MinimapWidget:GetFullName(), isVisible)
-      widget.MinimapWidget:SetVisibility(isVisible and 4 or 2)
-      config.SetModConfig("showMiniMap", isVisible)
+  local isVisible = config.GetModConfig(widget)
+  local hudWidget = GetHudWidget()
+  if hudWidget:IsValid() and type(isVisible) == "boolean" then
+    local inGameWidgets = {} ---@type UUserWidget[]
+    local setVisible = inverse and not isVisible or isVisible
+    local useOpacity = true
+
+    if widget == "showMiniMap" then
+      table.insert(inGameWidgets, hudWidget.MinimapWidget)
+      useOpacity = false
+    elseif widget == "showQuest" then
+      table.insert(inGameWidgets, hudWidget.QuestFrame)
+    elseif widget == "showDrivingHud" then
+      table.insert(inGameWidgets, hudWidget.DrivingHUD)
+    elseif widget == "showControls" then
+      table.insert(inGameWidgets, hudWidget.DrivingHUD.BlinkerRightControlWidget)
+      table.insert(inGameWidgets, hudWidget.DrivingHUD.BlinkerLeftControlWidget)
+      table.insert(inGameWidgets, hudWidget.DrivingHUD.LightWidget)
+      table.insert(inGameWidgets, hudWidget.DrivingHUD.HazardWidget)
+      table.insert(inGameWidgets, hudWidget.DrivingHUD.AutoPilotWidget)
+      table.insert(inGameWidgets, hudWidget.DrivingHUD.SirenWidget)
+      table.insert(inGameWidgets, hudWidget.DrivingHUD.DrivingModeWidget)
+      table.insert(inGameWidgets, hudWidget.DrivingHUD.DiffLockModeWidget)
+      table.insert(inGameWidgets, hudWidget.DrivingHUD.VirtualMirrorControlWidget)
+    elseif widget == "showHotbar" then
+      table.insert(inGameWidgets, hudWidget.QuickbarWidget)
+    elseif widget == "showPlayerList" then
+      table.insert(inGameWidgets, hudWidget.PlayerList)
+    end
+
+    for index, value in ipairs(inGameWidgets) do
+      if value:IsValid() then
+        LogOutput("DEBUG", "Setting %s visibility to %q", value:GetFullName(), isVisible)
+        if useOpacity then
+          SetWidgetOpacity(value, setVisible and 1 or 0)
+        else
+          value:SetVisibility(setVisible and 4 or 2)
+        end
+        config.SetModConfig(widget, setVisible)
+      end
     end
   end
 end
@@ -60,126 +96,79 @@ local function SetBlueprintModScale(scale)
     local comp = PC:GetComponentByClass(modOptionClass)
     if comp:IsValid() then
       LogOutput("DEBUG", "Setting new UI scale to 2.0")
+
+      ---Disable linting for the BPModLoader object
+      ---@diagnostic disable-next-line:undefined-field
       comp:UpdateUIScale(scale)
+
       config.SetModConfig("uiTitle", scale)
     end
   end
 end
 
----Set quest panel visibility
----@param isVisible boolean
-local function SetQuestVisibility(isVisible)
-  local widget = GetHudWidget()
-  SetWidgetOpacity(widget.QuestFrame, isVisible and 1 or 0)
-  config.SetModConfig("showQuest", isVisible)
-end
-
----Set driving HUD visibility
----@param isVisible boolean
-local function SetDrivingHudVisibility(isVisible)
-  local widget = GetHudWidget()
-  SetWidgetOpacity(widget.DrivingHUD, isVisible and 1 or 0)
-  config.SetModConfig("showDrivingHud", isVisible)
-end
-
----Set control helper visibility
----@param isVisible boolean
-local function SetControlHelperVisibility(isVisible)
-  local widget = GetHudWidget()
-  if widget:IsValid() then
-    local activeWidgets = {
-      widget.DrivingHUD.BlinkerRightControlWidget,
-      widget.DrivingHUD.BlinkerLeftControlWidget,
-      widget.DrivingHUD.LightWidget,
-      widget.DrivingHUD.HazardWidget,
-      widget.DrivingHUD.AutoPilotWidget,
-      widget.DrivingHUD.SirenWidget,
-      widget.DrivingHUD.DrivingModeWidget,
-      widget.DrivingHUD.DiffLockModeWidget,
-      widget.DrivingHUD.VirtualMirrorControlWidget
-    }
-
-    for index, value in ipairs(activeWidgets) do
-      SetWidgetOpacity(value, isVisible and 1 or 0)
+---Show a popup with the specified message
+---@param message string Message to show to the player
+---@param playerGuid? string The correspond player GUID. Will broadcast to all players if nil.
+local function ShowMessagePopup(message, playerGuid)
+  local playerControllers = {} ---@type APlayerController[]
+  if playerGuid then
+    table.insert(playerControllers, GetPlayerControllerFromGuid(playerGuid))
+  else
+    local gameState = GetMotorTownGameState()
+    if gameState:IsValid() then
+      gameState.PlayerArray:ForEach(function(index, element)
+        local PS = element:get() ---@type APlayerState
+        table.insert(playerControllers, PS:GetPlayerController())
+      end)
     end
-    config.SetModConfig("showControls", isVisible)
+  end
+
+  for index, value in ipairs(playerControllers) do
+    if value:IsValid() then
+      ---@cast value AMotorTownPlayerController
+
+      local hud = value:GetHUD()
+      if hud:IsValid() then
+        ---@cast hud AMTHUD
+
+        hud:ShowMessagePopup(FText(message))
+      end
+    end
   end
 end
 
----Set hot bar visibility
----@param isVisible boolean
-local function SetHotbarVisibility(isVisible)
-  local widget = GetHudWidget()
-  if widget:IsValid() then
-    SetWidgetOpacity(widget.QuickbarWidget, isVisible and 1 or 0)
-    config.SetModConfig("showHotbar", isVisible)
-  end
-end
+-- Handle HTTP requests
 
----Set player list visibility
----@param isVisible boolean
-local function SetPlayerListVisibility(isVisible)
-  local widget = GetHudWidget()
-  if widget:IsValid() then
-    SetWidgetOpacity(widget.PlayerList, isVisible and 1 or 0)
-    config.SetModConfig("showPlayerList", isVisible)
+---Handle request to show message to player(s)
+---@type RequestPathHandler
+local function HandleShowPopupMessage(session)
+  local content = json.parse(session.content)
+  if content and type(content) == "table" then
+    if content.message then
+      ShowMessagePopup(content.message, content.playerGuid)
+    end
+    return json.stringify { message = "No message provided" }, nil, 400
   end
+  return nil, nil, 400
 end
 
 -- Console commands
 
-RegisterConsoleCommandHandler("toggleminimap", function(Cmd, CommandParts, Ar)
-  local isVisible = config.GetModConfig("showMiniMap")
-  if type(isVisible) == "boolean" then
-    SetMiniMapVisibility(not isVisible)
-  end
-  return true
-end)
-
-local questHidden = false
-RegisterConsoleCommandHandler("togglequest", function(Cmd, CommandParts, Ar)
-  local isVisible = config.GetModConfig("showQuest")
-  if type(isVisible) == "boolean" then
-    SetQuestVisibility(not isVisible)
-  end
-  return true
-end)
-
-local drivingHidden = false
-RegisterConsoleCommandHandler("toggledrivinghud", function(Cmd, CommandParts, Ar)
-  local isVisible = config.GetModConfig("showDrivingHud")
-  if type(isVisible) == "boolean" then
-    SetDrivingHudVisibility(not isVisible)
-  end
-  return true
-end)
-
-local controlHidden = false
-RegisterConsoleCommandHandler("togglecontrolhelper", function(Cmd, CommandParts, Ar)
-  local isVisible = config.GetModConfig("showControls")
-  if type(isVisible) == "boolean" then
-    SetControlHelperVisibility(not isVisible)
-  end
-  return true
-end)
-
-local hotBarHidden = false
-RegisterConsoleCommandHandler("togglehotbar", function(Cmd, CommandParts, Ar)
-  local isVisible = config.GetModConfig("showHotbar")
-  if type(isVisible) == "boolean" then
-    SetHotbarVisibility(not isVisible)
-  end
-  return true
-end)
-
-local playerListHidden = false
-RegisterConsoleCommandHandler("toggleplayerlist", function(Cmd, CommandParts, Ar)
-  local isVisible = config.GetModConfig("showPlayerList")
-  if type(isVisible) == "boolean" then
-    SetPlayerListVisibility(isVisible)
-  end
-  return true
-end)
+---@type table<string, ModConfigKey>
+local registerKeys = {
+  toggleminimap = "showMiniMap",
+  togglequest = "showQuest",
+  toggledrivinghud = "showDrivingHud",
+  togglecontrolhelper = "showControls",
+  togglehotbar = "showHotbar",
+  toggleplayerlist = "showPlayerList",
+}
+for key, value in pairs(registerKeys) do
+  RegisterConsoleCommandHandler(key, function(Cmd, CommandParts, Ar)
+    SetWidgetVisibility(value, true)
+    return true
+  end)
+end
 
 RegisterConsoleCommandHandler("setmoduiscale", function(Cmd, CommandParts, Ar)
   local newScale = CommandParts[1] and tonumber(CommandParts[1])
@@ -196,34 +185,8 @@ RegisterHook("/Script/MotorTown.MotorTownPlayerController:ServerFirstTickRespons
   LogOutput("INFO", "MotorTownPlayerController:ServerFirstTickResponse")
 
   LogOutput("DEBUG", "Received widget update request")
-  local showMiniMap = config.GetModConfig("showMiniMap")
-  if type(showMiniMap) == "boolean" then
-    SetMiniMapVisibility(showMiniMap)
-  end
-
-  local showQuest = config.GetModConfig("showQuest")
-  if type(showQuest) == "boolean" then
-    SetQuestVisibility(showQuest)
-  end
-
-  local showDriving = config.GetModConfig("showDrivingHud")
-  if type(showDriving) == "boolean" then
-    SetDrivingHudVisibility(showDriving)
-  end
-
-  local showControl = config.GetModConfig("showControls")
-  if type(showControl) == "boolean" then
-    SetControlHelperVisibility(showControl)
-  end
-
-  local showHotbar = config.GetModConfig("showHotbar")
-  if type(showHotbar) == "boolean" then
-    SetHotbarVisibility(not showHotbar)
-  end
-
-  local showPlayerList = config.GetModConfig("showPlayerList")
-  if type(showPlayerList) == "boolean" then
-    SetPlayerListVisibility(showPlayerList)
+  for key, value in pairs(registerKeys) do
+    SetWidgetVisibility(value)
   end
 
   local scale = config.GetModConfig("uiScale")
@@ -231,3 +194,7 @@ RegisterHook("/Script/MotorTown.MotorTownPlayerController:ServerFirstTickRespons
     SetBlueprintModScale(scale)
   end
 end)
+
+return {
+  HandleShowPopupMessage = HandleShowPopupMessage
+}
