@@ -197,6 +197,22 @@ function GetMotorTownGameState()
   return MotorTownGameState ---@type AMotorTownGameState
 end
 
+---Get the player controller given the GUID
+---@param guid string
+function GetPlayerControllerFromGuid(guid)
+  local gameState = GetMotorTownGameState()
+  if gameState:IsValid() then
+    for i = 1, #gameState.PlayerArray, 1 do
+      local PS = gameState.PlayerArray[i]
+      ---@cast PS AMotorTownPlayerState
+      if PS:IsValid() and GuidToString(PS.CharacterGuid) == guid then
+        return PS:GetPlayerController()
+      end
+    end
+  end
+  return CreateInvalidObject() ---@type APlayerController
+end
+
 ---Convert FMTCharacterId to JSON serializable table
 ---@param characterId FMTCharacterId
 function CharacterIdToTable(characterId)
@@ -439,16 +455,16 @@ end
 ---@param append table
 ---@return table
 function MergeTable(base, append)
-    for k,v in pairs(append) do
-        if type(v) == "table" then
-            if type(base[k] or false) == "table" then
-                MergeTable(base[k] or {}, append[k] or {})
-            else
-                base[k] = v
-            end
-        else
-            base[k] = v
-        end
+  for k, v in pairs(append) do
+    if type(v) == "table" then
+      if type(base[k] or false) == "table" then
+        MergeTable(base[k] or {}, append[k] or {})
+      else
+        base[k] = v
+      end
+    else
+      base[k] = v
     end
-    return base
+  end
+  return base
 end

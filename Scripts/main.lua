@@ -112,6 +112,9 @@ local function LoadWebserver()
     server.registerHandler("/assets/spawn", "POST", assetManager.HandleSpawnActor)
     server.registerHandler("/assets/despawn", "POST", assetManager.HandleDespawnActor)
 
+    -- UI management
+    server.registerHandler("/messages/popup", "POST", widgetManager.HandleShowPopupMessage)
+
     server.run("*")
     return nil
   end)
