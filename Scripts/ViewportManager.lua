@@ -44,7 +44,9 @@ local function SetWidgetVisibility(widget, inverse)
   local hudWidget = GetHudWidget()
   if hudWidget:IsValid() and type(isVisible) == "boolean" then
     local inGameWidgets = {} ---@type UUserWidget[]
-    local setVisible = inverse and not isVisible or isVisible
+    if inverse then
+      isVisible = not isVisible
+    end
     local useOpacity = true
 
     if widget == "showMiniMap" then
@@ -74,34 +76,12 @@ local function SetWidgetVisibility(widget, inverse)
       if value:IsValid() then
         LogOutput("DEBUG", "Setting %s visibility to %q", value:GetFullName(), isVisible)
         if useOpacity then
-          SetWidgetOpacity(value, setVisible and 1 or 0)
+          SetWidgetOpacity(value, isVisible and 1 or 0)
         else
-          value:SetVisibility(setVisible and 4 or 2)
+          value:SetVisibility(isVisible and 4 or 2)
         end
-        config.SetModConfig(widget, setVisible)
+        config.SetModConfig(widget, isVisible)
       end
-    end
-  end
-end
-
----Set the blueprint mod scale
----@param scale number
-local function SetBlueprintModScale(scale)
-  LogOutput("DEBUG", "Getting my player controller")
-  local PC = GetMyPlayerController()
-  if PC:IsValid() then
-    LogOutput("DEBUG", "Getting my mod option")
-    local modOptionClass = StaticFindObject("/Game/Mods/MT/ModOptions.ModOptions_C")
-    ---@cast modOptionClass UClass
-    local comp = PC:GetComponentByClass(modOptionClass)
-    if comp:IsValid() then
-      LogOutput("DEBUG", "Setting new UI scale to 2.0")
-
-      ---Disable linting for the BPModLoader object
-      ---@diagnostic disable-next-line:undefined-field
-      comp:UpdateUIScale(scale)
-
-      config.SetModConfig("uiTitle", scale)
     end
   end
 end
@@ -146,6 +126,7 @@ local function HandleShowPopupMessage(session)
   if content and type(content) == "table" then
     if content.message then
       ShowMessagePopup(content.message, content.playerGuid)
+      return nil, nil, 204
     end
     return json.stringify { message = "No message provided" }, nil, 400
   end
@@ -170,14 +151,6 @@ for key, value in pairs(registerKeys) do
   end)
 end
 
-RegisterConsoleCommandHandler("setmoduiscale", function(Cmd, CommandParts, Ar)
-  local newScale = CommandParts[1] and tonumber(CommandParts[1])
-  if newScale then
-    SetBlueprintModScale(newScale)
-  end
-  return true
-end)
-
 -- Register event hooks
 
 -- Restore all previously set widget settings
@@ -185,11 +158,6 @@ RegisterHook("/Script/MotorTown.MotorTownPlayerController:ClientFirstTickRespons
   LogOutput("DEBUG", "Received widget update request")
   for key, value in pairs(registerKeys) do
     SetWidgetVisibility(value)
-  end
-
-  local scale = config.GetModConfig("uiScale")
-  if type(scale) == "number" then
-    SetBlueprintModScale(scale)
   end
 end)
 

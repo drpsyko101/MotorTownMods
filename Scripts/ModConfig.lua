@@ -2,7 +2,7 @@ local json = require("JsonParser")
 local statics = require("Statics")
 
 local dir = os.getenv("PWD") or io.popen("cd"):read()
-local modConfigFilePath = dir .. "/ue4ss/Mods/" .. statics.ModName .. "/conf.json"
+local modConfigFilePath = dir .. "/ue4ss/Mods/" .. statics.ModName .. "/config.json"
 
 ---The mod config table
 ---@enum (key) ModConfigKey
@@ -14,7 +14,8 @@ local modConfig = {
     showHotbar = true,
     showPlayerList = true,
     uiScale = 1.0,
-    uiTitle = statics.ModName
+    modName = statics.ModName,
+    modVersion = statics.ModVersion
 }
 
 ---Get current mod config
