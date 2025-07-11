@@ -181,9 +181,7 @@ end)
 -- Register event hooks
 
 -- Restore all previously set widget settings
-RegisterHook("/Script/MotorTown.MotorTownPlayerController:ServerFirstTickResponse", function(self, ...)
-  LogOutput("INFO", "MotorTownPlayerController:ServerFirstTickResponse")
-
+RegisterHook("/Script/MotorTown.MotorTownPlayerController:ClientFirstTickResponse", function(self, ...)
   LogOutput("DEBUG", "Received widget update request")
   for key, value in pairs(registerKeys) do
     SetWidgetVisibility(value)
