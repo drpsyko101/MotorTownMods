@@ -105,6 +105,9 @@ local function GetEvents(eventGuid)
 
     ::continue::
   end)
+  if eventGuid and #arr == 0 then
+    error("Event with guid " .. eventGuid .. " not found")
+  end
   return arr
 end
 

@@ -92,6 +92,7 @@ function ClientTable.new(newId, client)
     obj.client = client
     obj.state = "init"
     obj.connTime = time()
+    obj.queryComponents = {}
     return obj
 end
 
@@ -431,6 +432,7 @@ end
 
 ---Turns a query string into a table of name/value pairs
 ---@param path string
+---@return table<string, string>
 local function decodeQuery(path)
     local cgi = {}
     for name, value in string.gmatch(path, "([^&=]+)=([^&=]+)") do

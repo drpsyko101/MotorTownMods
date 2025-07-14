@@ -57,6 +57,9 @@ local function GetPlayerStates(guid)
 
     ::continue::
   end)
+  if guid and #arr == 0 then
+    error("Player with guid " .. guid .. " not found")
+  end
   return arr
 end
 

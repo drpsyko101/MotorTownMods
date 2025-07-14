@@ -1442,6 +1442,9 @@ local function GetVehicles(id, fields, limit)
     end
   end
 
+  if id and #arr == 0 then
+    error("Vehicle with id " .. id .. " not found")
+  end
   return arr
 end
 
@@ -1620,12 +1623,16 @@ end)
 local function HandleGetVehicles(session)
   local id = tonumber(session.pathComponents[2]) or nil
   local fields = SplitString(session.queryComponents.filters, ",")
-  local limit = session.queryComponents.limit and tonumber(session.queryComponents.limit) or nil
+  local limit = nil ---@type number?
+
+  if session.queryComponents.limit then
+    limit = tonumber(session.queryComponents.limit)
+  end
 
   local serverStatus = json.stringify {
     data = GetVehicles(id, fields, limit)
   }
-  return serverStatus
+  return serverStatus, nil, 200
 end
 
 ---Handle vehicle despawn request

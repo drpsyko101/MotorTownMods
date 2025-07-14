@@ -379,6 +379,9 @@ local function GetDeliveryPoints(guid, fields, limit)
       end
     end
   end
+  if guid and #arr == 0 then
+    error("Delivery point with guid " .. guid .. " does not exist")
+  end
   return arr
 end
 
@@ -403,8 +406,12 @@ RegisterHook(
 ---Handle GetDeliveryPoints request
 ---@type RequestPathHandler
 local function HandleGetDeliveryPoints(session)
-  local guid = session.urlComponents[3] or nil
-  local limit = session.queryComponents.limit and tonumber(session.queryComponents.limit) or nil
+  local guid = session.pathComponents[3]
+  local limit = nil ---@type number?
+
+  if session.queryComponents.limit then
+    limit = tonumber(session.queryComponents.limit)
+  end
 
   local rawFilters = session.queryComponents.filters
   local filters = SplitString(rawFilters, ",")
