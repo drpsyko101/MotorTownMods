@@ -352,6 +352,12 @@ local function GetDeliveryPoints(guid, fields, limit)
     for i = 1, #deliverySystem.DeliveryPoints, 1 do
       local point = DeliveryPointToTable(deliverySystem.DeliveryPoints[i])
       local filtered = {}
+
+      -- Filter by guid
+      if guid and guid ~= point.DeliveryPointGuid then
+        goto continue
+      end
+
       if fields then
         for j = 1, #fields, 1 do
           if not point[fields[j]] then
@@ -363,11 +369,6 @@ local function GetDeliveryPoints(guid, fields, limit)
         -- Always returns the delivery point guid
         filtered.DeliveryPointGuid = point.DeliveryPointGuid
 
-        -- Returns only the selected guid if valid
-        if guid and guid == point.DeliveryPointGuid then
-          return filtered
-        end
-
         table.insert(arr, filtered)
       else
         table.insert(arr, point)
@@ -377,10 +378,9 @@ local function GetDeliveryPoints(guid, fields, limit)
       if limit and #arr >= limit then
         return arr
       end
+
+      ::continue::
     end
-  end
-  if guid and #arr == 0 then
-    error("Delivery point with guid " .. guid .. " does not exist")
   end
   return arr
 end
@@ -417,6 +417,9 @@ local function HandleGetDeliveryPoints(session)
   local filters = SplitString(rawFilters, ",")
 
   local data = GetDeliveryPoints(guid, filters, limit)
+  if guid and #data == 0 then
+    return json.stringify { message = string.format("Delivery point %s not found", guid) }, nil, 404
+  end
   return json.stringify {
     data = data
   }
