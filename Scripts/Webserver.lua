@@ -483,7 +483,8 @@ local function handleClient(client)
                     s.state = "header"
                 else
                     LogOutput("ERROR", "Malformed initial line")
-                    sendResponse(s, nil, nil, 400)
+                    markSessionForRemoval(s)
+                    return
                 end
             elseif s.state == "header" then
                 LogOutput("DEBUG", "(%d)  HDR: %s", s.id, data)
