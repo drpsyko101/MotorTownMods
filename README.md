@@ -59,7 +59,7 @@ Most of the server settings can be configured using environment variables:
 | Variable name               | Default value | Description                                                                                  |
 | --------------------------- | ------------- | -------------------------------------------------------------------------------------------- |
 | `MOD_MANAGEMENT_PORT`       | `5000`        | Management port. Used for managing mods in the dedicated server                              |
-| `MOD_LUA_PORT`              | `5001`        | Lua HTTP port. This only applies if `luasocket` module is installed                          |
+| `MOD_SERVER_PORT`           | `5001`        | Lua HTTP port. This only applies if `luasocket` module is installed                          |
 | `MOD_WEBHOOK_URL`           | _none_        | Webhook URL to send the events to. Requires `luasec` to function                             |
 | `MOD_WEBHOOK_METHOD`        | `POST`        | Webhook request method                                                                       |
 | `MOD_WEBHOOK_EXTRA_HEADERS` | _none_        | Webhook extra headers in a JSON object                                                       |
@@ -72,7 +72,7 @@ Most of the server settings can be configured using environment variables:
 
 Due to the webserver being ran on a separate thread, a stop command must be issued before reloading the mods.
 
-1. Send **POST** `/stop` to the `MOD_LUA_PORT` server. A message `Webserver stopped` will show up in the `UE4SS.log` indicating the webserver has stopped.
+1. Send **POST** `/stop` to the `MOD_SERVER_PORT` server. A message `Webserver stopped` will show up in the `UE4SS.log` indicating the webserver has stopped.
 2. Send **POST** `/mods/reload` to the `MOD_MANAGEMENT_PORT` server. This will reload all the Lua mods including this mod.
 
 ## Documentation
