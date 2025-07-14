@@ -320,10 +320,11 @@ function GameplayTagQueryToTable(query)
   return data
 end
 
----Split string
----@param inputstr string
----@param sep string?
----@return string[]|nil
+---Split string by the separator.
+---Returns `nil` if input is `nil` or empty.
+---@param inputstr string Input string
+---@param sep string? Separator character(s). Defaults to a whitespace.
+---@return string[]?
 function SplitString(inputstr, sep)
   if inputstr == nil then return nil end
   -- if sep is null, set it as space

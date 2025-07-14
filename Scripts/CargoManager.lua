@@ -352,6 +352,12 @@ local function GetDeliveryPoints(guid, fields, limit)
     for i = 1, #deliverySystem.DeliveryPoints, 1 do
       local point = DeliveryPointToTable(deliverySystem.DeliveryPoints[i])
       local filtered = {}
+
+      -- Filter by guid
+      if guid and guid ~= point.DeliveryPointGuid then
+        goto continue
+      end
+
       if fields then
         for j = 1, #fields, 1 do
           if not point[fields[j]] then
@@ -363,11 +369,6 @@ local function GetDeliveryPoints(guid, fields, limit)
         -- Always returns the delivery point guid
         filtered.DeliveryPointGuid = point.DeliveryPointGuid
 
-        -- Returns only the selected guid if valid
-        if guid and guid == point.DeliveryPointGuid then
-          return filtered
-        end
-
         table.insert(arr, filtered)
       else
         table.insert(arr, point)
@@ -377,6 +378,8 @@ local function GetDeliveryPoints(guid, fields, limit)
       if limit and #arr >= limit then
         return arr
       end
+
+      ::continue::
     end
   end
   return arr
@@ -403,13 +406,20 @@ RegisterHook(
 ---Handle GetDeliveryPoints request
 ---@type RequestPathHandler
 local function HandleGetDeliveryPoints(session)
-  local guid = session.urlComponents[3] or nil
-  local limit = session.queryComponents.limit and tonumber(session.queryComponents.limit) or nil
+  local guid = session.pathComponents[3]
+  local limit = nil ---@type number?
+
+  if session.queryComponents.limit then
+    limit = tonumber(session.queryComponents.limit)
+  end
 
   local rawFilters = session.queryComponents.filters
   local filters = SplitString(rawFilters, ",")
 
   local data = GetDeliveryPoints(guid, filters, limit)
+  if guid and #data == 0 then
+    return json.stringify { message = string.format("Delivery point %s not found", guid) }, nil, 404
+  end
   return json.stringify {
     data = data
   }

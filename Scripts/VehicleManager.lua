@@ -1415,6 +1415,12 @@ local function GetVehicles(id, fields, limit)
   for i = 1, #gameState.Vehicles, 1 do
     local vehicle = VehicleToTable(gameState.Vehicles[i])
     local filtered = {}
+
+    -- Filter by id
+    if id and id ~= vehicle.Net_VehicleId then
+      goto continue
+    end
+
     if fields then
       for index, value in ipairs(fields) do
         if vehicle[value] == nil then
@@ -1426,11 +1432,6 @@ local function GetVehicles(id, fields, limit)
       -- Always returns the delivery point guid
       filtered.Net_VehicleId = vehicle.Net_VehicleId
 
-      -- Returns only the selected guid if valid
-      if id and id == vehicle.Net_VehicleId then
-        return filtered
-      end
-
       table.insert(arr, filtered)
     else
       table.insert(arr, vehicle)
@@ -1440,8 +1441,9 @@ local function GetVehicles(id, fields, limit)
     if limit and #arr >= limit then
       return arr
     end
-  end
 
+    ::continue::
+  end
   return arr
 end
 
@@ -1620,12 +1622,19 @@ end)
 local function HandleGetVehicles(session)
   local id = tonumber(session.pathComponents[2]) or nil
   local fields = SplitString(session.queryComponents.filters, ",")
-  local limit = session.queryComponents.limit and tonumber(session.queryComponents.limit) or nil
+  local limit = nil ---@type number?
 
-  local serverStatus = json.stringify {
-    data = GetVehicles(id, fields, limit)
-  }
-  return serverStatus
+  if session.queryComponents.limit then
+    limit = tonumber(session.queryComponents.limit)
+  end
+
+  local res = GetVehicles(id, fields, limit)
+
+  if id and #res == 0 then
+    return json.stringify { message = string.format("Vehicle with ID %s not found", id) }, nil, 404
+  end
+
+  return json.stringify { data = res }, nil, 200
 end
 
 ---Handle vehicle despawn request

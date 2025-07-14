@@ -95,24 +95,16 @@ end)
 ---Handle request for player states
 ---@param session ClientTable
 local function HandleGetPlayerStates(session)
-  local playerStates = json.stringify {
-    data = GetPlayerStates()
-  }
-  return playerStates
-end
-
----Handle request for player states
----@param session ClientTable
-local function HandleGetSpecifcPlayerStates(session)
   local playerGuid = session.pathComponents[2]
-  local playerStates = json.stringify {
-    data = GetPlayerStates(playerGuid)
-  }
-  return playerStates
+  local res = GetPlayerStates(playerGuid)
+  if playerGuid and #res == 0 then
+    return json.stringify { message = string.format("Player with guid %s not found", playerGuid) }, nil, 404
+  end
+
+  return json.stringify { data = res }, nil, 200
 end
 
 return {
   HandleGetPlayerStates = HandleGetPlayerStates,
-  HandleGetSpecifcPlayerStates = HandleGetSpecifcPlayerStates,
   GetMyCurrentTransform = GetMyCurrentTransform
 }

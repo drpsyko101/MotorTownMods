@@ -427,21 +427,13 @@ RegisterHook(
 
 ---Handle request for all events
 ---@type RequestPathHandler
-local function HandleGetAllEvents(session)
-  local events = json.stringify {
-    data = GetEvents()
-  }
-  return events
-end
-
----Handle request for all events
----@type RequestPathHandler
-local function HandleGetSpecificEvents(session)
+local function HandleGetEvents(session)
   local eventGuid = session.pathComponents[2]
-  local events = json.stringify {
-    data = GetEvents(eventGuid)
-  }
-  return events
+  local res = GetEvents(eventGuid)
+  if eventGuid and #res == 0 then
+    return json.stringify { message = string.format("Event %s not found", eventGuid) }, nil, 404
+  end
+  return json.stringify { data = res }, nil, 200
 end
 
 ---Handle request for a new event
@@ -522,8 +514,7 @@ end
 
 return {
   GetEvents = GetEvents,
-  HandleGetAllEvents = HandleGetAllEvents,
-  HandleGetSpecificEvents = HandleGetSpecificEvents,
+  HandleGetEvents = HandleGetEvents,
   HandleUpdateEvent = HandleUpdateEvent,
   HandleCreateNewEvent = HandleCreateNewEvent,
   HandleChangeEventState = HandleChangeEventState,

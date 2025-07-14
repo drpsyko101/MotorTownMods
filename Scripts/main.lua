@@ -70,12 +70,12 @@ local function LoadWebserver()
 
     -- Player management
     Webserver.registerHandler("/players", "GET", playerManager.HandleGetPlayerStates)
-    Webserver.registerHandler("/players/*", "GET", playerManager.HandleGetSpecifcPlayerStates)
+    Webserver.registerHandler("/players/*", "GET", playerManager.HandleGetPlayerStates)
 
     -- Event management
-    Webserver.registerHandler("/events", "GET", eventManager.HandleGetAllEvents)
+    Webserver.registerHandler("/events", "GET", eventManager.HandleGetEvents)
     Webserver.registerHandler("/events", "POST", eventManager.HandleCreateNewEvent)
-    Webserver.registerHandler("/events/*", "GET", eventManager.HandleGetSpecificEvents)
+    Webserver.registerHandler("/events/*", "GET", eventManager.HandleGetEvents)
     Webserver.registerHandler("/events/*/state", "POST", eventManager.HandleChangeEventState)
     Webserver.registerHandler("/events/*", "POST", eventManager.HandleUpdateEvent)
     Webserver.registerHandler("/events/*", "DELETE", eventManager.HandleRemoveEvent)

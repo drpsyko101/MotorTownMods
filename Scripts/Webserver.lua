@@ -92,6 +92,7 @@ function ClientTable.new(newId, client)
     obj.client = client
     obj.state = "init"
     obj.connTime = time()
+    obj.queryComponents = {}
     return obj
 end
 
@@ -431,6 +432,7 @@ end
 
 ---Turns a query string into a table of name/value pairs
 ---@param path string
+---@return table<string, string>
 local function decodeQuery(path)
     local cgi = {}
     for name, value in string.gmatch(path, "([^&=]+)=([^&=]+)") do
@@ -446,78 +448,86 @@ end
 local function handleClient(client)
     local s = sessions[client]
 
-    local data, err, partial
+    local data = nil ---@type string?
+    local err = nil ---@type string|"closed"|"timeout"|nil
+    local partial = nil ---@type number?
 
-    if s.state == "init" or s.state == "header" then
-        data, err, partial = client:receive("*l")
-    elseif s.state == "body" then
-        data, err, partial = client:receive(s.contentLength)
-    end
+    local state, pErr = pcall(function()
+        if s.state == "init" or s.state == "header" then
+            data, err, partial = client:receive("*l")
+        elseif s.state == "body" then
+            data, err, partial = client:receive(s.contentLength)
+        end
 
-    if data then
-        if s.state == "init" then
-            LogOutput("DEBUG", "(%d) INIT: '%s'", s.id, data)
-            s.rawHeaders = {}
-            local method, urlString, ver = string.match(data, "(%S+)%s+(%S+)%s+(%S+)")
-            if method ~= nil then
-                s.method = method
-                s.urlString = urlString
+        if data then
+            if s.state == "init" then
+                LogOutput("DEBUG", "(%d) INIT: '%s'", s.id, data)
+                s.rawHeaders = {}
+                local method, urlString, ver = string.match(data, "(%S+)%s+(%S+)%s+(%S+)")
+                if method ~= nil then
+                    s.method = method
+                    s.urlString = urlString
 
-                -- Break down the url string
-                s.urlComponents = url.parse(urlString)
+                    -- Break down the url string
+                    s.urlComponents = url.parse(urlString)
 
-                s.pathComponents = url.parse_path(s.urlComponents.path)
+                    s.pathComponents = url.parse_path(s.urlComponents.path)
 
-                LogOutput("DEBUG", "Query Components %s", s.urlComponents.query or "")
-                if s.urlComponents.query ~= nil then
-                    s.queryComponents = decodeQuery(s.urlComponents.query)
-                end
+                    LogOutput("DEBUG", "Query Components %s", s.urlComponents.query or "")
+                    if s.urlComponents.query ~= nil then
+                        s.queryComponents = decodeQuery(s.urlComponents.query)
+                    end
 
-                s.version = ver
+                    s.version = ver
 
-                s.state = "header"
-            else
-                LogOutput("ERROR", "Malformed initial line")
-                sendResponse(s, nil, nil, 400)
-            end
-        elseif s.state == "header" then
-            LogOutput("DEBUG", "(%d)  HDR: %s", s.id, data)
-            if data ~= "" then
-                table.insert(s.rawHeaders, data)
-            else
-                LogOutput("DEBUG", "(%d)  End Headers", s.id)
-                local rc = parseHeaders(s)
-                if rc ~= 0 then
-                    sendResponse(s, nil, nil, 400)
-                    return
-                end
-
-                processHeaders(s)
-
-                if s.contentLength == 0 then
-                    LogOutput("DEBUG", "Content length = 0, not waiting for content")
-                    -- Processing the session will result in it being closed
-                    processSession(s)
+                    s.state = "header"
                 else
-                    LogOutput("DEBUG", "Waiting for content")
-                    s.state = "body"
+                    LogOutput("ERROR", "Malformed initial line")
+                    sendResponse(s, nil, nil, 400)
                 end
+            elseif s.state == "header" then
+                LogOutput("DEBUG", "(%d)  HDR: %s", s.id, data)
+                if data ~= "" then
+                    table.insert(s.rawHeaders, data)
+                else
+                    LogOutput("DEBUG", "(%d)  End Headers", s.id)
+                    local rc = parseHeaders(s)
+                    if rc ~= 0 then
+                        sendResponse(s, nil, nil, 400)
+                        return
+                    end
+
+                    processHeaders(s)
+
+                    if s.contentLength == 0 then
+                        LogOutput("DEBUG", "Content length = 0, not waiting for content")
+                        -- Processing the session will result in it being closed
+                        processSession(s)
+                    else
+                        LogOutput("DEBUG", "Waiting for content")
+                        s.state = "body"
+                    end
+                end
+            else
+                s.content = data
+                processSession(s)
             end
         else
-            s.content = data
-            processSession(s)
+            if err == "closed" then
+                LogOutput("DEBUG", "Client closed the connection: ")
+                markSessionForRemoval(s)
+            elseif err == "timeout" then
+                LogOutput("ERROR", "Receive timeout. Partial data: %s", partial)
+                markSessionForRemoval(s)
+            else
+                LogOutput("ERROR", "Receive error: %s", err)
+                markSessionForRemoval(s)
+            end
         end
-    else
-        if err == "closed" then
-            LogOutput("DEBUG", "Client closed the connection: ")
-            markSessionForRemoval(s)
-        elseif err == "timeout" then
-            LogOutput("ERROR", "Receive timeout. Partial data: %s", partial)
-            markSessionForRemoval(s)
-        else
-            LogOutput("ERROR", "Receive error: %s", err)
-            markSessionForRemoval(s)
-        end
+    end)
+    if not state then
+        LogOutput("ERROR", "Process error: %s", pErr)
+        markSessionForRemoval(s)
     end
 end
 
