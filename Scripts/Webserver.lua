@@ -592,16 +592,16 @@ end
 
 ---Initialize the web server
 ---@param host string Host to bind to
----@param port number Port to bind to
-local function init(host, port)
-    g_server = socket.bind(host, port)
+---@param initPort number Port to bind to
+local function init(host, initPort)
+    g_server = socket.bind(host, initPort)
     if g_server == nil then
-        LogOutput("ERROR", "Unable to bind to port %s", port);
+        LogOutput("ERROR", "Unable to bind to port %s", initPort);
         return
     end
 
     local bindAddr, bindPort = g_server:getsockname()
-    LogOutput("INFO", "Webserver listening to host %s on port %i", (bindAddr or host), (bindPort or port))
+    LogOutput("INFO", "Webserver listening to host %s on port %i", (bindAddr or host), (bindPort or initPort))
 
     g_server:settimeout(0.05)
 
@@ -629,7 +629,7 @@ local function run(bindHost, bindPort)
         -- Register core webserver command
         registerHandler("/stop", "POST", function(session)
             isServerRunning = false
-            return '{"status":"ok"}'
+            return json.stringify { status = "ok" }
         end)
 
         init(bindHost, bindPort)
