@@ -102,7 +102,7 @@ local npcAmount = 100
 ---@param amount number New density in %
 local function AdjustTrafficDensity(amount)
     if amount ~= npcAmount then
-        LogOutput("INFO", "Changing traffic amount from %.1f% to %.1f%", npcAmount, amount)
+        LogOutput("INFO", "Changing traffic amount from %.1f%% to %.1f%%", npcAmount, amount)
         npcAmount = amount
     end
     local gameState = GetMotorTownGameState()
@@ -149,14 +149,20 @@ local function AutoAdjustServerCaps(override)
     end
 
     if (currentFps <= 0) then
+        LogOutput("DEBUG", "Invalid FPS, not changing anything")
         return false
     elseif (currentFps < 30) then
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = math.floor(maxVehiclePerPlayer / 2)
+        local newLimit = math.floor(maxVehiclePerPlayer / 2)
+        LogOutput("DEBUG", "Server FPS lower than 30 FPS, setting maxVehiclePerPlayer to %i", newLimit)
+        gameState.Net_ServerConfig.MaxVehiclePerPlayer = newLimit
         AdjustTrafficDensity(0)
     elseif (currentFps < 40) then
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = math.floor(maxVehiclePerPlayer * 0.75)
+        local newLimit = math.floor(maxVehiclePerPlayer / 0.75)
+        LogOutput("DEBUG", "Server FPS lower than 40 FPS, setting maxVehiclePerPlayer to %i", newLimit)
+        gameState.Net_ServerConfig.MaxVehiclePerPlayer = newLimit
         AdjustTrafficDensity(math.floor(npcVehicleDensity / 2))
     else
+        LogOutput("DEBUG", "Server FPS at 60 FPS or in override mode, setting maxVehiclePerPlayer to %i", maxVehiclePerPlayer)
         gameState.Net_ServerConfig.MaxVehiclePerPlayer = maxVehiclePerPlayer
         AdjustTrafficDensity(npcVehicleDensity)
     end
@@ -223,7 +229,7 @@ local function HandleUpdateNpcTraffic(session)
             maxVehiclePerPlayer = maxV
         end
         AutoAdjustServerCaps(true)
-        return '{"status":"ok"}'
+        return json.stringify { status = "ok" }
     end
     return nil, nil, 400
 end

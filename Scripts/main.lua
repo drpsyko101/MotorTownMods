@@ -31,9 +31,20 @@ end
 ---@param message string|number
 ---@param ... any
 function LogOutput(severity, message, ...)
+  local args = { ... }
   if logLevel[severity] <= statics.ModLogLevel then
-    local msg = string.format(message, ...)
-    print(string.format("[%s] %s: %s\n", statics.ModName, severity, msg))
+    local status, err = pcall(function()
+      local msg = string.format(message, table.unpack(args))
+      local outMsg = string.format("[%s] %s: %s\n", statics.ModName, severity, msg)
+      if logLevel[severity] == 0 then
+        outMsg = outMsg .. debug.traceback() .. "\n"
+      end
+      print(outMsg)
+    end)
+    if not status then
+      print(string.format("[%s] WARN: LogOutput error while parsing: %s: %s\n%s\n", statics.ModName, message, err,
+      debug.traceback()))
+    end
   end
 end
 
