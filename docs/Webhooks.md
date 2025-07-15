@@ -90,7 +90,7 @@ Called when a player passed an event checkpoint.
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerPassedRaceSection",
   "timestamp": 1752044853012,
   "data": {
-    "SenderGuid": "",
+    "PlayerId": "",
     "EventGuid": "",
     "SectionIndex": -1,
     "TotalTimeSeconds": 0,
@@ -113,7 +113,7 @@ Called when a player joined an event.
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerJoinEvent",
   "timestamp": 1752044853012,
   "data": {
-    "SenderGuid": "",
+    "PlayerId": "",
     "EventGuid": ""
   }
 }
@@ -133,7 +133,7 @@ Called when a player left an event.
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerLeaveEvent",
   "timestamp": 1752044853012,
   "data": {
-    "SenderGuid": "",
+    "PlayerId": "",
     "EventGuid": ""
   }
 }
@@ -154,7 +154,7 @@ Called when a player accepted a cargo delivery.
 {
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerAcceptDelivery",
   "timestamp": 1752044853012,
-  "data": { "DeliveryId": 27, "Sender": "EA50F9CE42B8A468F4FBFE8C42AD87ED" }
+  "data": { "DeliveryId": 27, "PlayerId": "" }
 }
 ```
 

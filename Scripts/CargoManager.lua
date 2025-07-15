@@ -300,13 +300,13 @@ local function CargoToTable(cargo)
   -- data.HitSound = cargo.HitSound
   -- data.InteractableComponent = cargo.InteractableComponent
   -- data.Net_DroppedCargoSpace = cargo.Net_DroppedCargoSpace
-  data.Net_MovementOwnerPC = GetPlayerGuid(cargo.Net_MovementOwnerPC)
-  data.Server_ManualLoadingPaidPC = GetPlayerGuid(cargo.Server_ManualLoadingPaidPC)
-  data.Server_LastMovementOwnerPC = GetPlayerGuid(cargo.Server_LastMovementOwnerPC)
+  data.Net_MovementOwnerPC = GetPlayerUniqueId(cargo.Net_MovementOwnerPC)
+  data.Server_ManualLoadingPaidPC = GetPlayerUniqueId(cargo.Server_ManualLoadingPaidPC)
+  data.Server_LastMovementOwnerPC = GetPlayerUniqueId(cargo.Server_LastMovementOwnerPC)
 
   data.Server_TempMovementOwnerPCs = {}
   cargo.Server_TempMovementOwnerPCs:ForEach(function(key, value)
-    data.Server_TempMovementOwnerPCs[GetPlayerGuid(key:get())] = value:get()
+    data.Server_TempMovementOwnerPCs[GetPlayerUniqueId(key:get())] = value:get()
   end)
 
   -- data.DestinationInteractionActor = cargo.DestinationInteractionActor
@@ -392,7 +392,7 @@ RegisterHook(
   acceptDeliveryEvent,
   function(context, DeliveryId)
     local data = {
-      Sender = GetPlayerGuid(context:get()),
+      PlayerId = GetPlayerUniqueId(context:get()),
       DeliveryId = DeliveryId:get()
     }
 

@@ -197,6 +197,44 @@ function GetMotorTownGameState()
   return MotorTownGameState ---@type AMotorTownGameState
 end
 
+---Get net player state unique net ID as string
+---@param playerState APlayerState
+---@return string?
+function GetUniqueNetIdAsString(playerState)
+  if playerState:IsValid() then
+    local status, output = pcall(function()
+      -- Attempt to call the function registerd in C++
+      ---@diagnostic disable-next-line: undefined-global
+      return ExportStructAsText(playerState, "UniqueID")
+    end)
+    if status then
+      return output
+    end
+  end
+  return nil
+end
+
+---Get the player controller given the unique net ID
+---@param uniqueId string Player state unique net ID
+function GetPlayerControllerFromUniqueId(uniqueId)
+  local gameState = GetMotorTownGameState()
+  if gameState:IsValid() then
+    for i = 1, #gameState.PlayerArray, 1 do
+      local PS = gameState.PlayerArray[i]
+      ---@cast PS AMotorTownPlayerState
+
+      if PS:IsValid() then
+        local id = GetUniqueNetIdAsString(PS)
+        if id == uniqueId then
+          return PS:GetPlayerController()
+        end
+      end
+    end
+  end
+  return CreateInvalidObject() ---@type APlayerController
+end
+
+---@deprecated Use `GetPlayerControllerFromUniqueId` to prevent dupes
 ---Get the player controller given the GUID
 ---@param guid string
 function GetPlayerControllerFromGuid(guid)
@@ -359,6 +397,7 @@ function SplitString(inputstr, sep)
   return t
 end
 
+---@deprecated Use `GetPlayerUniqueId` to prevent dupes
 ---Get a player controller guid
 ---@param playerController APlayerController
 function GetPlayerGuid(playerController)
@@ -370,6 +409,19 @@ function GetPlayerGuid(playerController)
   if not playerState:IsValid() then return nil end
 
   return GuidToString(playerState.CharacterGuid)
+end
+
+---Get player unique net ID
+---@param playerController APlayerController
+function GetPlayerUniqueId(playerController)
+  if playerController:IsValid() then
+    local PS = playerController.PlayerState
+    if PS:IsValid() then
+      local id = GetUniqueNetIdAsString(PS)
+      return id
+    end
+  end
+  return nil
 end
 
 ---Convert FColor to JSON serializable table

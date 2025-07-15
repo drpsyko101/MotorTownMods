@@ -4,8 +4,11 @@
 #include <DynamicOutput/DynamicOutput.hpp>
 #include <Unreal/UObjectGlobals.hpp>
 #include <Unreal/UObject.hpp>
+#include <Unreal/UScriptStruct.hpp>
+#include <Unreal/Property/FStructProperty.hpp>
 #include <Unreal/AGameModeBase.hpp>
 #include <LuaMadeSimple/LuaMadeSimple.hpp>
+#include <LuaType/LuaUObject.hpp>
 
 #include "webserver.h"
 #include "statics.h"
@@ -39,4 +42,33 @@ auto MotorTownMods::on_lua_start(
 	LuaMadeSimple::Lua& async_lua,
 	std::vector<LuaMadeSimple::Lua*>& hook_luas) -> void
 {
+	lua.register_function("ExportStructAsText", [](const LuaMadeSimple::Lua& lua_net) -> int {
+		int32_t stack_size = lua_net.get_stack_size();
+
+		if (stack_size <= 1)
+		{
+			lua_net.throw_error("Function 'UScriptStruct:GetStructTextItem' cannot be called with 1 parameters.");
+		}
+
+		auto& object = lua_net.get_userdata<RC::LuaType::UObject>();
+		auto propName = lua_net.get_string();
+		auto ptr = object.get_remote_cpp_object();
+		if (ptr)
+		{
+			auto uniqueIdProp = static_cast<FStructProperty*>(ptr->GetPropertyByNameInChain(to_wstring(propName).c_str()));
+			if (uniqueIdProp)
+			{
+				auto uniqueIdStruct = uniqueIdProp->GetStruct();
+				auto uniqueId = uniqueIdProp->ContainerPtrToValuePtr<void>(ptr);
+
+				FString uniqueIdString;
+				uniqueIdProp->ExportTextItem(uniqueIdString, uniqueId, nullptr, ptr, 0);
+				lua_net.set_string(to_string(uniqueIdString.GetCharArray()));
+				return 1;
+			}
+		}
+		lua_net.set_string("");
+
+		return 1;
+		});
 }

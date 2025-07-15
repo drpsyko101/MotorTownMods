@@ -372,7 +372,7 @@ RegisterHook(
     if not PC:IsValid() then return end
 
     local data = {
-      SenderGuid = GetPlayerGuid(PC),
+      PlayerId = GetPlayerUniqueId(PC),
       EventGuid = GuidToString(eventGuid:get()),
       SectionIndex = sectionIndex:get(),
       TotalTimeSeconds = totalTimeSeconds:get(),
@@ -394,7 +394,7 @@ RegisterHook(
     local guid = GuidToString(eventGuid:get())
 
     local data = {
-      SenderGuid = GetPlayerGuid(PC),
+      PlayerId = GetPlayerUniqueId(PC),
       EventGuid = guid
     }
 
@@ -414,7 +414,7 @@ RegisterHook(
     local guid = GuidToString(eventGuid:get())
 
     local data = {
-      SenderGuid = GetPlayerGuid(PC),
+      PlayerId = GetPlayerUniqueId(PC),
       EventGuid = guid
     }
 

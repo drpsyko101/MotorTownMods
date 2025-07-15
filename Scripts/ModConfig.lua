@@ -4,6 +4,12 @@ local statics = require("Statics")
 local dir = os.getenv("PWD") or io.popen("cd"):read()
 local modConfigFilePath = dir .. "/ue4ss/Mods/" .. statics.ModName .. "/config.json"
 
+---@enum HotBarLocation
+local hotbarLocation = {
+    default = "default",
+    center = "center",
+}
+
 ---The mod config table
 ---@enum (key) ModConfigKey
 local modConfig = {
@@ -13,6 +19,7 @@ local modConfig = {
     showControls = true,
     showHotbar = true,
     showPlayerList = true,
+    hotbarLocation = "default", ---@type HotBarLocation
     uiScale = 1.0,
     modName = statics.ModName,
     modVersion = statics.ModVersion
@@ -20,6 +27,7 @@ local modConfig = {
 
 ---Get current mod config
 ---@param key ModConfigKey? Return a specific mod config value
+---@return unknown
 local function GetModConfig(key)
     if key then
         if modConfig[key] ~= nil then
@@ -28,7 +36,7 @@ local function GetModConfig(key)
             error(string.format("Mod config does not have %s key", key))
         end
     end
-    return modConfig ---@type table
+    return modConfig
 end
 
 ---Save mod config to file

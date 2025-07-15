@@ -324,7 +324,7 @@ local function TowRequestCompToTable(tow)
   data.Net_Payment = tow.Net_Payment
   data.Net_bArrived = tow.Net_bArrived
   data.Net_TowRequestFlags = tow.Net_TowRequestFlags
-  data.Net_LastWreckerPC = GetPlayerGuid(tow.Net_LastWreckerPC)
+  data.Net_LastWreckerPC = GetPlayerUniqueId(tow.Net_LastWreckerPC)
   data.Net_PoliceTowingVehicleDriverCharacterGuid = GuidToString(tow.Net_PoliceTowingVehicleDriverCharacterGuid)
   data.LastWrecker = tow.LastWrecker.Net_VehicleId
 
@@ -1361,20 +1361,20 @@ local function VehicleToTable(vehicle)
   end)
 
   data.Net_Tractor = vehicle.Net_Tractor:IsValid() and vehicle.Net_Tractor.Net_VehicleId or nil
-  data.Net_MovementOwnerPC = GetPlayerGuid(vehicle.Net_MovementOwnerPC)
+  data.Net_MovementOwnerPC = GetPlayerUniqueId(vehicle.Net_MovementOwnerPC)
 
   data.Server_TempMovementOwnerPCs = {}
   vehicle.Server_TempMovementOwnerPCs:ForEach(function(index, element)
-    table.insert(data.Server_TempMovementOwnerPCs, GetPlayerGuid(element:get()))
+    table.insert(data.Server_TempMovementOwnerPCs, GetPlayerUniqueId(element:get()))
   end)
 
-  data.Server_LastMovementOwnerPC = GetPlayerGuid(vehicle.Server_LastMovementOwnerPC)
+  data.Server_LastMovementOwnerPC = GetPlayerUniqueId(vehicle.Server_LastMovementOwnerPC)
   data.Net_LastNoMovementOwnerPCServerTimeSeconds = vehicle.Net_LastNoMovementOwnerPCServerTimeSeconds
   data.Net_LastMovementOwnerPCName = vehicle.Net_LastMovementOwnerPCName:ToString()
   data.VehicleOwnerProfitShareMultiplier = vehicle.VehicleOwnerProfitShareMultiplier
   -- data.ExplosionDetector = vehicle.ExplosionDetector
   -- data.Server_GarbageCompress = vehicle.Server_GarbageCompress
-  data.Server_LastPlayerController = GetPlayerGuid(vehicle.Server_LastPlayerController)
+  data.Server_LastPlayerController = GetPlayerUniqueId(vehicle.Server_LastPlayerController)
   -- data.IgnoreCollisionComponents = vehicle.IgnoreCollisionComponents
   data.Net_CarCarrierCargoSpace = VehicleCargoSpaceCompToTable(vehicle.Net_CarCarrierCargoSpace)
   data.Net_CompanyGuid = GuidToString(vehicle.Net_CompanyGuid)
@@ -1448,9 +1448,9 @@ local function GetVehicles(id, fields, limit)
 end
 
 ---Despawn selected vehicle
----@param id number
----@param playerGuid string?
-local function DespawnVehicleById(id, playerGuid)
+---@param id number Vehicle ID
+---@param uniqueId string? Player unique net ID
+local function DespawnVehicleById(id, uniqueId)
   local gameState = GetMotorTownGameState()
 
   if not gameState:IsValid() then return false end
@@ -1470,7 +1470,7 @@ local function DespawnVehicleById(id, playerGuid)
     local playerState = gameState.PlayerArray[i]
     ---@cast playerState AMotorTownPlayerState
 
-    if playerGuid and playerGuid == GuidToString(playerState.CharacterGuid) then
+    if uniqueId and uniqueId == GetUniqueNetIdAsString(playerState) then
       local PC = playerState:GetPlayerController()
       ---@cast PC AMotorTownPlayerController
 
@@ -1482,7 +1482,7 @@ local function DespawnVehicleById(id, playerGuid)
           return webhook.CreateServerRequest(
             "/vehicle/" .. id .. "/despawn",
             json.stringify {
-              PlayerGuid = playerGuid
+              PlayerGuid = uniqueId
             }
           )
         end
@@ -1576,7 +1576,7 @@ RegisterConsoleCommandHandler("despawnvehicle", function()
     ---@cast actor AMTVehicle
 
     local vehicleName = actor:GetFullName()
-    if DespawnVehicleById(actor.Net_VehicleId, GetPlayerGuid(GetMyPlayerController())) then
+    if DespawnVehicleById(actor.Net_VehicleId, GetPlayerUniqueId(GetMyPlayerController())) then
       LogOutput("INFO", "Despawned vehicle: %s", vehicleName)
     end
   end

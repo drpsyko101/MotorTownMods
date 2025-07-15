@@ -32,6 +32,6 @@ Returns all available player states.
 
 </details>
 
-#### GET `/players/<guid>`
+#### GET `/players/<uniqueId>`
 
-Returns the specified player state. Output the same response JSON as above.
+Returns the specified player state based on the player unique net ID. Output the same response JSON as above.

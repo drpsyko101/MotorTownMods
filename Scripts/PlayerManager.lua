@@ -1,10 +1,9 @@
-local UEHelpers = require("UEHelpers")
 local json = require("JsonParser")
 
 ---Get all or selected player state(s)
----@param guid string? Filter by character guid
+---@param uniqueId string? Filter by player state unique net ID
 ---@return table[]
-local function GetPlayerStates(guid)
+local function GetPlayerStates(uniqueId)
   local gameState = GetMotorTownGameState()
   local arr = {}
 
@@ -14,49 +13,51 @@ local function GetPlayerStates(guid)
 
   LogOutput("DEBUG", "%i player state(s) found", #playerStates)
 
-  playerStates:ForEach(function(index, element)
-    local playerState = element:get() ---@type AMotorTownPlayerState
+  for i = 1, #gameState.PlayerArray, 1 do
+    local playerState = gameState.PlayerArray[i]
+    if playerState:IsValid() then
+      ---@cast playerState AMotorTownPlayerState
 
-    -- Skip invalid player states
-    if not playerState:IsValid() then goto continue end
+      local data = {}
+      data.UniqueID = GetUniqueNetIdAsString(playerState)
 
-    -- Filter by guid if provided
-    if guid and guid:upper() ~= GuidToString(playerState.CharacterGuid) then goto continue end
+      -- Filter by uniqueId if provided
+      if uniqueId and uniqueId ~= data.UniqueID then goto continue end
 
-    local data = {}
-    data.PlayerName = playerState:GetPlayerName():ToString()
-    data.GridIndex = playerState.GridIndex
-    data.bIsHost = playerState.bIsHost
-    data.bIsAdmin = playerState.bIsAdmin
-    data.CharacterGuid = GuidToString(playerState.CharacterGuid)
-    data.BestLapTime = playerState.BestLapTime
+      data.PlayerName = playerState:GetPlayerName():ToString()
+      data.GridIndex = playerState.GridIndex
+      data.bIsHost = playerState.bIsHost
+      data.bIsAdmin = playerState.bIsAdmin
+      data.CharacterGuid = GuidToString(playerState.CharacterGuid)
+      data.BestLapTime = playerState.BestLapTime
 
-    data.Levels = {}
-    playerState.Layers:ForEach(function(index, element)
-      table.insert(data.Levels, element:get())
-    end)
+      data.Levels = {}
+      playerState.Layers:ForEach(function(index, element)
+        table.insert(data.Levels, element:get())
+      end)
 
-    data.OwnCompanyGuid = GuidToString(playerState.OwnCompanyGuid)
-    data.JoinedCompanyGuid = GuidToString(playerState.JoinedCompanyGuid)
-    data.CustomDestinationAbsoluteLocation = VectorToTable(playerState.CustomDestinationAbsoluteLocation)
+      data.OwnCompanyGuid = GuidToString(playerState.OwnCompanyGuid)
+      data.JoinedCompanyGuid = GuidToString(playerState.JoinedCompanyGuid)
+      data.CustomDestinationAbsoluteLocation = VectorToTable(playerState.CustomDestinationAbsoluteLocation)
 
-    data.OwnEventGuids = {}
-    playerState.OwnEventGuids:ForEach(function(index, element)
-      table.insert(data.OwnEventGuids, GuidToString(element:get()))
-    end)
+      data.OwnEventGuids = {}
+      playerState.OwnEventGuids:ForEach(function(index, element)
+        table.insert(data.OwnEventGuids, GuidToString(element:get()))
+      end)
 
-    data.JoinedEventGuids = {}
-    playerState.JoinedEventGuids:ForEach(function(index, element)
-      table.insert(data.JoinedEventGuids, GuidToString(element:get()))
-    end)
+      data.JoinedEventGuids = {}
+      playerState.JoinedEventGuids:ForEach(function(index, element)
+        table.insert(data.JoinedEventGuids, GuidToString(element:get()))
+      end)
 
-    data.Location = VectorToTable(playerState.Location)
-    data.VehicleKey = playerState.VehicleKey:ToString()
+      data.Location = VectorToTable(playerState.Location)
+      data.VehicleKey = playerState.VehicleKey:ToString()
 
-    table.insert(arr, data)
+      table.insert(arr, data)
 
-    ::continue::
-  end)
+      ::continue::
+    end
+  end
   return arr
 end
 
@@ -95,10 +96,10 @@ end)
 ---Handle request for player states
 ---@param session ClientTable
 local function HandleGetPlayerStates(session)
-  local playerGuid = session.pathComponents[2]
-  local res = GetPlayerStates(playerGuid)
-  if playerGuid and #res == 0 then
-    return json.stringify { message = string.format("Player with guid %s not found", playerGuid) }, nil, 404
+  local playerId = session.pathComponents[2]
+  local res = GetPlayerStates(playerId)
+  if playerId and #res == 0 then
+    return json.stringify { message = string.format("Player with unique ID %s not found", playerId) }, nil, 404
   end
 
   return json.stringify { data = res }, nil, 200

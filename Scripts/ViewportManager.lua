@@ -1,6 +1,8 @@
 local config = require("ModConfig")
 local json = require("JsonParser")
 
+local hotbarInitialPos = { X = 0.0, Y = 0.0 } ---@type FVector2D
+
 ---Get the in game HUD widget
 ---@return UInGameHUDWidget
 local function GetHudWidget()
@@ -33,6 +35,23 @@ local function SetWidgetOpacity(widget, opacity)
     LogOutput("DEBUG", "Setting %s visibility to %.1f", widget:GetFullName(), opacity)
     widget:SetRenderOpacity(opacity)
   end
+end
+
+---Get hot bar canvas slot
+---@return UCanvasPanelSlot
+local function GetHotBarCanvasSlot()
+  local widget = GetHudWidget()
+  if widget:IsValid() then
+    local slot = widget.QuickbarWidget.Slot
+    local canvasSlotClass = StaticFindObject("/Script/UMG.CanvasPanelSlot")
+    ---@cast canvasSlotClass UClass
+
+    if slot:IsValid() and slot:IsA(canvasSlotClass) then
+      ---@cast slot UCanvasPanelSlot
+      return slot
+    end
+  end
+  return CreateInvalidObject() ---@type UCanvasPanelSlot
 end
 
 ---Set the widget visibility based on the mod configurations
@@ -88,11 +107,11 @@ end
 
 ---Show a popup with the specified message
 ---@param message string Message to show to the player
----@param playerGuid? string The correspond player GUID. Will broadcast to all players if nil.
-local function ShowMessagePopup(message, playerGuid)
+---@param uniqueId? string The correspond player state unique net ID. Will broadcast to all players if `nil`.
+local function ShowMessagePopup(message, uniqueId)
   local playerControllers = {} ---@type APlayerController[]
-  if playerGuid then
-    table.insert(playerControllers, GetPlayerControllerFromGuid(playerGuid))
+  if uniqueId then
+    table.insert(playerControllers, GetPlayerControllerFromUniqueId(uniqueId))
   else
     local gameState = GetMotorTownGameState()
     if gameState:IsValid() then
@@ -115,6 +134,28 @@ local function ShowMessagePopup(message, playerGuid)
       end
     end
   end
+end
+
+---Set hot bar position
+---@param position HotBarLocation
+local function SetHotBarPosition(position)
+  local slot = GetHotBarCanvasSlot()
+  if slot:IsValid() then
+    if position == "default" then
+      slot:SetAnchors { Minimum = { X = 1.0, Y = 1.0 }, Maximum = { X = 1.0, Y = 1.0 } }
+      slot:SetAlignment { X = 1.0, Y = 1.0 }
+      slot:SetPosition(hotbarInitialPos)
+      config.SetModConfig("hotbarLocation", position)
+      return true
+    elseif position == "center" then
+      slot:SetAnchors { Minimum = { X = 0.5, Y = 1.0 }, Maximum = { X = 0.5, Y = 1.0 } }
+      slot:SetAlignment { X = 0.5, Y = 1.0 }
+      slot:SetPosition { X = 0.0, Y = hotbarInitialPos.Y }
+      config.SetModConfig("hotbarLocation", position)
+      return true
+    end
+  end
+  return false
 end
 
 -- Handle HTTP requests
@@ -151,6 +192,14 @@ for key, value in pairs(registerKeys) do
   end)
 end
 
+RegisterConsoleCommandHandler("sethotbarposition", function(Cmd, CommandParts, Ar)
+  local pos = CommandParts[1] ---@type HotBarLocation|nil
+  if pos then
+    SetHotBarPosition(pos)
+  end
+  return true
+end)
+
 -- Register event hooks
 
 -- Restore all previously set widget settings
@@ -159,6 +208,15 @@ RegisterHook("/Script/MotorTown.MotorTownPlayerController:ClientFirstTickRespons
   for key, value in pairs(registerKeys) do
     SetWidgetVisibility(value)
   end
+
+  -- Get the hotbar initial canvas position
+  local slot = GetHotBarCanvasSlot()
+  if slot:IsValid() then
+    hotbarInitialPos = slot:GetPosition()
+  end
+
+  local pos = config.GetModConfig("hotbarLocation")
+  SetHotBarPosition(pos)
 end)
 
 return {

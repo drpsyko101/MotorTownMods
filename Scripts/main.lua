@@ -1,5 +1,6 @@
 require("Helpers")
 local statics = require("Statics")
+local json = require("JsonParser")
 
 ---@enum (key) LogLevel
 local logLevel = {
@@ -37,7 +38,7 @@ function LogOutput(severity, message, ...)
     end)
     if not status then
       print(string.format("[%s] WARN: LogOutput error while parsing: %s: %s\n%s\n", statics.ModName, message, err,
-      debug.traceback()))
+        debug.traceback()))
     end
   end
 end
@@ -70,9 +71,9 @@ local function LoadWebserver()
         local gameState = GetMotorTownGameState()
         if not gameState:IsValid() then
           -- Game state is not created yet
-          return '{"status":"not ready"}', nil, 503
+          return json.stringify { status = "not ready" }, nil, 503
         end
-        return '{"status":"ok"}'
+        return json.stringify { status = "ok" }
       end,
       false
     )
