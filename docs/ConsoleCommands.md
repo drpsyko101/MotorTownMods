@@ -33,3 +33,4 @@ List of Motor Town console commands.
 * `togglecontrolhelper` - Toggle the control helper visibility
 * `togglehotbar` - Toggle the hotbar visibility
 * `toggleplayerlist` - Toggle the player list visibility
+* `sethotbarposition <position>` - Set the hotbar position on-screen. Options are `default` and `center`.
