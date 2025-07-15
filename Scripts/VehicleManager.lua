@@ -1,8 +1,6 @@
-local UEHelpers = require("UEHelpers")
 local webhook = require("Webclient")
 local json = require("JsonParser")
 local cargo = require("CargoManager")
-local socket = require("socket")
 local assetManager = require("AssetManager")
 
 local vehicleDealerSoftPath = "/Script/MotorTown.MTDealerVehicleSpawnPoint"
@@ -94,12 +92,12 @@ end
 ---@param tire FMTVehiclePartTire
 local function VehicleTireToTable(tire)
   return {
-    TirePhysicsDataAsset = {
+    TirePhysicsDataAsset = tire.TirePhysicsDataAsset:IsValid() and {
       TirePhysicsParams = TirePhysicsToTable(tire.TirePhysicsDataAsset.TirePhysicsParams)
-    },
-    TirePhysicsDataAsset_BikeRear = {
+    } or nil,
+    TirePhysicsDataAsset_BikeRear = tire.TirePhysicsDataAsset_BikeRear:IsValid() and {
       TirePhysicsParams = TirePhysicsToTable(tire.TirePhysicsDataAsset_BikeRear.TirePhysicsParams)
-    },
+    } or nil,
     bIsDualRearWheel = tire.bIsDualRearWheel
   }
 end
@@ -326,7 +324,7 @@ local function TowRequestCompToTable(tow)
   data.Net_TowRequestFlags = tow.Net_TowRequestFlags
   data.Net_LastWreckerPC = GetPlayerUniqueId(tow.Net_LastWreckerPC)
   data.Net_PoliceTowingVehicleDriverCharacterGuid = GuidToString(tow.Net_PoliceTowingVehicleDriverCharacterGuid)
-  data.LastWrecker = tow.LastWrecker.Net_VehicleId
+  data.LastWrecker = tow.LastWrecker:IsValid() and tow.LastWrecker.Net_VehicleId or nil
 
   return data
 end
@@ -600,11 +598,61 @@ local function VehicleAttachmentPartCompToTable(comp)
   }
 end
 
+---Convert UMTVehicleCargoSpaceComponent to JSON serializable table
+---@param cargoSpace UMTVehicleCargoSpaceComponent
+local function VehicleCargoSpaceCompToTable(cargoSpace)
+  if not cargoSpace:IsValid() then return {} end
+
+  local data = {}
+
+  data.CargoSpaceType = cargoSpace.CargoSpaceType
+  data.bFixCargo = cargoSpace.bFixCargo
+  data.bUnlimitedHeight = cargoSpace.bUnlimitedHeight
+  data.DumpVolume = cargoSpace.DumpVolume
+  data.DumpCargoSurfaceSlopeYAngleDegree = cargoSpace.DumpCargoSurfaceSlopeYAngleDegree
+  data.bAllowPutdownCargoByInteraction = cargoSpace.bAllowPutdownCargoByInteraction
+  -- data.InteractableComponent = cargo.InteractableComponent
+  -- data.DumpMeshComponent = cargo.DumpMeshComponent
+  -- data.DummyCargoInteractable = cargo.DummyCargoInteractable
+
+  data.Net_Cargos = {}
+  cargoSpace.Net_Cargos:ForEach(function(index, element)
+    table.insert(data.Net_Cargos, cargo.CargoToTable(element:get()))
+  end)
+
+  data.Net_DroppedCargos = {}
+  cargoSpace.Net_DroppedCargos:ForEach(function(index, element)
+    table.insert(data.Net_DroppedCargos, cargo.CargoToTable(element:get()))
+  end)
+
+  data.Net_BoxExtent = VectorToTable(cargoSpace.Net_BoxExtent)
+  data.Net_LoadedItemType = cargoSpace.Net_LoadedItemType
+  data.Net_LoadedItemVolume = cargoSpace.Net_LoadedItemVolume
+  data.Net_CargoSpaceRuntimeFlags = cargoSpace.Net_CargoSpaceRuntimeFlags
+
+  data.DroppedCargoCandidates = {}
+  cargoSpace.DroppedCargoCandidates:ForEach(function(key, value)
+    data.DroppedCargoCandidates[key:get().Net_CargoKey:ToString()] = value:get()
+  end)
+
+  data.Net_CarryingVehicles = {}
+  cargoSpace.Net_CarryingVehicles:ForEach(function(index, element)
+    table.insert(data.Net_CarryingVehicles, element:get().Net_VehicleId)
+  end)
+
+  data.OverlappedVehicles = {}
+  cargoSpace.OverlappedVehicles:ForEach(function(index, element)
+    table.insert(data.OverlappedVehicles, element:get().Net_VehicleId)
+  end)
+
+  return data
+end
+
 ---Converts FMTVehicleCargoPartAndSlot to JSON serializable table
 ---@param cargo FMTVehicleCargoPartAndSlot
 local function VehicleCargoPartToTable(cargo)
   return {
-    CargoSpace = cargo.CargoSpace,
+    CargoSpace = VehicleCargoSpaceCompToTable(cargo.CargoSpace),
     Slot = cargo.Slot
   }
 end
@@ -984,56 +1032,6 @@ local function VehicleHookParamToTable(param)
     -- HookComponent = param.HookComponent,
     HookLocation = VectorToTable(param.HookLocation),
   }
-end
-
----Convert UMTVehicleCargoSpaceComponent to JSON serializable table
----@param cargoSpace UMTVehicleCargoSpaceComponent
-local function VehicleCargoSpaceCompToTable(cargoSpace)
-  if not cargoSpace:IsValid() then return {} end
-
-  local data = {}
-
-  data.CargoSpaceType = cargoSpace.CargoSpaceType
-  data.bFixCargo = cargoSpace.bFixCargo
-  data.bUnlimitedHeight = cargoSpace.bUnlimitedHeight
-  data.DumpVolume = cargoSpace.DumpVolume
-  data.DumpCargoSurfaceSlopeYAngleDegree = cargoSpace.DumpCargoSurfaceSlopeYAngleDegree
-  data.bAllowPutdownCargoByInteraction = cargoSpace.bAllowPutdownCargoByInteraction
-  -- data.InteractableComponent = cargo.InteractableComponent
-  -- data.DumpMeshComponent = cargo.DumpMeshComponent
-  -- data.DummyCargoInteractable = cargo.DummyCargoInteractable
-
-  data.Net_Cargos = {}
-  cargoSpace.Net_Cargos:ForEach(function(index, element)
-    table.insert(data.Net_Cargos, cargo.CargoToTable(element:get()))
-  end)
-
-  data.Net_DroppedCargos = {}
-  cargoSpace.Net_DroppedCargos:ForEach(function(index, element)
-    table.insert(data.Net_DroppedCargos, cargo.CargoToTable(element:get()))
-  end)
-
-  data.Net_BoxExtent = VectorToTable(cargoSpace.Net_BoxExtent)
-  data.Net_LoadedItemType = cargoSpace.Net_LoadedItemType
-  data.Net_LoadedItemVolume = cargoSpace.Net_LoadedItemVolume
-  data.Net_CargoSpaceRuntimeFlags = cargoSpace.Net_CargoSpaceRuntimeFlags
-
-  data.DroppedCargoCandidates = {}
-  cargoSpace.DroppedCargoCandidates:ForEach(function(key, value)
-    data.DroppedCargoCandidates[key:get().Net_CargoKey:ToString()] = value:get()
-  end)
-
-  data.Net_CarryingVehicles = {}
-  cargoSpace.Net_CarryingVehicles:ForEach(function(index, element)
-    table.insert(data.Net_CarryingVehicles, element:get().Net_VehicleId)
-  end)
-
-  data.OverlappedVehicles = {}
-  cargoSpace.OverlappedVehicles:ForEach(function(index, element)
-    table.insert(data.OverlappedVehicles, element:get().Net_VehicleId)
-  end)
-
-  return data
 end
 
 ---Convert AMTVehicle to JSON serializable table
