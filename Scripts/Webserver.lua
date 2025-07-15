@@ -3,9 +3,6 @@
 -- 405 response needs to add allowed methods header
 -- Cover more cases that may results in timeout
 
-
--- Import Section
--- Declare everything that this module needs from outside
 local dir = os.getenv("PWD") or io.popen("cd"):read()
 package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?/core.dll"
 package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
@@ -18,29 +15,12 @@ local auth = os.getenv("MOD_SERVER_PASSWORD")
 local usePartialSend = os.getenv("MOD_SERVER_SEND_PARTIAL")
 local bcrypt = RequireSafe("bcrypt")
 
-local string = string
-local table = table
-
-local pairs = pairs
-local ipairs = ipairs
-local tonumber = tonumber
-local tostring = tostring
-local date = os.date
-local LogOutput = LogOutput
-local ExecuteAsync = ExecuteAsync
-local setmetatable = setmetatable
-local pcall = pcall
-local min = math.min
 local port = tonumber(os.getenv("MOD_SERVER_PORT")) or 5001
 local isServerRunning = true
 local isServerPaused = false
-local RegisterConsoleCommandHandler = RegisterConsoleCommandHandler
 local time = function()
     return socket.gettime() * 1000
 end
-
--- Cut off external access
-_ENV = nil
 
 ---@enum (key) RequestMethod
 local _method = {
@@ -220,7 +200,7 @@ local function buildHeaders(content, contentType, resCode)
     table.insert(h, "HTTP/1.1 " .. code)
 
     add("Server", serverString)
-    add("Date", date("!%a, %d %b %Y %H:%M:%S GMT"))
+    add("Date", os.date("!%a, %d %b %Y %H:%M:%S GMT"))
     add("Connection", "close")
 
     if content then
@@ -250,7 +230,7 @@ local function send_all(client, data)
     while total_sent < len do
         -- 'send' partial send method doesn't work, so we do our own string sub
         -- 'send' method will send malformed data if exceeds 40 bytes
-        local endByte = min(total_sent + 42, len)
+        local endByte = math.min(total_sent + 42, len)
         local partial = string.sub(data, total_sent + 1, endByte)
         local sent, err, partial_sent_index = client:send(partial)
         if sent == nil then
@@ -657,8 +637,14 @@ RegisterConsoleCommandHandler("stopwebserver", function(Cmd, CommandParts, Ar)
     return true
 end)
 
-return {
+local WebserverInstance = {
     run = run,
     pause = pause,
-    registerHandler = registerHandler,
+    registerHandler = registerHandler
 }
+
+if not _G.Webserver then
+    _G.Webserver = WebserverInstance
+end
+
+return _G.Webserver

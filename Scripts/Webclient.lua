@@ -4,6 +4,7 @@ package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
 
 local json = require("JsonParser")
 local statics = require("Statics")
+local server = RequireSafe("Webserver")
 local socket = RequireSafe("socket")
 local http = RequireSafe("socket.http")
 local https = RequireSafe("ssl.https")
@@ -61,7 +62,7 @@ local function __createWebhookRequest(url, content)
                 }
             end
             local execTime = socket.gettime() * 1000 - time
-            LogOutput("INFO", "Webhook: %s \"%s\" %.1fms", method, url, execTime)
+            LogOutput("INFO", "Webhook: %i %s \"%s\" %.1fms", resCode, method, url, execTime)
             if resCode == 200 then
                 LogOutput("DEBUG", "Res OK:\n%s", json.stringify(res))
             else
@@ -95,20 +96,20 @@ end
 ---@param data table Payload to send to the webhook endpoint
 ---@param callback fun(status: boolean)? Optional callback after handling the request
 local function CreateEventWebhook(event, data, callback)
-    if socket then
+    if socket and server then
         local payload = json.stringify {
             hook = event,
             timestamp = math.floor(socket.gettime() * 1000),
             data = data
         }
-        Webserver.pause()
+        server.pause()
         ExecuteAsync(function()
             LogOutput("DEBUG", "Sending webhook content:\n%s", payload)
             local status = pcall(__createWebhookRequest, webhookUrl, payload)
             if callback then
                 callback(status)
             end
-            Webserver.run()
+            server.run()
         end)
     end
 end

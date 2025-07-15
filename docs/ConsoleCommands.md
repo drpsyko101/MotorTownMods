@@ -24,3 +24,13 @@ List of Motor Town console commands.
 
 * `spawnactor <assetPath> <0,0,0> <0,0,0>` - Spawn an actor given the asset path, along with optional location and rotation value. If not given any location and rotation, it will use the camera crosshair to spawn at location. Note that some of the blueprint actors require hard reference to other actors.
 * `destroyactor <assetTag>` - Destroy an actor with tag. Use with caution. This action will delete all actors with the same tag. Might break the game if deleted core actors with the same tag.
+
+## UI management
+
+* `toggleminimap` - Toggle the mini map visibility
+* `togglequest` - Toggle the quest list visibility
+* `toggledrivinghud` - Toggle the entire vehicle HUD visibility including the control helper
+* `togglecontrolhelper` - Toggle the control helper visibility
+* `togglehotbar` - Toggle the hotbar visibility
+* `toggleplayerlist` - Toggle the player list visibility
+* `sethotbarposition <position>` - Set the hotbar position on-screen. Options are `default` and `center`.

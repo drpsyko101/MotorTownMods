@@ -1,11 +1,6 @@
 require("Helpers")
-
 local statics = require("Statics")
-local playerManager = require("PlayerManager")
-local eventManager = require("EventManager")
-local serverManager = require("ServerManager")
-local cargoManager = require("CargoManager")
-local chatManager = require("ChatManager")
+local json = require("JsonParser")
 
 ---@enum (key) LogLevel
 local logLevel = {
@@ -43,14 +38,21 @@ function LogOutput(severity, message, ...)
     end)
     if not status then
       print(string.format("[%s] WARN: LogOutput error while parsing: %s: %s\n%s\n", statics.ModName, message, err,
-      debug.traceback()))
+        debug.traceback()))
     end
   end
 end
 
+local playerManager = require("PlayerManager")
+local eventManager = require("EventManager")
+local serverManager = require("ServerManager")
+local cargoManager = require("CargoManager")
+local chatManager = require("ChatManager")
+local widgetManager = require("ViewportManager")
+
 local function LoadWebserver()
   local status, err = pcall(function()
-    Webserver = require("Webserver")
+    local server = require("Webserver")
 
     -- Local imports are placed here due to socket dependency
 
@@ -62,56 +64,59 @@ local function LoadWebserver()
     -- Put more specific paths before more general ones
 
     -- General server status
-    Webserver.registerHandler(
+    server.registerHandler(
       "/status",
       "GET",
       function(session)
         local gameState = GetMotorTownGameState()
         if not gameState:IsValid() then
           -- Game state is not created yet
-          return '{"status":"not ready"}', nil, 503
+          return json.stringify { status = "not ready" }, nil, 503
         end
-        return '{"status":"ok"}'
+        return json.stringify { status = "ok" }
       end,
       false
     )
-    Webserver.registerHandler("/status/general", "GET", serverManager.HandleGetServerState)
-    Webserver.registerHandler("/status/general/*", "GET", serverManager.HandleGetZoneState)
-    Webserver.registerHandler("/status/traffic", "POST", serverManager.HandleUpdateNpcTraffic)
+    server.registerHandler("/status/general", "GET", serverManager.HandleGetServerState)
+    server.registerHandler("/status/general/*", "GET", serverManager.HandleGetZoneState)
+    server.registerHandler("/status/traffic", "POST", serverManager.HandleUpdateNpcTraffic)
 
     -- Player management
-    Webserver.registerHandler("/players", "GET", playerManager.HandleGetPlayerStates)
-    Webserver.registerHandler("/players/*", "GET", playerManager.HandleGetPlayerStates)
+    server.registerHandler("/players", "GET", playerManager.HandleGetPlayerStates)
+    server.registerHandler("/players/*", "GET", playerManager.HandleGetPlayerStates)
 
     -- Event management
-    Webserver.registerHandler("/events", "GET", eventManager.HandleGetEvents)
-    Webserver.registerHandler("/events", "POST", eventManager.HandleCreateNewEvent)
-    Webserver.registerHandler("/events/*", "GET", eventManager.HandleGetEvents)
-    Webserver.registerHandler("/events/*/state", "POST", eventManager.HandleChangeEventState)
-    Webserver.registerHandler("/events/*", "POST", eventManager.HandleUpdateEvent)
-    Webserver.registerHandler("/events/*", "DELETE", eventManager.HandleRemoveEvent)
+    server.registerHandler("/events", "GET", eventManager.HandleGetEvents)
+    server.registerHandler("/events", "POST", eventManager.HandleCreateNewEvent)
+    server.registerHandler("/events/*", "GET", eventManager.HandleGetEvents)
+    server.registerHandler("/events/*/state", "POST", eventManager.HandleChangeEventState)
+    server.registerHandler("/events/*", "POST", eventManager.HandleUpdateEvent)
+    server.registerHandler("/events/*", "DELETE", eventManager.HandleRemoveEvent)
 
     -- Properties management
-    Webserver.registerHandler("/houses", "GET", propertyManager.HandleGetAllHouses)
-    Webserver.registerHandler("/houses/spawn", "POST", propertyManager.HandleSpawnHouse)
+    server.registerHandler("/houses", "GET", propertyManager.HandleGetAllHouses)
+    server.registerHandler("/houses/spawn", "POST", propertyManager.HandleSpawnHouse)
 
     -- Cargo management
-    Webserver.registerHandler("/delivery/points", "GET", cargoManager.HandleGetDeliveryPoints)
-    Webserver.registerHandler("/delivery/points/*", "GET", cargoManager.HandleGetDeliveryPoints)
+    server.registerHandler("/delivery/points", "GET", cargoManager.HandleGetDeliveryPoints)
+    server.registerHandler("/delivery/points/*", "GET", cargoManager.HandleGetDeliveryPoints)
 
     -- Vehicle management
-    Webserver.registerHandler("/vehicles", "GET", vehicleManager.HandleGetVehicles)
-    Webserver.registerHandler("/vehicles/*/despawn", "POST", vehicleManager.HandleDespawnVehicle)
-    Webserver.registerHandler("/vehicles/*", "GET", vehicleManager.HandleGetVehicles)
-    Webserver.registerHandler("/dealers/spawn", "POST", vehicleManager.HandleCreateVehicleDealerSpawnPoint)
-    Webserver.registerHandler("/garages", "GET", vehicleManager.HandleGetGarages)
-    Webserver.registerHandler("/garages/spawn", "POST", vehicleManager.HandleGetGarages)
+    server.registerHandler("/vehicles", "GET", vehicleManager.HandleGetVehicles)
+    server.registerHandler("/vehicles/*/despawn", "POST", vehicleManager.HandleDespawnVehicle)
+    server.registerHandler("/vehicles/*", "GET", vehicleManager.HandleGetVehicles)
+    server.registerHandler("/dealers/spawn", "POST", vehicleManager.HandleCreateVehicleDealerSpawnPoint)
+    server.registerHandler("/garages", "GET", vehicleManager.HandleGetGarages)
+    server.registerHandler("/garages/spawn", "POST", vehicleManager.HandleGetGarages)
 
     -- Asset management
-    Webserver.registerHandler("/assets/spawn", "POST", assetManager.HandleSpawnActor)
-    Webserver.registerHandler("/assets/despawn", "POST", assetManager.HandleDespawnActor)
+    server.registerHandler("/assets/spawn", "POST", assetManager.HandleSpawnActor)
+    server.registerHandler("/assets/despawn", "POST", assetManager.HandleDespawnActor)
 
-    Webserver.run("*")
+    -- UI management
+    server.registerHandler("/messages/popup", "POST", widgetManager.HandleShowPopupMessage)
+
+    server.run("*")
     return nil
   end)
   if not status then
