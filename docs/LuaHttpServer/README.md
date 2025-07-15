@@ -11,3 +11,4 @@ Query parameter and/or request body is not needed unless specified. A basic HTTP
 * [Properties management](./PropertyManagement.md)
 * [Cargo management](./CargoManagement.md)
 * [Assets management](./AssetsManagement.md)
+* [Moderation tool](./ModerationTools.md)

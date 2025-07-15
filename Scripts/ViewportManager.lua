@@ -107,11 +107,17 @@ end
 
 ---Show a popup with the specified message
 ---@param message string Message to show to the player
----@param uniqueId? string The correspond player state unique net ID. Will broadcast to all players if `nil`.
+---@param uniqueId string|string[]|nil The correspond player state unique net ID. Will broadcast to all players if `nil`.
 local function ShowMessagePopup(message, uniqueId)
   local playerControllers = {} ---@type APlayerController[]
   if uniqueId then
-    table.insert(playerControllers, GetPlayerControllerFromUniqueId(uniqueId))
+    if type(uniqueId) == "string" then
+      table.insert(playerControllers, GetPlayerControllerFromUniqueId(uniqueId))
+    elseif type(uniqueId) == "table" then
+      for index, value in ipairs(uniqueId) do
+        table.insert(playerControllers, GetPlayerControllerFromUniqueId(value))
+      end
+    end
   else
     local gameState = GetMotorTownGameState()
     if gameState:IsValid() then
@@ -166,7 +172,7 @@ local function HandleShowPopupMessage(session)
   local content = json.parse(session.content)
   if content and type(content) == "table" then
     if content.message then
-      ShowMessagePopup(content.message, content.playerGuid)
+      ShowMessagePopup(content.message, content.playerId)
       return nil, nil, 204
     end
     return json.stringify { message = "No message provided" }, nil, 400
