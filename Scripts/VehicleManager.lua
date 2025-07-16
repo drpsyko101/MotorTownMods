@@ -94,10 +94,10 @@ local function VehicleTireToTable(tire)
   return {
     TirePhysicsDataAsset = tire.TirePhysicsDataAsset:IsValid() and {
       TirePhysicsParams = TirePhysicsToTable(tire.TirePhysicsDataAsset.TirePhysicsParams)
-    } or nil,
+    } or json.null,
     TirePhysicsDataAsset_BikeRear = tire.TirePhysicsDataAsset_BikeRear:IsValid() and {
       TirePhysicsParams = TirePhysicsToTable(tire.TirePhysicsDataAsset_BikeRear.TirePhysicsParams)
-    } or nil,
+    } or json.null,
     bIsDualRearWheel = tire.bIsDualRearWheel
   }
 end
@@ -324,7 +324,7 @@ local function TowRequestCompToTable(tow)
   data.Net_TowRequestFlags = tow.Net_TowRequestFlags
   data.Net_LastWreckerPC = GetPlayerUniqueId(tow.Net_LastWreckerPC)
   data.Net_PoliceTowingVehicleDriverCharacterGuid = GuidToString(tow.Net_PoliceTowingVehicleDriverCharacterGuid)
-  data.LastWrecker = tow.LastWrecker:IsValid() and tow.LastWrecker.Net_VehicleId or nil
+  data.LastWrecker = tow.LastWrecker:IsValid() and tow.LastWrecker.Net_VehicleId or json.null
 
   return data
 end
@@ -375,10 +375,10 @@ local function DriveShaftToTable(drive)
   return {
     TransmissionComponentName = drive.TransmissionComponentName:ToString(),
     Inertia = drive.Inertia,
-    TransmissionComponent = {
+    TransmissionComponent = drive.TransmissionComponent:IsValid() and {
       CurrentGear = drive.TransmissionComponent.CurrentGear,
       TransmissionProperty = TransPropertyToTable(drive.TransmissionComponent.TransmissionProperty)
-    }
+    } or json.null
   }
 end
 
@@ -501,7 +501,7 @@ local function DiffToTable(diff)
       LSDType = diff.DataAsset.LSDType,
       ClutchPackAccel = diff.DataAsset.ClutchPackAccel,
       ClutchPackBrake = diff.DataAsset.ClutchPackBrake,
-    } or nil
+    } or json.null
   }
 end
 
@@ -522,9 +522,9 @@ local function WheelCompToTable(wheel)
   data.DriveShaftComponentName = wheel.DriveShaftComponentName:ToString()
   data.DifferentialComponentName = wheel.DifferentialComponentName:ToString()
   data.LinkGearRatio = wheel.LinkGearRatio
-  data.TirePhysicsData = {
+  data.TirePhysicsData = wheel.TirePhysicsData:IsValid() {
     TirePhysicsParams = TirePhysicsToTable(wheel.TirePhysicsData.TirePhysicsParams)
-  }
+  } or json.null
   data.BrushTirePhysics = {
     ContactPatchLength = wheel.BrushTirePhysics.ContactPatchLength,
     ContactPatchStaticLength = wheel.BrushTirePhysics.ContactPatchStaticLength
@@ -1018,7 +1018,7 @@ local function LaptimeModuleToTable(time)
     CourseName = time.OverlappedRaceSection.CourseName:ToString(),
     RaceSectionIndex = time.OverlappedRaceSection.RaceSectionIndex,
     bIsStopBox = time.OverlappedRaceSection.bIsStopBox
-  } or nil
+  } or json.null
 
   return data
 end
@@ -1143,11 +1143,11 @@ local function VehicleToTable(vehicle)
   data.RearSpoiler = vehicle.RearSpoiler:IsValid() and {
     Net_PartKey = vehicle.RearSpoiler.Net_PartKey:ToString(),
     Net_PartSlot = vehicle.RearSpoiler.Net_PartSlot
-  } or nil
+  } or json.null
   data.RearWing = vehicle.RearWing:IsValid() and {
     Net_PartKey = vehicle.RearWing.Net_PartKey:ToString(),
     Net_PartSlot = vehicle.RearWing.Net_PartSlot
-  } or nil
+  } or json.null
   -- data.AeroParts = vehicle.AeroParts
   data.AttachmentParts = {}
   vehicle.AttachmentParts:ForEach(function(key, value)
@@ -1176,11 +1176,11 @@ local function VehicleToTable(vehicle)
 
   data.TrailerHitch = vehicle.TrailerHitch:IsValid() and {
     ConnectionType = vehicle.TrailerHitch.ConnectionType
-  } or nil
+  } or json.null
   data.PoliceComponent = PoliceVehicleCompToTable(vehicle.PoliceComponent)
   data.SellerComponent = vehicle.SellerComponent:IsValid() and vehicle.SellerComponent.Marker:IsValid() and {
     Marker = VectorToTable(vehicle.SellerComponent.Marker:K2_GetActorLocation())
-  } or nil
+  } or json.null
   -- data.CraneComponent = vehicle.CraneComponent
   -- data.GetawayComponent = vehicle.GetawayComponent
   -- data.DecalComponent = vehicle.DecalComponent
@@ -1299,7 +1299,7 @@ local function VehicleToTable(vehicle)
     table.insert(data.Net_Seats, {
       SeatName = element:get().SeatName:ToString(),
       Character = element:get().Character.Net_MTPlayerState:IsValid() and
-          GuidToString(element:get().Character.Net_MTPlayerState.CharacterGuid) or nil,
+          GuidToString(element:get().Character.Net_MTPlayerState.CharacterGuid) or json.null,
       bHasCharacter = element:get().bHasCharacter
     })
   end)
@@ -1323,7 +1323,7 @@ local function VehicleToTable(vehicle)
   data.Customization = VehicleCustomizationToTable(vehicle.Customization)
   data.Net_Decal = VehicleDecalToTable(vehicle.Net_Decal)
   data.Net_OwnerPlayerState = vehicle.Net_OwnerPlayerState:IsValid() and
-      GuidToString(vehicle.Net_OwnerPlayerState.CharacterGuid) or nil
+      GuidToString(vehicle.Net_OwnerPlayerState.CharacterGuid) or json.null
   data.Net_OwnerCharacterId = {
     CharacterGuid = GuidToString(vehicle.Net_OwnerCharacterId.CharacterGuid),
     UniqueNetId = vehicle.Net_OwnerCharacterId.UniqueNetId:ToString()
@@ -1351,15 +1351,15 @@ local function VehicleToTable(vehicle)
     local tractor = element:get().Tractor
     local trailer = element:get().Trailer
     table.insert(data.Net_Hooks, {
-      Tractor = tractor:IsValid() and tractor.Net_VehicleId or nil,
-      Trailer = trailer:IsValid() and trailer.Net_VehicleId or nil,
+      Tractor = tractor:IsValid() and tractor.Net_VehicleId or json.null,
+      Trailer = trailer:IsValid() and trailer.Net_VehicleId or json.null,
       TractorParams = VehicleHookParamToTable(element:get().TractorParams),
       TrailerParams = VehicleHookParamToTable(element:get().TrailerParams),
     })
   end)
 
-  data.Net_Tractor = vehicle.Net_Tractor:IsValid() and vehicle.Net_Tractor.Net_VehicleId or nil
-  data.Net_MovementOwnerPC = GetPlayerUniqueId(vehicle.Net_MovementOwnerPC)
+  data.Net_Tractor = vehicle.Net_Tractor:IsValid() and vehicle.Net_Tractor.Net_VehicleId or json.null
+  data.Net_MovementOwnerPC = GetPlayerUniqueId(vehicle.Net_MovementOwnerPC) or json.null
 
   data.Server_TempMovementOwnerPCs = {}
   vehicle.Server_TempMovementOwnerPCs:ForEach(function(index, element)
@@ -1401,10 +1401,11 @@ local function GarageToTable(garage)
 end
 
 ---Get all or selected vehicle state(s)
----@param id number?
----@param fields string[]?
+---@param id number? Get specific vehicle with ID
+---@param fields string[]? Filter the result based on the table key(s)
 ---@param limit number?
-local function GetVehicles(id, fields, limit)
+---@param isControlled boolean?
+local function GetVehicles(id, fields, limit, isControlled)
   local gameState = GetMotorTownGameState()
   local arr = {} ---@type table[]
 
@@ -1416,6 +1417,10 @@ local function GetVehicles(id, fields, limit)
 
     -- Filter by id
     if id and id ~= vehicle.Net_VehicleId then
+      goto continue
+    end
+
+    if isControlled == true and vehicle.Net_MovementOwnerPC == json.null then
       goto continue
     end
 
@@ -1621,12 +1626,17 @@ local function HandleGetVehicles(session)
   local id = tonumber(session.pathComponents[2]) or nil
   local fields = SplitString(session.queryComponents.filters, ",")
   local limit = nil ---@type number?
+  local isPlayerControlled = nil ---@type boolean?
 
   if session.queryComponents.limit then
     limit = tonumber(session.queryComponents.limit)
   end
 
-  local res = GetVehicles(id, fields, limit)
+  if session.queryComponents.isPlayerControlled then
+    isPlayerControlled = true
+  end
+
+  local res = GetVehicles(id, fields, limit, isPlayerControlled)
 
   if id and #res == 0 then
     return json.stringify { message = string.format("Vehicle with ID %s not found", id) }, nil, 404

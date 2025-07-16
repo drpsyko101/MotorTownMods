@@ -18,7 +18,7 @@ object, encoded like so: `{"key1": 2, "key2": false}`.
 Because the Lua nil value cannot be a key, and as a table value is considerd
 equivalent to a missing key, there is no way to express the json "null" value in
 a Lua table. The only way this will output "null" is if your entire input obj is
-nil itself.
+nil itself, or if you explicitly use json.null as a table value.
 
 An empty Lua table, {}, could be considered either a json object or array -
 it's an ambiguous edge case. We choose to treat this as an object as it is the
@@ -47,21 +47,29 @@ avoiding null values in your data to begin with.
 
 local json = {}
 
+---This is a one-off table to represent the null value.
+---Since in Lua, `nil` values are equivalent to missing keys.
+json.null = {}
 
 -- Internal functions.
 
 local function kind_of(obj)
   if type(obj) ~= 'table' then return type(obj) end
+  if obj == json.null then return 'null' end
   local i = 1
-  for _ in pairs(obj) do
-    if obj[i] ~= nil then i = i + 1 else return 'table' end
+  for k in pairs(obj) do
+    if obj[i] ~= nil then
+      i = i + 1
+    else
+      return 'table'
+    end
   end
   if i == 1 then return 'table' else return 'array' end
 end
 
 local function escape_str(s)
-  local in_char  = {'\\', '"', '/', '\b', '\f', '\n', '\r', '\t'}
-  local out_char = {'\\', '"', '/',  'b',  'f',  'n',  'r',  't'}
+  local in_char  = { '\\', '"', '/', '\b', '\f', '\n', '\r', '\t' }
+  local out_char = { '\\', '"', '/', 'b', 'f', 'n', 'r', 't' }
   for i, c in ipairs(in_char) do
     s = s:gsub(c, '\\' .. out_char[i])
   end
@@ -98,10 +106,10 @@ local function parse_str_val(str, pos, val)
   local early_end_error = 'End of input found while parsing string.'
   if pos > #str then error(early_end_error) end
   local c = str:sub(pos, pos)
-  if c == '"'  then return val, pos + 1 end
+  if c == '"' then return val, pos + 1 end
   if c ~= '\\' then return parse_str_val(str, pos + 1, val .. c) end
   -- We must have a \ character.
-  local esc_map = {b = '\b', f = '\f', n = '\n', r = '\r', t = '\t'}
+  local esc_map = { b = '\b', f = '\f', n = '\n', r = '\r', t = '\t' }
   local nextc = str:sub(pos + 1, pos + 1)
   if not nextc then error(early_end_error) end
   return parse_str_val(str, pos + 2, val .. (esc_map[nextc] or nextc))
@@ -127,8 +135,9 @@ end
 ---@param as_key? type
 ---@return string
 function json.stringify(obj, as_key)
-  local s = {}  -- We'll build the string as an array of strings to be concatenated.
-  local kind = kind_of(obj)  -- This is 'array' if it's an array or type(obj) otherwise.
+  local s = {}              -- We'll build the string as an array of strings to be concatenated.
+  local kind = kind_of(obj) -- This is 'array' if it's an array or type(obj) otherwise.
+
   if kind == 'array' then
     if as_key then error('Can\'t encode array as key.') end
     s[#s + 1] = '['
@@ -140,8 +149,10 @@ function json.stringify(obj, as_key)
   elseif kind == 'table' then
     if as_key then error('Can\'t encode table as key.') end
     s[#s + 1] = '{'
+    local first = true
     for k, v in pairs(obj) do
-      if #s > 1 then s[#s + 1] = ',' end
+      if not first then s[#s + 1] = ', ' end
+      first = false
       s[#s + 1] = json.stringify(k, true)
       s[#s + 1] = ':'
       s[#s + 1] = json.stringify(v)
@@ -154,7 +165,7 @@ function json.stringify(obj, as_key)
     return tostring(obj)
   elseif kind == 'boolean' then
     return tostring(obj)
-  elseif kind == 'nil' then
+  elseif kind == 'nil' or kind == "null" then
     return 'null'
   else
     error('Unjsonifiable type: ' .. kind .. '.')
@@ -162,25 +173,23 @@ function json.stringify(obj, as_key)
   return table.concat(s)
 end
 
-json.null = {}  -- This is a one-off table to represent the null value.
-
 function json.parse(str, pos, end_delim)
   pos = pos or 1
   if pos > #str then error('Reached unexpected end of input.') end
-  local pos = pos + #str:match('^%s*', pos)  -- Skip whitespace.
+  local pos = pos + #str:match('^%s*', pos) -- Skip whitespace.
   local first = str:sub(pos, pos)
-  if first == '{' then  -- Parse an object.
+  if first == '{' then                      -- Parse an object.
     local obj, key, delim_found = {}, true, true
     pos = pos + 1
     while true do
       key, pos = json.parse(str, pos, '}')
       if key == nil then return obj, pos end
       if not delim_found then error('Comma missing between object items.') end
-      pos = skip_delim(str, pos, ':', true)  -- true -> error if missing.
+      pos = skip_delim(str, pos, ':', true) -- true -> error if missing.
       obj[key], pos = json.parse(str, pos)
       pos, delim_found = skip_delim(str, pos, ',')
     end
-  elseif first == '[' then  -- Parse an array.
+  elseif first == '[' then -- Parse an array.
     local arr, val, delim_found = {}, true, true
     pos = pos + 1
     while true do
@@ -190,14 +199,14 @@ function json.parse(str, pos, end_delim)
       arr[#arr + 1] = val
       pos, delim_found = skip_delim(str, pos, ',')
     end
-  elseif first == '"' then  -- Parse a string.
+  elseif first == '"' then                      -- Parse a string.
     return parse_str_val(str, pos + 1)
-  elseif first == '-' or first:match('%d') then  -- Parse a number.
+  elseif first == '-' or first:match('%d') then -- Parse a number.
     return parse_num_val(str, pos)
-  elseif first == end_delim then  -- End of an object or array.
+  elseif first == end_delim then                -- End of an object or array.
     return nil, pos + 1
-  else  -- Parse true, false, or null.
-    local literals = {['true'] = true, ['false'] = false, ['null'] = json.null}
+  else                                          -- Parse true, false, or null.
+    local literals = { ['true'] = true, ['false'] = false, ['null'] = json.null }
     for lit_str, lit_val in pairs(literals) do
       local lit_end = pos + #lit_str - 1
       if str:sub(pos, lit_end) == lit_str then return lit_val, lit_end + 1 end
