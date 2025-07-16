@@ -1035,6 +1035,25 @@ local function VehicleHookParamToTable(param)
   }
 end
 
+---Convert vehicle mirror position to JSON serializable table
+---@param mirror FMTVehicleMirrorPosition
+local function VehicleMirrorPositionToTable(mirror)
+  return {
+    CurvatureMultiplier = mirror.CurvatureMultiplier,
+    Name = mirror.Name:ToString(),
+    Rotation = RotatorToTable(mirror.Rotation)
+  }
+end
+
+---Convert vehicle setting to JSON serializable table
+---@param setting FMTVehicleSetting
+local function VehicleSettingToTable(setting)
+  return {
+    SettingType = setting.SettingType,
+    Value = SettingValueToTable(setting.Value)
+  }
+end
+
 ---Convert AMTVehicle to JSON serializable table
 ---@param vehicle AMTVehicle
 local function VehicleToTable(vehicle)
@@ -1735,5 +1754,10 @@ return {
   HandleDespawnVehicle = HandleDespawnVehicle,
   HandleCreateVehicleDealerSpawnPoint = HandleCreateVehicleDealerSpawnPoint,
   HandleGetGarages = HandleGetGarages,
-  HandleSpawnGarage = HandleSpawnGarage
+  HandleSpawnGarage = HandleSpawnGarage,
+  VehicleToTable = VehicleToTable,
+  VehicleCustomizationToTable = VehicleCustomizationToTable,
+  VehicleDecalToTable = VehicleDecalToTable,
+  VehicleMirrorPositionToTable = VehicleMirrorPositionToTable,
+  VehicleSettingToTable = VehicleSettingToTable
 }

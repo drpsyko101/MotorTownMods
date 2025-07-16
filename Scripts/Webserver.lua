@@ -402,6 +402,7 @@ local function processSession(client)
                     }
                     sendResponse(client, err, nil, 500)
                 end) then
+                -- Avoid using json.stringify here to avoid unprotected handler
                 sendResponse(client, '{"error":"Internal server error"}', nil, 500)
             end
         end

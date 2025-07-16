@@ -12,6 +12,8 @@ local serverManager = require("ServerManager")
 local cargoManager = require("CargoManager")
 local chatManager = require("ChatManager")
 local widgetManager = require("ViewportManager")
+local companyManager = require("CompanyManager")
+local characterManager = require("CharacterManager")
 
 local function LoadWebserver()
   local status, err = pcall(function()
@@ -78,6 +80,12 @@ local function LoadWebserver()
 
     -- UI management
     server.registerHandler("/messages/popup", "POST", widgetManager.HandleShowPopupMessage)
+
+    -- Company management
+    server.registerHandler("/companies", "GET", companyManager.HandleGetCompanies)
+
+    -- Character management
+    server.registerHandler("/characters", "GET", characterManager.HandleGetCharacters)
 
     server.run("*")
     return nil
