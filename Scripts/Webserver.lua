@@ -12,12 +12,12 @@ local url = require("socket.url")
 local statics = require("Statics")
 local json = require("JsonParser")
 local auth = os.getenv("MOD_SERVER_PASSWORD")
+local procAmount = tonumber(os.getenv("MOD_SERVER_PROCESS_AMOUNT")) or 5
 local usePartialSend = os.getenv("MOD_SERVER_SEND_PARTIAL")
 local bcrypt = RequireSafe("bcrypt")
 
 local port = tonumber(os.getenv("MOD_SERVER_PORT")) or 5001
-local isServerRunning = true
-local isServerPaused = false
+local isServerRunning = false
 local time = function()
     return socket.gettime() * 1000
 end
@@ -188,8 +188,10 @@ end
 ---@param content string? Content of the response
 ---@param contentType MimeType? Content mime type
 ---@param resCode ResponseStatus? Response code, defaults to `200 OK`
-local function buildHeaders(content, contentType, resCode)
+---@param timestamp integer? Add initial request timestamp in ms
+local function buildHeaders(content, contentType, resCode, timestamp)
     contentType = contentType or _mimeType.json
+    timestamp = timestamp or -1
     local code = _resCode[resCode or (content and 200) or 204]
     local h = {}
 
@@ -201,6 +203,7 @@ local function buildHeaders(content, contentType, resCode)
 
     add("Server", serverString)
     add("Date", os.date("!%a, %d %b %Y %H:%M:%S GMT"))
+    add("X-Timestamp", timestamp)
     add("Connection", "close")
 
     if content then
@@ -253,7 +256,7 @@ end
 ---@param resCode ResponseStatus? Response code. Defaults to `200 OK`
 local function sendResponse(client, content, contentType, resCode)
     LogOutput("DEBUG", "Sending the response")
-    local header = buildHeaders(content, contentType, resCode)
+    local header = buildHeaders(content, contentType, resCode, client.connTime)
 
     if usePartialSend then
         local sent = send_all(client.client, header)
@@ -516,7 +519,7 @@ end
 ---method will return. If no data, it will timeout and return. The caller should not know or care which happened.
 ---
 ---Note that if there is data to process this method may return sooner or later than the timeout time.
----@param timeout number Timout in seconds
+---@param timeout number Socket selection timeout in seconds
 local function process(timeout)
     local rclients, _, err = socket.select(clients, nil, timeout)
     ---@cast rclients TCPSocketClient[]
@@ -589,15 +592,6 @@ local function init(host, initPort)
     table.insert(clients, g_server)
 end
 
-local function recurseProcess(timeout)
-    ExecuteAsync(function()
-        process(timeout)
-        if isServerRunning then
-            recurseProcess(timeout)
-        end
-    end)
-end
-
 ---Start the web server
 ---@param bindHost string? Host IP to bind to
 ---@param bindPort number? Port to bind to
@@ -605,31 +599,28 @@ local function run(bindHost, bindPort)
     bindHost = bindHost or "*"
     bindPort = bindPort or port
 
-    if not isServerPaused then
-        -- Register core webserver command
-        registerHandler("/stop", "POST", function(session)
-            isServerRunning = false
-            return json.stringify { status = "ok" }
-        end)
+    -- Register core webserver command
+    registerHandler("/stop", "POST", function(session)
+        isServerRunning = false
+        return json.stringify { status = "ok" }, nil, 201
+    end)
 
-        init(bindHost, bindPort)
-    end
-    isServerPaused = false
-    ExecuteAsync(function()
-        while isServerRunning and not isServerPaused do
-            process(1)
+    init(bindHost, bindPort)
+    isServerRunning = true
+    LoopAsync(1, function()
+        -- Not sure why, but executing process back to back reduces the latency
+        -- Increasing the amount of process further decreases total latency but will block async thread by the amount * timeout
+        -- Best to keep the amount low to allow for other function to use ExecuteAsync
+        local count = 0
+        while count < procAmount do
+            process(0.1)
+            count = count + 1
         end
-        if isServerPaused then
-            LogOutput("DEBUG", "Webserver temporarily paused")
-        else
+        if not isServerRunning then
             LogOutput("INFO", "Webserver stopped")
         end
+        return not isServerRunning
     end)
-end
-
-local function pause()
-    LogOutput("DEBUG", "Pausing webserver")
-    isServerPaused = true
 end
 
 RegisterConsoleCommandHandler("stopwebserver", function(Cmd, CommandParts, Ar)
@@ -639,7 +630,6 @@ end)
 
 local WebserverInstance = {
     run = run,
-    pause = pause,
     registerHandler = registerHandler
 }
 

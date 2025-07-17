@@ -56,17 +56,18 @@ The C++ module are included in the release. Any changes to the C++ files need a 
 
 Most of the server settings can be configured using environment variables:
 
-| Variable name               | Default value | Description                                                                                  |
-| --------------------------- | ------------- | -------------------------------------------------------------------------------------------- |
-| `MOD_MANAGEMENT_PORT`       | `5000`        | Management port. Used for managing mods in the dedicated server                              |
-| `MOD_SERVER_PORT`           | `5001`        | Lua HTTP port. This only applies if `luasocket` module is installed                          |
-| `MOD_WEBHOOK_URL`           | _none_        | Webhook URL to send the events to. Requires `luasec` to function                             |
-| `MOD_WEBHOOK_METHOD`        | `POST`        | Webhook request method                                                                       |
-| `MOD_WEBHOOK_EXTRA_HEADERS` | _none_        | Webhook extra headers in a JSON object                                                       |
-| `MOD_SERVER_API_URL`        | _none_        | Server API to call from client side                                                          |
-| `MOD_SERVER_PASSWORD`       | _none_        | Authenticate server request with `Authorization: Basic ` header                              |
-| `MOD_SERVER_SEND_PARTIAL`   | _none_        | Limit server response chunks to 40 bytes (Set to `true` for older `luasocket` compatibility) |
-| `MOD_AUTO_FPS_ENABLE`       | _none_        | Enable automatic server traffic adjustment based on the server's FPS                         |
+| Variable name               | Default value | Description                                                                                                                |
+| --------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `MOD_MANAGEMENT_PORT`       | `5000`        | Management port. Used for managing mods in the dedicated server                                                            |
+| `MOD_SERVER_PORT`           | `5001`        | Lua HTTP port. This only applies if `luasocket` module is installed                                                        |
+| `MOD_SERVER_PROCESS_AMOUNT` | 5             | The amount of cumulative connection to process. Higher number correspond to quicker response, in return slower event hook. |
+| `MOD_WEBHOOK_URL`           | _none_        | Webhook URL to send the events to. Requires `luasec` to function                                                           |
+| `MOD_WEBHOOK_METHOD`        | `POST`        | Webhook request method                                                                                                     |
+| `MOD_WEBHOOK_EXTRA_HEADERS` | _none_        | Webhook extra headers in a JSON object                                                                                     |
+| `MOD_SERVER_API_URL`        | _none_        | Server API to call from client side                                                                                        |
+| `MOD_SERVER_PASSWORD`       | _none_        | Authenticate server request with `Authorization: Basic ` header                                                            |
+| `MOD_SERVER_SEND_PARTIAL`   | _none_        | Limit server response chunks to 40 bytes (Set to `true` for older `luasocket` compatibility)                               |
+| `MOD_AUTO_FPS_ENABLE`       | _none_        | Enable automatic server traffic adjustment based on the server's FPS                                                       |
 
 ### Reloading mod
 
