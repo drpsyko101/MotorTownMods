@@ -96,20 +96,20 @@ end
 ---@param data table Payload to send to the webhook endpoint
 ---@param callback fun(status: boolean)? Optional callback after handling the request
 local function CreateEventWebhook(event, data, callback)
-    if socket and server then
+    LogOutput("DEBUG", "Received hook event %s", event)
+    if socket and webhookUrl and server then
         local payload = json.stringify {
             hook = event,
             timestamp = math.floor(socket.gettime() * 1000),
             data = data
         }
-        server.pause()
+        LogOutput("DEBUG", "Collecting payload:\n%s", payload)
         ExecuteAsync(function()
             LogOutput("DEBUG", "Sending webhook content:\n%s", payload)
             local status = pcall(__createWebhookRequest, webhookUrl, payload)
             if callback then
                 callback(status)
             end
-            server.run()
         end)
     end
 end

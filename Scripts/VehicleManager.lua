@@ -522,7 +522,7 @@ local function WheelCompToTable(wheel)
   data.DriveShaftComponentName = wheel.DriveShaftComponentName:ToString()
   data.DifferentialComponentName = wheel.DifferentialComponentName:ToString()
   data.LinkGearRatio = wheel.LinkGearRatio
-  data.TirePhysicsData = wheel.TirePhysicsData:IsValid() {
+  data.TirePhysicsData = wheel.TirePhysicsData:IsValid() and {
     TirePhysicsParams = TirePhysicsToTable(wheel.TirePhysicsData.TirePhysicsParams)
   } or json.null
   data.BrushTirePhysics = {
