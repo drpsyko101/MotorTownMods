@@ -155,6 +155,10 @@ end
 ---Convert DeliveryPoint to JSON serializable table
 ---@param point AMTDeliveryPoint
 local function DeliveryPointToTable(point)
+  if not point:IsValid() then
+    return json.null
+  end
+
   local data = {}
 
   data.DeliveryPointGuid = GuidToString(point.DeliveryPointGuid)
@@ -350,36 +354,39 @@ local function GetDeliveryPoints(guid, fields, limit)
 
   if deliverySystem:IsValid() then
     for i = 1, #deliverySystem.DeliveryPoints, 1 do
-      local point = DeliveryPointToTable(deliverySystem.DeliveryPoints[i])
-      local filtered = {}
-
-      -- Filter by guid
-      if guid and guid ~= point.DeliveryPointGuid then
-        goto continue
-      end
-
-      if fields then
-        for j = 1, #fields, 1 do
-          if not point[fields[j]] then
-            error("Field " .. fields[j] .. " does not exist")
-          end
-
-          filtered[fields[j]] = point[fields[j]]
+      local deliveryPoint = deliverySystem.DeliveryPoints[i]
+      if deliveryPoint:IsValid() then
+        -- Filter by guid
+        if guid and guid:upper() ~= GuidToString(deliveryPoint.DeliveryPointGuid) then
+          goto continue
         end
-        -- Always returns the delivery point guid
-        filtered.DeliveryPointGuid = point.DeliveryPointGuid
 
-        table.insert(arr, filtered)
-      else
-        table.insert(arr, point)
+        local point = DeliveryPointToTable(deliverySystem.DeliveryPoints[i])
+        local filtered = {}
+
+        if fields then
+          for j = 1, #fields, 1 do
+            if not point[fields[j]] then
+              error("Field " .. fields[j] .. " does not exist")
+            end
+
+            filtered[fields[j]] = point[fields[j]]
+          end
+          -- Always returns the delivery point guid
+          filtered.DeliveryPointGuid = point.DeliveryPointGuid
+
+          table.insert(arr, filtered)
+        else
+          table.insert(arr, point)
+        end
+
+        -- Limit result if set
+        if limit and #arr >= limit then
+          return arr
+        end
+
+        ::continue::
       end
-
-      -- Limit result if set
-      if limit and #arr >= limit then
-        return arr
-      end
-
-      ::continue::
     end
   end
   return arr

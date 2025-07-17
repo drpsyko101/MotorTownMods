@@ -1,6 +1,7 @@
 require("Helpers")
 local statics = require("Statics")
 local json = require("JsonParser")
+local outputLogLevel = tonumber(os.getenv("MOD_SERVER_LOG_LEVEL")) or 2
 
 ---@enum (key) LogLevel
 local logLevel = {
@@ -16,7 +17,7 @@ local logLevel = {
 ---@param severity LogLevel?
 function LogMsg(message, severity)
   local lvl = severity or "INFO"
-  if logLevel[lvl] > statics.ModLogLevel then return end
+  if logLevel[lvl] > outputLogLevel then return end
   print(string.format("[%s] %s: %s\n", statics.ModName, lvl, message))
 end
 
@@ -27,7 +28,7 @@ end
 ---@param ... any
 function LogOutput(severity, message, ...)
   local args = { ... }
-  if logLevel[severity] <= statics.ModLogLevel then
+  if logLevel[severity] <= outputLogLevel then
     local status, err = pcall(function()
       local msg = string.format(message, table.unpack(args))
       local outMsg = string.format("[%s] %s: %s\n", statics.ModName, severity, msg)

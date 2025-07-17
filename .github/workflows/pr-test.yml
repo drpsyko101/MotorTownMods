@@ -29,8 +29,8 @@ jobs:
       - name: Parse versions
         id: parse-versions
         run: |
-          sed -nE 's/.*ModVersion = "(.*)"./current=\1/p' current/Scripts/Statics.lua >> $GITHUB_OUTPUT
-          sed -nE 's/.*ModVersion = "(.*)"./target=\1/p' target/Scripts/Statics.lua >> $GITHUB_OUTPUT
+          sed -nE 's/.*ModVersion = "(.*)".?/current=\1/p' current/Scripts/Statics.lua >> $GITHUB_OUTPUT
+          sed -nE 's/.*ModVersion = "(.*)".?/target=\1/p' target/Scripts/Statics.lua >> $GITHUB_OUTPUT
 
       - name: Compare version
         uses: jackbilestech/semver-compare@1.0.4
