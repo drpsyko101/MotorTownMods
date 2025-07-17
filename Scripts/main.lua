@@ -1,3 +1,7 @@
+local dir = os.getenv("PWD") or io.popen("cd"):read()
+package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?/core.dll"
+package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
+
 require("Helpers")
 local json = require("JsonParser")
 local logging = require("Debugging.Logging")
@@ -91,7 +95,7 @@ local function LoadWebserver()
     return nil
   end)
   if not status then
-    LogOutput("INFO", "Unexpected error has occured in Webserver: %s", err)
+    LogOutput("ERROR", "Webserver stopped unexpectedly due to error: %s", err)
   end
 end
 

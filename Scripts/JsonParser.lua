@@ -43,8 +43,7 @@ If you have control over the data and are using Lua, I would recommend just
 avoiding null values in your data to begin with.
 
 --]]
-
-
+local cjson = RequireSafe("cjson")
 local json = {}
 
 ---This is a one-off table to represent the null value.
@@ -135,11 +134,17 @@ end
 ---@param as_key? type
 ---@return string
 function json.stringify(obj, as_key)
+  -- Try using cjson for faster encoding
+  if cjson then
+    cjson.encode_sparse_array(true)
+    local status, output = pcall(cjson.encode, obj)
+    if status then return output end
+  end
+
   local function stringify_internal(_obj, _as_key, _path)
     _path = _path or "root"
     local s = {}               -- We'll build the string as an array of strings to be concatenated.
     local kind = kind_of(_obj) -- This is 'array' if it's an array or type(obj) otherwise.
-
     if kind == 'array' then
       if _as_key then error('Can\'t encode array as key at ' .. _path) end
       s[#s + 1] = '['
@@ -196,6 +201,11 @@ function json.stringify(obj, as_key)
 end
 
 function json.parse(str, pos, end_delim)
+  if cjson then
+    local status, output = pcall(cjson.decode, str)
+    if status then return output end
+  end
+
   pos = pos or 1
   if pos > #str then error('Reached unexpected end of input.') end
   local pos = pos + #str:match('^%s*', pos) -- Skip whitespace.

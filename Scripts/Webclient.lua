@@ -1,7 +1,3 @@
-local dir = os.getenv("PWD") or io.popen("cd"):read()
-package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?/core.dll"
-package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
-
 local json = require("JsonParser")
 local statics = require("Statics")
 local socket = RequireSafe("socket") ---@type Socket?

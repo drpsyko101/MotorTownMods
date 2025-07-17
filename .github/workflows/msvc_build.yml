@@ -208,6 +208,7 @@ jobs:
         run: |
           luarocks install --local https://github.com/drpsyko101/luasec/raw/refs/heads/static/luasec-1.3.2-1.rockspec CFLAGS="/MT" OPENSSL_DIR=${{ github.workspace }}\OpenSSL
           luarocks install --local bcrypt CFLAGS="/MT"
+          luarocks install --local lua-cjson CFLAGS="/MT"
 
       - name: Package modules
         if: hashFiles('shared.zip') == ''

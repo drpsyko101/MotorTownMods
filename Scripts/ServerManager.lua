@@ -1,8 +1,4 @@
-local dir = os.getenv("PWD") or io.popen("cd"):read()
-local UEHelpers = require("UEHelpers")
 local json = require("JsonParser")
-
-require("Helpers")
 
 local maxVehiclePerPlayer = 10
 local npcVehicleDensity = 1.0
