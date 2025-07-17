@@ -1412,17 +1412,17 @@ local function GetVehicles(id, fields, limit, isControlled)
   if not gameState:IsValid() then return arr end
 
   for i = 1, #gameState.Vehicles, 1 do
+    -- Filter by id
+    if id and id ~= gameState.Vehicles[i].Net_VehicleId then
+      goto continue
+    end
+
+    if isControlled and not gameState.Vehicles[i].Net_MovementOwnerPC:IsValid() then
+      goto continue
+    end
+
     local vehicle = VehicleToTable(gameState.Vehicles[i])
     local filtered = {}
-
-    -- Filter by id
-    if id and id ~= vehicle.Net_VehicleId then
-      goto continue
-    end
-
-    if isControlled == true and vehicle.Net_MovementOwnerPC == json.null then
-      goto continue
-    end
 
     if fields then
       for index, value in ipairs(fields) do

@@ -132,12 +132,7 @@ local function ShowMessagePopup(message, uniqueId)
     if value:IsValid() then
       ---@cast value AMotorTownPlayerController
 
-      local hud = value:GetHUD()
-      if hud:IsValid() then
-        ---@cast hud AMTHUD
-
-        hud:ShowMessagePopup(FText(message))
-      end
+      value:ClientShowPopupMessage(FText(message))
     end
   end
 end
