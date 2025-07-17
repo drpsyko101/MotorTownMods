@@ -90,7 +90,7 @@ jobs:
           Copy-Item .\Binaries\Game__Shipping__Win64\MotorTownMods\MotorTownMods.dll .\output\MotorTownMods\dlls\main.dll
           Copy-Item -Recurse .\MotorTownMods\Scripts .\output\MotorTownMods\
           $staticsFile = Get-Content -Raw .\MotorTownMods\Scripts\Statics.lua
-          [regex]$versionRegex = 'ModVersion = "(.*)",'
+          [regex]$versionRegex = 'ModVersion = "(.*)"'
           $modVersion = $versionRegex.Match($staticsFile).Groups[1].Value
           Compress-Archive -Path .\output\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
           Write-Output "version=$modVersion" >> $env:GITHUB_OUTPUT

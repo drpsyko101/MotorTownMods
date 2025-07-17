@@ -1,4 +1,4 @@
 return {
     ModName = "MotorTownMods",
-    ModVersion = "0.7.3"
+    ModVersion = "0.7.4"
 }
