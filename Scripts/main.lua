@@ -84,6 +84,7 @@ local function LoadWebserver()
 
     -- UI management
     server.registerHandler("/messages/popup", "POST", widgetManager.HandleShowPopupMessage)
+    server.registerHandler("/messages/announce", "POST", chatManager.HandleAnnounceMessage)
 
     -- Company management
     server.registerHandler("/companies", "GET", companyManager.HandleGetCompanies)
