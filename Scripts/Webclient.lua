@@ -4,8 +4,7 @@ package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
 
 local json = require("JsonParser")
 local statics = require("Statics")
-local server = RequireSafe("Webserver")
-local socket = RequireSafe("socket")
+local socket = RequireSafe("socket") ---@type Socket?
 local http = RequireSafe("socket.http")
 local https = RequireSafe("ssl.https")
 local ltn12 = RequireSafe("ltn12")
@@ -97,7 +96,7 @@ end
 ---@param callback fun(status: boolean)? Optional callback after handling the request
 local function CreateEventWebhook(event, data, callback)
     LogOutput("DEBUG", "Received hook event %s", event)
-    if socket and webhookUrl and server then
+    if socket and webhookUrl then
         local payload = json.stringify {
             hook = event,
             timestamp = math.floor(socket.gettime() * 1000),

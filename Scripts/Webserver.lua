@@ -16,6 +16,7 @@ local procAmount = tonumber(os.getenv("MOD_SERVER_PROCESS_AMOUNT")) or 5
 local usePartialSend = os.getenv("MOD_SERVER_SEND_PARTIAL")
 local bcrypt = RequireSafe("bcrypt")
 
+local enableDebug = statics.ModLogLevel > 2
 local port = tonumber(os.getenv("MOD_SERVER_PORT")) or 5001
 local isServerRunning = false
 local time = function()
@@ -335,6 +336,8 @@ end
 ---Dump headers for debugging
 ---@param client ClientTable
 local function dumpSession(client)
+    if not enableDebug then return end
+
     LogOutput("DEBUG", "==============================")
     LogOutput("DEBUG", "URL string: %s", client.urlString)
     LogOutput("DEBUG", "Method: %s", client.method)
@@ -357,9 +360,11 @@ local function dumpSession(client)
         end
     end
 
-    LogOutput("DEBUG", "URL Path: %s", client.urlComponents.path)
-    LogOutput("DEBUG", "URL Params: %s", client.urlComponents.params)
-    LogOutput("DEBUG", "URL url: %s", client.urlComponents.url)
+    if client.urlComponents then
+        LogOutput("DEBUG", "URL Path: %s", client.urlComponents.path or "")
+        LogOutput("DEBUG", "URL Params: %s", client.urlComponents.params or "")
+        LogOutput("DEBUG", "URL url: %s", client.urlComponents.url or "")
+    end
 
     LogOutput("DEBUG", "URL path components:")
     for k, v in pairs(client.pathComponents) do
@@ -367,7 +372,7 @@ local function dumpSession(client)
     end
 
     LogOutput("DEBUG", "Content Length: %d", client.contentLength)
-    LogOutput("DEBUG", "Content: %s", client.content)
+    LogOutput("DEBUG", "Content: %s", client.content or "")
     LogOutput("DEBUG", "==============================")
 end
 

@@ -129,7 +129,6 @@ local function DeliveryToTable(delivery)
   data.SenderPoint = GuidToString(delivery.SenderPoint.DeliveryPointGuid)
   data.ReceiverPoint = GuidToString(delivery.ReceiverPoint.DeliveryPointGuid)
   data.RegisteredTimeSeconds = delivery.RegisteredTimeSeconds
-  data.ExpiresAtTimeSeconds = delivery.ExpiresAtTimeSeconds
   data.PaymentMultiplierByDemand = delivery.PaymentMultiplierByDemand
   data.PaymentMultiplierBySupply = delivery.PaymentMultiplierBySupply
   data.PaymentMultiplierByBalanceConfig = delivery.PaymentMultiplierByBalanceConfig
