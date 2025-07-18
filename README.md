@@ -61,7 +61,7 @@ Most of the server settings can be configured using environment variables:
 | `MOD_MANAGEMENT_PORT`       | `5000`        | Management port. Used for managing mods in the dedicated server                                                            |
 | `MOD_SERVER_PORT`           | `5001`        | Lua HTTP port. This only applies if `luasocket` module is installed                                                        |
 | `MOD_SERVER_PROCESS_AMOUNT` | 5             | The amount of cumulative connection to process. Higher number correspond to quicker response, in return slower event hook. |
-| `MOD_SERVER_LOG_LEVEL`      | 2             | The server log level. `0=ERROR`, `1=WARNING`, `2=INFO`, `3=DEBUG`                                                          |
+| `MOD_SERVER_LOG_LEVEL`      | 2             | The server log level. `0=ERROR`, `1=WARNING`, `2=INFO`, `3=VERBOSE`, `4=DEBUG`                                             |
 | `MOD_WEBHOOK_URL`           | _none_        | Webhook URL to send the events to. Requires `luasec` to function                                                           |
 | `MOD_WEBHOOK_METHOD`        | `POST`        | Webhook request method                                                                                                     |
 | `MOD_WEBHOOK_EXTRA_HEADERS` | _none_        | Webhook extra headers in a JSON object                                                                                     |

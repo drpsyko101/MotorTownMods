@@ -2,6 +2,7 @@ local webhook = require("Webclient")
 local json = require("JsonParser")
 local cargo = require("CargoManager")
 local assetManager = require("AssetManager")
+local timer = require("Debugging.Timer")
 
 local vehicleDealerSoftPath = "/Script/MotorTown.MTDealerVehicleSpawnPoint"
 
@@ -1636,13 +1637,16 @@ local function HandleGetVehicles(session)
     isPlayerControlled = true
   end
 
-  local res = GetVehicles(id, fields, limit, isPlayerControlled)
+  local getTime, data = timer.benchmark(GetVehicles, id, fields, limit, isPlayerControlled)
+  LogOutput("DEBUG", "GetVehicles time: %fs", getTime)
 
-  if id and #res == 0 then
+  if id and #data == 0 then
     return json.stringify { message = string.format("Vehicle with ID %s not found", id) }, nil, 404
   end
 
-  return json.stringify { data = res }, nil, 200
+  local stringifyTime, res = timer.benchmark(json.stringify, { data = data })
+  LogOutput("DEBUG", "GetVehicles stringify time: %fs", stringifyTime)
+  return res, nil, 200
 end
 
 ---Handle vehicle despawn request
