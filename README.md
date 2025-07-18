@@ -65,6 +65,7 @@ Most of the server settings can be configured using environment variables:
 | `MOD_WEBHOOK_URL`           | _none_        | Webhook URL to send the events to. Requires `luasec` to function                                                           |
 | `MOD_WEBHOOK_METHOD`        | `POST`        | Webhook request method                                                                                                     |
 | `MOD_WEBHOOK_EXTRA_HEADERS` | _none_        | Webhook extra headers in a JSON object                                                                                     |
+| `MOD_WEBHOOK_ENABLE_EVENTS` | `all`         | Enable event hook individually. See [webhook documentation](./docs/Webhooks.md) for a complete list.                       |
 | `MOD_SERVER_API_URL`        | _none_        | Server API to call from client side                                                                                        |
 | `MOD_SERVER_PASSWORD`       | _none_        | Authenticate server request with `Authorization: Basic ` header                                                            |
 | `MOD_SERVER_SEND_PARTIAL`   | _none_        | Limit server response chunks to 40 bytes (Set to `true` for older `luasocket` compatibility)                               |

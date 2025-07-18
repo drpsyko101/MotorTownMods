@@ -67,9 +67,8 @@ end
 
 -- Register webhook
 
-local serverSendChat = "/Script/MotorTown.MotorTownPlayerController:ServerSendChat"
-RegisterHook(
-  serverSendChat,
+webhook.RegisterEventHook(
+  "ServerSendChat",
   function(context, message, category)
     local PC = context:get() ---@cast PC APlayerController
 
@@ -79,14 +78,11 @@ RegisterHook(
 
     if not PS:IsValid() then return end
 
-    local data = {
+    return {
       Sender = GuidToString(PS.CharacterGuid),
       Message = message:get():ToString(),
       Category = category:get()
     }
-
-    LogOutput("DEBUG", json.stringify(data))
-    webhook.CreateEventWebhook(serverSendChat, data)
   end
 )
 

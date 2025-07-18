@@ -393,17 +393,13 @@ end
 
 -- Register event hooks
 
-local acceptDeliveryEvent = "/Script/MotorTown.MotorTownPlayerController:ServerAcceptDelivery"
-RegisterHook(
-  acceptDeliveryEvent,
+webhook.RegisterEventHook(
+  "ServerAcceptDelivery",
   function(context, DeliveryId)
-    local data = {
+    return {
       PlayerId = GetPlayerUniqueId(context:get()),
       DeliveryId = DeliveryId:get()
     }
-
-    LogOutput("DEBUG", json.stringify(data))
-    webhook.CreateEventWebhook(acceptDeliveryEvent, data)
   end
 )
 

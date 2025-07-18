@@ -320,23 +320,25 @@ end)
 
 -- Register event hooks
 
-local serverAddEvent = "/Script/MotorTown.MotorTownPlayerController:ServerAddEvent"
-RegisterHook(
-  serverAddEvent,
+webhook.RegisterEventHook(
+  "ServerAddEvent",
   function(context, eventParam)
+    local PC = context:get() ---@type APlayerController
     local event = eventParam:get() ---@type FMTEvent
 
     LogOutput("DEBUG", "New event %s created", GuidToString(event.EventGuid))
 
-    local eventTable = EventToTable(event)
-    webhook.CreateEventWebhook(serverAddEvent, eventTable)
+    return {
+      PlayerId = GetPlayerUniqueId(PC),
+      Event = EventToTable(event),
+    }
   end
 )
 
-local serverEventState = "/Script/MotorTown.MotorTownPlayerController:ServerChangeEventState"
-RegisterHook(
-  serverEventState,
+webhook.RegisterEventHook(
+  "ServerChangeEventState",
   function(context, eventParam, stateParam)
+    local PC = context:get() ---@type APlayerController
     local guid = eventParam:get() ---@type FGuid
     local eventState = stateParam:get() ---@type EMTEventState
     local eventGuid = GuidToString(guid)
@@ -347,25 +349,31 @@ RegisterHook(
 
     if #event == 0 then return end
 
-    local eventTable = EventToTable(event[1])
-    webhook.CreateEventWebhook(serverEventState, eventTable)
+    return {
+      PlayerId = GetPlayerUniqueId(PC),
+      Event = EventToTable(event[1])
+    }
   end
 )
 
-local serverRemoveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerRemoveEvent"
-RegisterHook(
-  serverRemoveEvent,
+webhook.RegisterEventHook(
+  "ServerRemoveEvent",
   function(context, eventParam)
+    local PC = context:get() ---@type APlayerController
     local event = eventParam:get() ---@type FGuid
     local eventGuid = GuidToString(event)
+
     LogOutput("DEBUG", "Event %s removed", eventGuid)
-    webhook.CreateEventWebhook(serverRemoveEvent, { EventGuid = eventGuid })
+
+    return {
+      PlayerId = GetPlayerUniqueId(PC),
+      EventGuid = eventGuid
+    }
   end
 )
 
-local passRaceSection = "/Script/MotorTown.MotorTownPlayerController:ServerPassedRaceSection"
-RegisterHook(
-  passRaceSection,
+webhook.RegisterEventHook(
+  "ServerPassedRaceSection",
   function(context, eventGuid, sectionIndex, totalTimeSeconds, laptimeSeconds)
     local PC = context:get() ---@cast PC APlayerController
 
@@ -379,13 +387,13 @@ RegisterHook(
       LaptimeSeconds = laptimeSeconds:get()
     }
     LogOutput("DEBUG", "ServerPassedRaceSection: %s", json.stringify(data))
-    webhook.CreateEventWebhook(passRaceSection, data)
+
+    return data
   end
 )
 
-local serverJoinEvent = "/Script/MotorTown.MotorTownPlayerController:ServerJoinEvent"
-RegisterHook(
-  serverJoinEvent,
+webhook.RegisterEventHook(
+  "ServerJoinEvent",
   function(context, eventGuid)
     local PC = context:get() ---@cast PC APlayerController
 
@@ -399,13 +407,13 @@ RegisterHook(
     }
 
     LogOutput("DEBUG", "serverJoinEvent: %s", json.stringify(data))
-    webhook.CreateEventWebhook(serverJoinEvent, data)
+
+    return data
   end
 )
 
-local serverLeaveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerLeaveEvent"
-RegisterHook(
-  serverLeaveEvent,
+webhook.RegisterEventHook(
+  "ServerLeaveEvent",
   function(context, eventGuid)
     local PC = context:get() ---@cast PC APlayerController
 
@@ -419,7 +427,7 @@ RegisterHook(
     }
 
     LogOutput("DEBUG", "serverLeaveEvent: %s", json.stringify(data))
-    webhook.CreateEventWebhook(serverLeaveEvent, data)
+    return data
   end
 )
 
