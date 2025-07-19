@@ -47,3 +47,31 @@ Omit `playerId` to spawn popup message to everyone:
 ```
 
 </details>
+
+#### POST `/server/announce`
+
+Post an announcement on the server. Does have an option to pin the announcement. Requires an admin player to be present on the server, with an exception to the pin option.
+
+<details>
+<summary>Request body:</summary>
+
+```json
+{
+  "message": "Some announcement here",
+  "playerId": "",
+  "isPinned": false
+}
+```
+
+</details>
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "status": "ok"
+}
+```
+
+</details>
