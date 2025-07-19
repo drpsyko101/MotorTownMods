@@ -1,10 +1,10 @@
 # Event Webhooks
 
-Requires `socket` module installed and `MOD_WEBHOOK_URL` environment variable set to function properly. Most of the event hook payloads have similarities with the REST API endpoints return data.
+Requires `socket` module installed and `MOD_WEBHOOK_URL` environment variable set to function properly. Most of the event hook payloads have similarities with the REST API endpoints return data. Webhook can be enabled separately using `MOD_WEBHOOK_ENABLE_EVENTS` environment variable according to the code block in their headings respectively. All event hooks are enabled by default.
 
 ### Events
 
-#### Event creation
+#### Event creation - `ServerAddEvent`
 
 Returns the new event data.
 
@@ -15,8 +15,9 @@ Returns the new event data.
 {
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerAddEvent",
   "timestamp": 1752044853012,
-  "data": [
-    {
+  "data": {    
+    "PlayerId": "",
+    "Event": {
       "State": 1,
       "EventType": 1,
       "RaceSetup": {
@@ -34,13 +35,13 @@ Returns the new event data.
       "EventGuid": "6E6705764C17B7F764098091A10567E7",
       "EventName": "EnhancedBrow's Event"
     }
-  ]
+  }
 }
 ```
 
 </details>
 
-#### Event state changed
+#### Event state changed - `ServerChangeEventState`
 
 Returns the GUID of the event and the new event state.
 
@@ -51,15 +52,15 @@ Returns the GUID of the event and the new event state.
 {
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerChangeEventState",
   "timestamp": 1752044853012,
-  "data": [
+  "data": {
     // similar event structure as above
-  ]
+  }
 }
 ```
 
 </details>
 
-#### Event removal
+#### Event removal - `ServerRemoveEvent`
 
 Returns the GUID of the removed event.
 
@@ -71,6 +72,7 @@ Returns the GUID of the removed event.
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerRemoveEvent",
   "timestamp": 1752044853012,
   "data": {
+    "PlayerId": "",
     "EventGuid": "835BB8FD4104E369D33C6BA74C41922A"
   }
 }
@@ -78,7 +80,7 @@ Returns the GUID of the removed event.
 
 </details>
 
-#### Event checkpoint update
+#### Event checkpoint update - `ServerPassedRaceSection`
 
 Called when a player passed an event checkpoint.
 
@@ -101,7 +103,7 @@ Called when a player passed an event checkpoint.
 
 </details>
 
-#### Player joined an event
+#### Player joined an event - `ServerJoinEvent`
 
 Called when a player joined an event.
 
@@ -121,7 +123,7 @@ Called when a player joined an event.
 
 </details>
 
-#### Player left an event
+#### Player left an event - `ServerLeaveEvent`
 
 Called when a player left an event.
 
@@ -143,7 +145,7 @@ Called when a player left an event.
 
 ### Cargo
 
-#### Cargo accept delivery
+#### Cargo accept delivery - `ServerAcceptDelivery`
 
 Called when a player accepted a cargo delivery.
 
@@ -155,6 +157,29 @@ Called when a player accepted a cargo delivery.
   "hook": "/Script/MotorTown.MotorTownPlayerController:ServerAcceptDelivery",
   "timestamp": 1752044853012,
   "data": { "DeliveryId": 27, "PlayerId": "" }
+}
+```
+
+</details>
+
+### Chat
+
+### Player chat sent - `ServerSendChat`
+
+Called when a player send a chat.
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "hook": "/Script/MotorTown.MotorTownPlayerController:ServerSendChat",
+  "timestamp": 1752044853012,
+  "data": {
+      "Sender": "",
+      "Message": "",
+      "Category": 0 // Normal = 0, Announce = 1, Company = 2, Event = 3, WhisperIn = 4, WhisperOut = 5
+  }
 }
 ```
 

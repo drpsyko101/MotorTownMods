@@ -43,8 +43,7 @@ If you have control over the data and are using Lua, I would recommend just
 avoiding null values in your data to begin with.
 
 --]]
-
-
+local cjson = RequireSafe("cjson")
 local json = {}
 
 ---This is a one-off table to represent the null value.
@@ -135,45 +134,78 @@ end
 ---@param as_key? type
 ---@return string
 function json.stringify(obj, as_key)
-  local s = {}              -- We'll build the string as an array of strings to be concatenated.
-  local kind = kind_of(obj) -- This is 'array' if it's an array or type(obj) otherwise.
-
-  if kind == 'array' then
-    if as_key then error('Can\'t encode array as key.') end
-    s[#s + 1] = '['
-    for i, val in ipairs(obj) do
-      if i > 1 then s[#s + 1] = ', ' end
-      s[#s + 1] = json.stringify(val)
-    end
-    s[#s + 1] = ']'
-  elseif kind == 'table' then
-    if as_key then error('Can\'t encode table as key.') end
-    s[#s + 1] = '{'
-    local first = true
-    for k, v in pairs(obj) do
-      if not first then s[#s + 1] = ', ' end
-      first = false
-      s[#s + 1] = json.stringify(k, true)
-      s[#s + 1] = ':'
-      s[#s + 1] = json.stringify(v)
-    end
-    s[#s + 1] = '}'
-  elseif kind == 'string' then
-    return '"' .. escape_str(obj) .. '"'
-  elseif kind == 'number' then
-    if as_key then return '"' .. tostring(obj) .. '"' end
-    return tostring(obj)
-  elseif kind == 'boolean' then
-    return tostring(obj)
-  elseif kind == 'nil' or kind == "null" then
-    return 'null'
-  else
-    error('Unjsonifiable type: ' .. kind .. '.')
+  -- Try using cjson for faster encoding
+  if cjson then
+    cjson.encode_sparse_array(true)
+    local status, output = pcall(cjson.encode, obj)
+    if status then return output end
   end
-  return table.concat(s)
+
+  local function stringify_internal(_obj, _as_key, _path)
+    _path = _path or "root"
+    local s = {}               -- We'll build the string as an array of strings to be concatenated.
+    local kind = kind_of(_obj) -- This is 'array' if it's an array or type(obj) otherwise.
+    if kind == 'array' then
+      if _as_key then error('Can\'t encode array as key at ' .. _path) end
+      s[#s + 1] = '['
+      for i, val in ipairs(_obj) do
+        if i > 1 then s[#s + 1] = ', ' end
+        local success, result = pcall(stringify_internal, val, false, _path .. '[' .. i .. ']')
+        if not success then
+          error('Error at ' .. _path .. '[' .. i .. ']: ' .. result)
+        end
+        s[#s + 1] = result
+      end
+      s[#s + 1] = ']'
+    elseif kind == 'table' then
+      if _as_key then error('Can\'t encode table as key at ' .. _path) end
+      s[#s + 1] = '{'
+      local first = true
+      for k, v in pairs(_obj) do
+        if not first then s[#s + 1] = ', ' end
+        first = false
+        local key_path = _path .. '.' .. tostring(k)
+
+        local success, key_result = pcall(stringify_internal, k, true, key_path)
+        if not success then
+          error('Error at key ' .. key_path .. ': ' .. key_result)
+        end
+        s[#s + 1] = key_result
+        s[#s + 1] = ':'
+
+        local success, val_result = pcall(stringify_internal, v, false, key_path)
+        if not success then
+          error('Error at ' .. key_path .. ': ' .. val_result)
+        end
+        s[#s + 1] = val_result
+      end
+      s[#s + 1] = '}'
+    elseif kind == 'string' then
+      return '"' .. escape_str(_obj) .. '"'
+    elseif kind == 'number' then
+      if _as_key then return '"' .. tostring(_obj) .. '"' end
+      return tostring(_obj)
+    elseif kind == 'boolean' then
+      return tostring(_obj)
+    elseif kind == 'null' then
+      return 'null'
+    elseif kind == 'nil' then
+      return 'null'
+    else
+      error('Unjsonifiable type: ' .. kind .. " at:\n\t" .. _path)
+    end
+    return table.concat(s)
+  end
+
+  return stringify_internal(obj, as_key)
 end
 
 function json.parse(str, pos, end_delim)
+  if cjson then
+    local status, output = pcall(cjson.decode, str)
+    if status then return output end
+  end
+
   pos = pos or 1
   if pos > #str then error('Reached unexpected end of input.') end
   local pos = pos + #str:match('^%s*', pos) -- Skip whitespace.

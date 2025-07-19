@@ -1,5 +1,46 @@
 local json = require("JsonParser")
 
+---Convert player state to JSON serializable table
+---@param playerState AMotorTownPlayerState
+local function PlayerStateToTable(playerState)
+  local data = {}
+
+  if playerState:IsValid() then
+    data.UniqueID = GetUniqueNetIdAsString(playerState)
+
+    data.PlayerName = playerState:GetPlayerName():ToString()
+    data.GridIndex = playerState.GridIndex
+    data.bIsHost = playerState.bIsHost
+    data.bIsAdmin = playerState.bIsAdmin
+    data.CharacterGuid = GuidToString(playerState.CharacterGuid)
+    data.BestLapTime = playerState.BestLapTime
+
+    data.Levels = {}
+    playerState.Layers:ForEach(function(index, element)
+      table.insert(data.Levels, element:get())
+    end)
+
+    data.OwnCompanyGuid = GuidToString(playerState.OwnCompanyGuid)
+    data.JoinedCompanyGuid = GuidToString(playerState.JoinedCompanyGuid)
+    data.CustomDestinationAbsoluteLocation = VectorToTable(playerState.CustomDestinationAbsoluteLocation)
+
+    data.OwnEventGuids = {}
+    playerState.OwnEventGuids:ForEach(function(index, element)
+      table.insert(data.OwnEventGuids, GuidToString(element:get()))
+    end)
+
+    data.JoinedEventGuids = {}
+    playerState.JoinedEventGuids:ForEach(function(index, element)
+      table.insert(data.JoinedEventGuids, GuidToString(element:get()))
+    end)
+
+    data.Location = VectorToTable(playerState.Location)
+    data.VehicleKey = playerState.VehicleKey:ToString()
+  end
+
+  return data
+end
+
 ---Get all or selected player state(s)
 ---@param uniqueId string? Filter by player state unique net ID
 ---@return table[]
@@ -18,40 +59,10 @@ local function GetPlayerStates(uniqueId)
     if playerState:IsValid() then
       ---@cast playerState AMotorTownPlayerState
 
-      local data = {}
-      data.UniqueID = GetUniqueNetIdAsString(playerState)
+      local data = PlayerStateToTable(playerState)
 
       -- Filter by uniqueId if provided
       if uniqueId and uniqueId ~= data.UniqueID then goto continue end
-
-      data.PlayerName = playerState:GetPlayerName():ToString()
-      data.GridIndex = playerState.GridIndex
-      data.bIsHost = playerState.bIsHost
-      data.bIsAdmin = playerState.bIsAdmin
-      data.CharacterGuid = GuidToString(playerState.CharacterGuid)
-      data.BestLapTime = playerState.BestLapTime
-
-      data.Levels = {}
-      playerState.Layers:ForEach(function(index, element)
-        table.insert(data.Levels, element:get())
-      end)
-
-      data.OwnCompanyGuid = GuidToString(playerState.OwnCompanyGuid)
-      data.JoinedCompanyGuid = GuidToString(playerState.JoinedCompanyGuid)
-      data.CustomDestinationAbsoluteLocation = VectorToTable(playerState.CustomDestinationAbsoluteLocation)
-
-      data.OwnEventGuids = {}
-      playerState.OwnEventGuids:ForEach(function(index, element)
-        table.insert(data.OwnEventGuids, GuidToString(element:get()))
-      end)
-
-      data.JoinedEventGuids = {}
-      playerState.JoinedEventGuids:ForEach(function(index, element)
-        table.insert(data.JoinedEventGuids, GuidToString(element:get()))
-      end)
-
-      data.Location = VectorToTable(playerState.Location)
-      data.VehicleKey = playerState.VehicleKey:ToString()
 
       table.insert(arr, data)
 
@@ -107,5 +118,6 @@ end
 
 return {
   HandleGetPlayerStates = HandleGetPlayerStates,
-  GetMyCurrentTransform = GetMyCurrentTransform
+  GetMyCurrentTransform = GetMyCurrentTransform,
+  PlayerStateToTable = PlayerStateToTable
 }

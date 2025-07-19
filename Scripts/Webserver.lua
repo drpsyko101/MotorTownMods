@@ -3,9 +3,6 @@
 -- 405 response needs to add allowed methods header
 -- Cover more cases that may results in timeout
 
-local dir = os.getenv("PWD") or io.popen("cd"):read()
-package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?/core.dll"
-package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
 local socket = require("socket")
 local mime = require("mime")
 local url = require("socket.url")
@@ -402,6 +399,7 @@ local function processSession(client)
                     }
                     sendResponse(client, err, nil, 500)
                 end) then
+                -- Avoid using json.stringify here to avoid unprotected handler
                 sendResponse(client, '{"error":"Internal server error"}', nil, 500)
             end
         end

@@ -1,7 +1,3 @@
-local dir = os.getenv("PWD") or io.popen("cd"):read()
-package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?/core.dll"
-package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
-
 local json = require("JsonParser")
 local statics = require("Statics")
 local socket = RequireSafe("socket") ---@type Socket?
@@ -11,6 +7,19 @@ local ltn12 = RequireSafe("ltn12")
 local webhookUrl = os.getenv("MOD_WEBHOOK_URL")
 local method = os.getenv("MOD_WEBHOOK_METHOD") or "POST"
 local extraHeaders = json.parse(os.getenv("MOD_WEBHOOK_EXTRA_HEADERS") or "{}") or {}
+local webhookEvents = SplitString(os.getenv("MOD_WEBHOOK_ENABLE_EVENTS") or "all", ",") or {}
+
+---@enum (key) EventHook
+local events = {
+    ServerSendChat = "/Script/MotorTown.MotorTownPlayerController:ServerSendChat",
+    ServerAcceptDelivery = "/Script/MotorTown.MotorTownPlayerController:ServerAcceptDelivery",
+    ServerAddEvent = "/Script/MotorTown.MotorTownPlayerController:ServerAddEvent",
+    ServerChangeEventState = "/Script/MotorTown.MotorTownPlayerController:ServerChangeEventState",
+    ServerRemoveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerRemoveEvent",
+    ServerPassedRaceSection = "/Script/MotorTown.MotorTownPlayerController:ServerPassedRaceSection",
+    ServerJoinEvent = "/Script/MotorTown.MotorTownPlayerController:ServerJoinEvent",
+    ServerLeaveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerLeaveEvent",
+}
 
 ---Send a request to the specified URL
 ---@param url string
@@ -92,7 +101,7 @@ end
 ---Create a webhook request from and event and its data.
 ---The request will be made asynchronously
 ---@param event string Event name. Usually the full path to the function hook.
----@param data table Payload to send to the webhook endpoint
+---@param data table|table[] Payload to send to the webhook endpoint
 ---@param callback fun(status: boolean)? Optional callback after handling the request
 local function CreateEventWebhook(event, data, callback)
     LogOutput("DEBUG", "Received hook event %s", event)
@@ -129,9 +138,43 @@ local function CreateServerRequest(path, content)
     return state
 end
 
+---Check if event hook enabled
+---@param event EventHook
+---@return boolean enabled
+---@return string? eventName
+local function isEventEnabled(event)
+    for index, value in ipairs(webhookEvents) do
+        if events[event] and (value == "all" or event == value) then
+            return true, events[event]
+        end
+    end
+    return false
+end
+
+---Register event hook wrapper
+---@param event EventHook
+---@param hookFunction fun(self: UObject, ...): table|table[]|nil
+---@param callback fun(status: boolean)?
+---@return integer? preId
+---@return integer? postId
+local function RegisterEventHook(event, hookFunction, callback)
+    local isEnabled, eventName = isEventEnabled(event)
+    if isEnabled and eventName then
+        local preId, postId = RegisterHook(eventName, function(self, ...)
+            local result = hookFunction(self, ...)
+            if result then
+                CreateEventWebhook(eventName, result, callback)
+            end
+        end)
+        return preId, postId
+    end
+end
+
 return {
     ---@deprecated Use `CreateEventWebhook` instead for additional functionality
     CreateWebhookRequest = CreateWebhookRequest,
     CreateServerRequest = CreateServerRequest,
-    CreateEventWebhook = CreateEventWebhook
+    ---@deprecated Use `RegisterEventHook` wrapper function for cleaner code
+    CreateEventWebhook = CreateEventWebhook,
+    RegisterEventHook = RegisterEventHook,
 }

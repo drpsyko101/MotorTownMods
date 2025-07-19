@@ -1,11 +1,74 @@
 local json = require("JsonParser")
 local webhook = require("Webclient")
 
+---Announce a message to the whole server
+---@param message string
+---@param playerId string?
+---@param pinned boolean?
+local function AnnounceServerMessage(message, playerId, pinned)
+  local PC = CreateInvalidObject()
+  if playerId then
+    PC = GetPlayerControllerFromUniqueId(playerId)
+  else
+    local gameState = GetMotorTownGameState()
+    if gameState:IsValid() then
+      for i = 1, #gameState.PlayerArray do
+        local PS = gameState.PlayerArray[i]
+
+        if PS:IsValid() then
+          ---@cast PS AMotorTownPlayerState
+
+          if PS.bIsAdmin or pinned then
+            PC = PS:GetPlayerController()
+          end
+        end
+      end
+    end
+  end
+
+  if PC:IsValid() then
+    ---@cast PC AMotorTownPlayerController
+
+    if pinned then
+      PC:ServerAnnouncePinned(message)
+    else
+      PC:ServerAnnounce(message)
+    end
+    local id = GetPlayerUniqueId(PC)
+    return true, id
+  end
+  return false
+end
+
+-- Handle HTTP requests
+
+---Handle announce request
+---@type RequestPathHandler
+local function HandleAnnounceMessage(session)
+  local data = json.parse(session.content)
+
+  if data and type(data) == "table" then
+    if data.message then
+      if type(data.message) == "string" then
+        local status, id = AnnounceServerMessage(data.message, data.playerId, data.isPinned)
+        if status then
+          return json.stringify { status = "ok", playerId = id }
+        end
+        return json.stringify { message = "Failed to send message" }, nil, 400
+      else
+        return json.stringify { message = "Invalid message field specified" }, nil, 400
+      end
+    else
+      return json.stringify { message = "No message field specified" }, nil, 400
+    end
+  end
+  return json.stringify { message = "Invalid request content" }, nil, 400
+end
+
 -- Register webhook
 
-local serverSendChat = "/Script/MotorTown.MotorTownPlayerController:ServerSendChat"
-RegisterHook(
-  serverSendChat,
+webhook.RegisterEventHook(
+  "ServerSendChat",
   function(context, message, category)
     local PC = context:get() ---@cast PC APlayerController
 
@@ -15,13 +78,14 @@ RegisterHook(
 
     if not PS:IsValid() then return end
 
-    local data = {
+    return {
       Sender = GuidToString(PS.CharacterGuid),
       Message = message:get():ToString(),
       Category = category:get()
     }
-
-    LogOutput("DEBUG", json.stringify(data))
-    webhook.CreateEventWebhook(serverSendChat, data)
   end
 )
+
+return {
+  HandleAnnounceMessage = HandleAnnounceMessage
+}

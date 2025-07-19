@@ -1,6 +1,10 @@
+local dir = os.getenv("PWD") or io.popen("cd"):read()
+package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?/core.dll"
+package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
+
 require("Helpers")
 local json = require("JsonParser")
-local logging = require("Debugging.Logging")
+local logging = require("Debugging/Logging")
 
 ---@deprecated Use LogOutput instead to avoid concat errors
 LogMsg = logging.logMsg
@@ -12,6 +16,8 @@ local serverManager = require("ServerManager")
 local cargoManager = require("CargoManager")
 local chatManager = require("ChatManager")
 local widgetManager = require("ViewportManager")
+local companyManager = require("CompanyManager")
+local characterManager = require("CharacterManager")
 
 local function LoadWebserver()
   local status, err = pcall(function()
@@ -78,12 +84,19 @@ local function LoadWebserver()
 
     -- UI management
     server.registerHandler("/messages/popup", "POST", widgetManager.HandleShowPopupMessage)
+    server.registerHandler("/messages/announce", "POST", chatManager.HandleAnnounceMessage)
+
+    -- Company management
+    server.registerHandler("/companies", "GET", companyManager.HandleGetCompanies)
+
+    -- Character management
+    server.registerHandler("/characters", "GET", characterManager.HandleGetCharacters)
 
     server.run("*")
     return nil
   end)
   if not status then
-    LogOutput("INFO", "Unexpected error has occured in Webserver: %s", err)
+    LogOutput("ERROR", "Webserver stopped unexpectedly due to error: %s", err)
   end
 end
 
