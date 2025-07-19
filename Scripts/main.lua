@@ -4,7 +4,7 @@ package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
 
 require("Helpers")
 local json = require("JsonParser")
-local logging = require("Debugging.Logging")
+local logging = require("Debugging/Logging")
 
 ---@deprecated Use LogOutput instead to avoid concat errors
 LogMsg = logging.logMsg

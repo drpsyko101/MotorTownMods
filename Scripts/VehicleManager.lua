@@ -2,7 +2,7 @@ local webhook = require("Webclient")
 local json = require("JsonParser")
 local cargo = require("CargoManager")
 local assetManager = require("AssetManager")
-local timer = require("Debugging.Timer")
+local timer = require("Debugging/Timer")
 
 local vehicleDealerSoftPath = "/Script/MotorTown.MTDealerVehicleSpawnPoint"
 
