@@ -200,7 +200,14 @@ function json.stringify(obj, as_key)
   return stringify_internal(obj, as_key)
 end
 
+---Parse string into lua value
+---@param str string
+---@param pos integer?
+---@param end_delim string?
+---@return unknown|nil
 function json.parse(str, pos, end_delim)
+  if str == nil then return nil end
+
   if cjson then
     local status, output = pcall(cjson.decode, str)
     if status then return output end
