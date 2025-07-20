@@ -163,9 +163,13 @@ local function RegisterEventHook(event, hookFunction, callback)
     if isEnabled and eventName then
         local status, out1, out2 = pcall(function()
             local preId, postId = RegisterHook(eventName, function(self, ...)
-                local result = hookFunction(self, ...)
-                if result then
-                    CreateEventWebhook(eventName, result, callback)
+                local status, result = pcall(hookFunction, self, ...)
+                if status then
+                    if result then
+                        CreateEventWebhook(eventName, result, callback)
+                    end
+                else
+                    LogOutput("ERROR", "Failed to execute event hook: %s", result)
                 end
             end)
             return preId, postId

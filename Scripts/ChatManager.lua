@@ -85,7 +85,7 @@ webhook.RegisterEventHook(
     if not PS:IsValid() then return end
 
     return {
-      Sender = GuidToString(PS.CharacterGuid),
+      Sender = GetPlayerUniqueId(PC),
       Message = message:get():ToString(),
       Category = category:get()
     }
