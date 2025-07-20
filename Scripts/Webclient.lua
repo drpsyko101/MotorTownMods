@@ -19,6 +19,7 @@ local events = {
     ServerPassedRaceSection = "/Script/MotorTown.MotorTownPlayerController:ServerPassedRaceSection",
     ServerJoinEvent = "/Script/MotorTown.MotorTownPlayerController:ServerJoinEvent",
     ServerLeaveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerLeaveEvent",
+    ServerCargoArrived = "/Script/MotorTown.MotorTownPlayerController:ServerCargoArrived",
 }
 
 ---Send a request to the specified URL
@@ -160,13 +161,24 @@ end
 local function RegisterEventHook(event, hookFunction, callback)
     local isEnabled, eventName = isEventEnabled(event)
     if isEnabled and eventName then
-        local preId, postId = RegisterHook(eventName, function(self, ...)
-            local result = hookFunction(self, ...)
-            if result then
-                CreateEventWebhook(eventName, result, callback)
-            end
+        local status, out1, out2 = pcall(function()
+            local preId, postId = RegisterHook(eventName, function(self, ...)
+                local status, result = pcall(hookFunction, self, ...)
+                if status then
+                    if result then
+                        CreateEventWebhook(eventName, result, callback)
+                    end
+                else
+                    LogOutput("ERROR", "Failed to execute event hook: %s", result)
+                end
+            end)
+            return preId, postId
         end)
-        return preId, postId
+        if status then
+            return out1, out2
+        else
+            LogOutput("ERROR", "Failed to register event hook: %s", out1)
+        end
     end
 end
 

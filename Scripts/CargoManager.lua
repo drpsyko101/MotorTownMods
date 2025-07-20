@@ -403,6 +403,21 @@ webhook.RegisterEventHook(
   end
 )
 
+webhook.RegisterEventHook(
+  "ServerCargoArrived",
+  function (context, Cargos)
+    local playerId = GetPlayerUniqueId(context:get())
+    local data = {}
+    Cargos:get():ForEach(function(key, value)
+      table.insert(data, CargoToTable(value:get()))
+    end)
+    return {
+      PlayerId = playerId,
+      Cargos = data
+    }
+  end
+)
+
 -- HTTP request handlers
 
 ---Handle GetDeliveryPoints request

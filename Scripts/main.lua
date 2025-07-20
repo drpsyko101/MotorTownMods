@@ -5,6 +5,7 @@ package.cpath = package.cpath .. ";" .. dir .. "/ue4ss/Mods/shared/?.dll"
 require("Helpers")
 local json = require("JsonParser")
 local logging = require("Debugging/Logging")
+local statics = require("Statics")
 
 ---@deprecated Use LogOutput instead to avoid concat errors
 LogMsg = logging.logMsg
@@ -44,6 +45,12 @@ local function LoadWebserver()
         end
         return json.stringify { status = "ok" }
       end,
+      false
+    )
+    server.registerHandler(
+      "/version",
+      "GET",
+      function(session) return json.stringify { version = statics.ModVersion } end,
       false
     )
     server.registerHandler("/status/general", "GET", serverManager.HandleGetServerState)
