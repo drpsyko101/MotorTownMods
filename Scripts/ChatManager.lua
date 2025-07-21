@@ -18,7 +18,7 @@ local function AnnounceServerMessage(message, playerId, pinned)
         if PS:IsValid() then
           ---@cast PS AMotorTownPlayerState
 
-          if PS.bIsAdmin or pinned then
+          if PS.bIsAdmin then
             PC = PS:GetPlayerController()
           end
         end
