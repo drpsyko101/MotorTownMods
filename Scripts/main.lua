@@ -70,7 +70,7 @@ local function LoadWebserver()
     server.registerHandler("/events/*", "DELETE", eventManager.HandleRemoveEvent)
 
     -- Properties management
-    server.registerHandler("/houses", "GET", propertyManager.HandleGetAllHouses)
+    server.registerHandler("/houses", "GET", propertyManager.HandleGetHouses)
     server.registerHandler("/houses/spawn", "POST", propertyManager.HandleSpawnHouse)
 
     -- Cargo management

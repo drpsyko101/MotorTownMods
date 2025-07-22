@@ -28,15 +28,24 @@ local function HouseToTable(house)
 end
 
 ---Get all houses
+---@param guid string? Filter by house GUID
 ---@return table[]
-local function GetHouses()
+local function GetHouses(guid)
   local gameState = GetMotorTownGameState()
   local arr = {}
 
   if gameState:IsValid() then
-    gameState.Houses:ForEach(function(index, element)
-      table.insert(arr, HouseToTable(element:get()))
-    end)
+    for i = 1, #gameState.Houses do
+      local house = gameState.Houses[i]
+
+      if guid and guid:upper() ~= GuidToString(house.HouseGuid) then
+        goto continue
+      end
+
+      table.insert(arr, HouseToTable(house))
+
+      :: continue ::
+    end
   end
 
   return arr
@@ -75,11 +84,11 @@ end
 
 ---Handle request for all houses
 ---@type RequestPathHandler
-local function HandleGetAllHouses(session)
-  local houses = json.stringify {
-    data = GetHouses()
-  }
-  return houses
+local function HandleGetHouses(session)
+  local guid = session.pathComponents[2]
+
+  local houses = GetHouses(guid)
+  return json.stringify { data = houses }
 end
 
 ---Handle request for spawning a new house for sale
@@ -98,6 +107,6 @@ local function HandleSpawnHouse(session)
 end
 
 return {
-  HandleGetAllHouses = HandleGetAllHouses,
+  HandleGetHouses = HandleGetHouses,
   HandleSpawnHouse = HandleSpawnHouse
 }

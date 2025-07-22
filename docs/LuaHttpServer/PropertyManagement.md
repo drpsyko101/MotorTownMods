@@ -37,6 +37,10 @@ Returns all houses in the game.
 
 </details>
 
+#### GET `/houses/<guid>`
+
+Returns a house with the givent GUID. Returns similar data as above.
+
 #### POST `/houses/spawn`
 
 Spawn a house plot for sale. Returns a `201` status if the plot successfully spawned. Can be despawned using POST `/assets/despawn` with the resulting GUID.
