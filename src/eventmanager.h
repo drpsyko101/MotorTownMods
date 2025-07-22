@@ -86,7 +86,7 @@ class EventManager : public Route
 public:
 	EventManager();
 	virtual bool IsMatchingRequest(http::request<http::string_body> req) override;
-	virtual json::object GetResponseJson(http::request<http::string_body> req) override;
+	virtual json::object GetResponseJson(http::request<http::string_body> req, http::status& statusCode) override;
 
 private:
 	std::vector<FMTEvent> GetEvents();

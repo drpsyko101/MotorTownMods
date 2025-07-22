@@ -24,7 +24,7 @@ bool PlayerManager::IsMatchingRequest(http::request<http::string_body> req)
 	return false;
 }
 
-json::object PlayerManager::GetResponseJson(http::request<http::string_body> req)
+json::object PlayerManager::GetResponseJson(http::request<http::string_body> req, http::status& statusCode)
 {
 	json::object response_json;
 	if (req.method() == http::verb::get && req.target().starts_with("/players"))
@@ -33,11 +33,12 @@ json::object PlayerManager::GetResponseJson(http::request<http::string_body> req
 		if (req.target() == "/players")
 		{
 			json::array arr;
-			for (const auto& data : GetPlayerLocations())
+			for (const auto& data : GetPlayerStates())
 			{
 				arr.push_back(data.ToJson());
 			}
 			response_json["data"] = arr;
+			statusCode = http::status::ok;
 		}
 		// TODO: return specific player
 	}
@@ -45,17 +46,20 @@ json::object PlayerManager::GetResponseJson(http::request<http::string_body> req
 	return response_json;
 }
 
-std::list<MotorTownPlayerState> PlayerManager::GetPlayerLocations()
+std::list<MotorTownPlayerState> PlayerManager::GetPlayerStates()
 {
 	std::list<MotorTownPlayerState> playerStates;
 	map<std::wstring, FVector> locs;
+
+	auto playerStateClass = STR("MotorTownPlayerState");
 	std::vector<UObject*> objs;
-	UObjectGlobals::FindAllOf(
-		STR("MotorTownPlayerState"),
-		objs);
+	UObjectGlobals::FindAllOf(playerStateClass, objs);
+
+	Output::send<LogLevel::Verbose>(STR("Found {} playerStates\n"), objs.size());
 
 	for (UObject* obj : objs)
 	{
+		Output::send<LogLevel::Verbose>(STR("objClass: {}\n"), obj->GetClassPrivate()->GetName());
 		MotorTownPlayerState playerState;
 		FString playerName = FString(STR(""));
 		if (UFunction* getPlayerName = obj->GetFunctionByNameInChain(
@@ -107,18 +111,14 @@ std::list<MotorTownPlayerState> PlayerManager::GetPlayerLocations()
 		}
 
 		playerStates.push_back(playerState);
-
-		// Deallocate current obj pointer
-		free(obj);
 	}
-
-	objs.clear();
 
 	return playerStates;
 }
 
 json::object MotorTownPlayerState::ToJson() const
 {
+	Output::send<LogLevel::Verbose>(STR("Parsing player states to JSON\n"));
 	json::object elem;
 	elem["PlayerName"] = to_string(PlayerName.GetCharArray());
 	elem["GridIndex"] = GridIndex;

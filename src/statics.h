@@ -91,4 +91,6 @@ public:
 
 	// Get webhook URL for external callback
 	static const std::string GetWebhookUrl();
+
+	static boost::json::object ObjectToJson(UObject* Object);
 };

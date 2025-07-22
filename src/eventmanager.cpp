@@ -11,6 +11,7 @@
 #include <Unreal/UObject.hpp>
 #include <Unreal/FField.hpp>
 #include <Unreal/Script.hpp>
+#include <Helpers/String.hpp>
 #include <Unreal/Core/Containers/ScriptArray.hpp>
 #include <DynamicOutput/DynamicOutput.hpp>
 #include <regex>
@@ -149,7 +150,7 @@ bool EventManager::IsMatchingRequest(http::request<http::string_body> req)
 	return false;
 }
 
-json::object EventManager::GetResponseJson(http::request<http::string_body> req)
+json::object EventManager::GetResponseJson(http::request<http::string_body> req, http::status& statusCode)
 {
 	json::object res;
 	if (req.target() == "/events")
@@ -164,6 +165,7 @@ json::object EventManager::GetResponseJson(http::request<http::string_body> req)
 				arr.push_back(event.ToJson());
 			}
 			res["data"] = arr;
+			statusCode = http::status::ok;
 			return res;
 		}
 		case http::verb::post: // handle POST a new event
@@ -201,7 +203,7 @@ json::object EventManager::GetResponseJson(http::request<http::string_body> req)
 		{
 			Output::send<LogLevel::Error>(STR("[{}] Invalid payload for {}\n"),
 				ModStatics::GetModName(),
-				to_wstring(req.target()));
+				to_wstring(req.target().data()));
 			return res;
 		}
 

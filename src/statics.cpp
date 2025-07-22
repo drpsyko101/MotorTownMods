@@ -3,7 +3,13 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <Unreal/Rotator.hpp>
 #include <Unreal/UStruct.hpp>
+#include <Unreal/UClass.hpp>
 #include <Unreal/FProperty.hpp>
+#include <Unreal/Property/FStrProperty.hpp>
+#include <Unreal/Property/NumericPropertyTypes.hpp>
+#include <Unreal/Property/FBoolProperty.hpp>
+#include <Unreal/Property/FNameProperty.hpp>
+#include <Unreal/Property/FTextProperty.hpp>
 #include <windows.h>
 #include <stdio.h>
 
@@ -88,6 +94,71 @@ const std::string ModStatics::GetWebhookUrl()
 {
 	std::string test = getenv("MOD_WEBHOOK_URL");
 	return getenv("MOD_WEBHOOK_URL");
+}
+
+boost::json::object ModStatics::ObjectToJson(UObject* Object)
+{
+	boost::json::object obj;
+
+	auto objClass = Object->GetClassPrivate();
+	for (FProperty* Property = objClass->GetPropertyLink(); Property; Property = Property->GetPropertyLinkNext())
+	{
+		std::string propName = to_string(Property->GetName().c_str());
+		if (Property->GetFullName().contains(objClass->GetName()))
+		{
+			if (auto strProp = CastField<FStrProperty>(Property))
+			{
+				auto value = strProp->GetPropertyValue(Object).GetCharArray();
+				obj[propName] = to_string(value);
+			}
+			else if (auto floatProp = CastField<FFloatProperty>(Property))
+			{
+				float value = floatProp->GetPropertyValue(Object);
+				obj[propName] = value;
+			}
+			else if (auto floatProp = CastField<FDoubleProperty>(Property))
+			{
+				double value = floatProp->GetPropertyValue(Object);
+				obj[propName] = value;
+			}
+			else if (auto boolProp = CastField<FBoolProperty>(Property))
+			{
+				bool value = boolProp->GetPropertyValue(Object);
+				obj[propName] = value;
+			}
+			else if (auto intProp = CastField<FIntProperty>(Property))
+			{
+				int value = intProp->GetPropertyValue(Object);
+				obj[propName] = value;
+			}
+			else if (auto nameProp = CastField<FNameProperty>(Property))
+			{
+				auto value = nameProp->GetPropertyValue(Object).ToString();
+				obj[propName] = to_string(value);
+			}
+			else if (auto textProp = CastField<FTextProperty>(Property))
+			{
+				auto value = textProp->GetPropertyValue(Object).ToString();
+				obj[propName] = to_string(value);
+			}
+			else if (auto intProp = CastField<FInt64Property>(Property))
+			{
+				auto value = intProp->GetPropertyValue(Object);
+				obj[propName] = value;
+			}
+			else if (auto intProp = CastField<FByteProperty>(Property))
+			{
+				auto value = intProp->GetPropertyValue(Object);
+				obj[propName] = value;
+			}
+		}
+		else
+		{
+			break; // Assume anything below to be super props
+		}
+	}
+
+	return obj;
 }
 
 FMTCharacterId::FMTCharacterId()

@@ -29,8 +29,8 @@ class PlayerManager : public Route
 public:
 	PlayerManager();
 	virtual bool IsMatchingRequest(http::request<http::string_body> req) override;
-	virtual json::object GetResponseJson(http::request<http::string_body> req) override;
+	virtual json::object GetResponseJson(http::request<http::string_body> req, http::status& statusCode) override;
 
 private:
-	std::list<MotorTownPlayerState> GetPlayerLocations();
+	std::list<MotorTownPlayerState> GetPlayerStates();
 };

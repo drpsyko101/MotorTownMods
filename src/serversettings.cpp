@@ -89,7 +89,7 @@ bool ServerSettings::IsMatchingRequest(http::request<http::string_body> req)
 	return false;
 }
 
-json::object ServerSettings::GetResponseJson(http::request<http::string_body> req)
+json::object ServerSettings::GetResponseJson(http::request<http::string_body> req, http::status& statusCode)
 {
 	json::object obj;
 	if (req.target() == vehicleConfigPath)
@@ -102,6 +102,7 @@ json::object ServerSettings::GetResponseJson(http::request<http::string_body> re
 				arr.push_back(data.ToJson());
 			}
 			obj["data"] = arr;
+			statusCode = http::status::ok;
 			return obj;
 		}
 	}
