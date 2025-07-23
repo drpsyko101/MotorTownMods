@@ -520,3 +520,14 @@ function MergeTable(base, append)
   end
   return base
 end
+
+---Get object as JSON serializable table
+---@param object UObject
+---@param field string? Optional field to serialize, if not specified, all variables are returned
+---@return table
+function GetObjectAsTable(object, field)
+  ---@diagnostic disable-next-line: undefined-global
+  local status, output = pcall(GetObjectVariables, object, field)
+  if status then return output end
+  return {}
+end
