@@ -105,7 +105,7 @@ end)
 -- HTTP request handlers
 
 ---Handle request for player states
----@param session ClientTable
+---@type RequestPathHandler
 local function HandleGetPlayerStates(session)
   local playerId = session.pathComponents[2]
   local res = GetPlayerStates(playerId)
@@ -116,8 +116,43 @@ local function HandleGetPlayerStates(session)
   return json.stringify { data = res }, nil, 200
 end
 
+---Handle request to teleport player
+---@type RequestPathHandler
+local function HandleTeleportPlayer(session)
+  local playerId = session.pathComponents[2]
+  local data = json.parse(session.content)
+
+  if data and data.Location then
+    ---@type FVector
+    local location = { X = data.Location.X, Y = data.Location.Y, Z = data.Location.Z }
+    ---@type FRotator
+    local rotation = {
+      Roll = data.Rotation and data.Rotation.Roll or 0.0,
+      Pitch = data.Rotation and data.Rotation.Pitch or 0.0,
+      Yaw = data.Rotation and data.Rotation.Roll or 0.0
+    }
+
+    if playerId then
+      local PC = GetPlayerControllerFromUniqueId(playerId)
+      if PC:IsValid() then
+        local pawn = PC:K2_GetPawn()
+        if pawn:IsValid() then
+          if pawn:K2_TeleportTo(location, rotation) then
+            local msg = string.format("Teleported player %s to %s", playerId, json.stringify(data.Location))
+            return json.stringify { status = msg }, nil, 200
+          end
+        end
+      end
+      return json.stringify { error = string.format("Failed to teleport player %s", playerId) }, nil, 400
+    end
+    return json.stringify { error = string.format("Invalid player ID %s", playerId) }, nil, 400
+  end
+  return json.stringify { error = "Invalid payload" }, nil, 400
+end
+
 return {
   HandleGetPlayerStates = HandleGetPlayerStates,
   GetMyCurrentTransform = GetMyCurrentTransform,
-  PlayerStateToTable = PlayerStateToTable
+  PlayerStateToTable = PlayerStateToTable,
+  HandleTeleportPlayer = HandleTeleportPlayer,
 }
