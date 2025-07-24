@@ -1749,6 +1749,48 @@ local function HandleSpawnGarage(session)
   return nil, nil, 400
 end
 
+---Handle request to change a vehicle parameter
+---@type RequestPathHandler
+local function HandleSetVehicleParameter(session)
+  local id = tonumber(session.pathComponents[2])
+  local data = json.parse(session.content)
+
+  if data and data.Field and data.Value then
+    local vehicle = CreateInvalidObject() ---@cast vehicle AMTVehicle
+    if id and id > 0 then -- Prevent modifying the AI/loaner vehicles
+      local gameState = GetMotorTownGameState()
+      if gameState:IsValid() then
+        for i = 1, #gameState.Vehicles do
+          local _vehicle = gameState.Vehicles[i]
+          if _vehicle:IsValid() and _vehicle.Net_VehicleId == id then
+            vehicle = _vehicle
+            break;
+          end
+        end
+      end
+    elseif data.PlayerId then
+      local PC = GetPlayerControllerFromUniqueId(data.PlayerId)
+      if PC:IsValid() then
+        local pawn = PC:K2_GetPawn()
+        local vehicleClass = StaticFindObject("/Script/MotorTown.MTVehicle")
+        ---@cast vehicleClass UClass
+
+        if pawn:IsValid() and pawn:IsA(vehicleClass) then
+          vehicle = pawn
+        end
+      end
+    end
+
+    if vehicle:IsValid() then
+      local fields = SplitString(data.Field, ".") or {}
+      RecursiveSetValue(vehicle, fields, data.Value)
+      return json.stringify { Status = "ok" }, nil, 200
+    end
+    return json.stringify { error = "Unable to find specified vehicle" }, nil, 404
+  end
+  return json.stringify { error = "Invalid payload provided" }, nil, 400
+end
+
 return {
   HandleGetVehicles = HandleGetVehicles,
   HandleDespawnVehicle = HandleDespawnVehicle,
@@ -1759,5 +1801,6 @@ return {
   VehicleCustomizationToTable = VehicleCustomizationToTable,
   VehicleDecalToTable = VehicleDecalToTable,
   VehicleMirrorPositionToTable = VehicleMirrorPositionToTable,
-  VehicleSettingToTable = VehicleSettingToTable
+  VehicleSettingToTable = VehicleSettingToTable,
+  HandleSetVehicleParameter = HandleSetVehicleParameter,
 }
