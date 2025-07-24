@@ -934,13 +934,43 @@ Get all currently available vehicles in game. This is a very resource intensive 
 
 </details>
 
-#### GET `/vehicles/<guid>`
+#### PATCH `/vehicles`
 
-Get selected vehicle guid. This is currently only works for player owned vehicles as NPC vehicles are marked with -1 guid. Retuns the same response and using the same query as above.
+Patch a vehicle parameter based on the player unique ID.
 
-#### POST `/vehicles/<guid>/despawn`
+<details>
+<summary>Request body:</summary>
 
-Despawn selected vehicle with the given guid. This is currently only works for player owned vehicles as NPC vehicles are marked with -1 guid. Returns a `204` for a successful request.
+```json
+{
+  "PlayerId": "",
+  "Field": "NetLC_VehicleState.Fuel",
+  "Value": 10
+}
+```
+
+</details>
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{ "status": "ok" }
+```
+
+</details>
+
+#### GET `/vehicles/<id>`
+
+Get selected vehicle ID. This is currently only works for player owned vehicles as NPC vehicles are marked with negative integers. Retuns the same response and using the same query as [`GET /vehicles`](#get-vehicles).
+
+#### PATCH `/vehicles/<id>`
+
+Patch a vehicle parameter based on the vehicle ID. Uses the same request body and return response as [`PATCH /vehicles`](#patch-vehicles) without the `PlayerId` field.
+
+#### POST `/vehicles/<id>/despawn`
+
+Despawn selected vehicle with the given ID. This is currently only works for player owned vehicles as NPC vehicles are marked with negative integers. Returns a `204` for a successful request.
 
 #### POST `/dealers/spawn`
 
