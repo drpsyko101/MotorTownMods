@@ -35,3 +35,37 @@ Returns all available player states.
 #### GET `/players/<uniqueId>`
 
 Returns the specified player state based on the player unique net ID. Output the same response JSON as above.
+
+#### POST `/players/<uniqueId>/teleport`
+
+Teleport a player pawn to the desired location and optionally its rotation.
+
+
+<details>
+<summary>Request body:</summary>
+
+```json
+{
+  "Location": {
+    "X": 0.0,
+    "Y": 0.0,
+    "Z": 0.0
+  },
+  "Rotation": {
+    "Pitch": 0.0,
+    "Roll": 0.0,
+    "Yaw": 0.0
+  },
+}
+```
+
+</details>
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{"status":"Teleported player 76561198041602277 to {\"X\":-191656.25868804,\"Y\":-68211.974820721,\"Z\":-19425.726114405}"}
+```
+
+</details>

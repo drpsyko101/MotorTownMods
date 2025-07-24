@@ -159,3 +159,28 @@ Update the traffic related settings. Each request parameter is optional.
 ```
 
 </details>
+
+#### POST `/command`
+
+Execute a console command on the server. Optionally can be executed on a specific player controller.
+
+<details>
+<summary>Request body:</summary>
+
+```json
+{
+  "Command": "mh.aIVehicleStuckTimeSeconds=120",
+  "PlayerId": ""
+}
+```
+
+</details>
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{ "status": "ok" }
+```
+
+</details>
