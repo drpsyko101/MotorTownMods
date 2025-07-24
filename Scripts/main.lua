@@ -34,31 +34,16 @@ local function LoadWebserver()
     -- Put more specific paths before more general ones
 
     -- General server status
-    server.registerHandler(
-      "/status",
-      "GET",
-      function(session)
-        local gameState = GetMotorTownGameState()
-        if not gameState:IsValid() then
-          -- Game state is not created yet
-          return json.stringify { status = "not ready" }, nil, 503
-        end
-        return json.stringify { status = "ok" }
-      end,
-      false
-    )
-    server.registerHandler(
-      "/version",
-      "GET",
-      function(session) return json.stringify { version = statics.ModVersion } end,
-      false
-    )
+    server.registerHandler("/status", "GET", serverManager.HandleGetServerStatus, false)
+    server.registerHandler("/version", "GET", serverManager.HandleGetModVersion, false)
     server.registerHandler("/status/general", "GET", serverManager.HandleGetServerState)
     server.registerHandler("/status/general/*", "GET", serverManager.HandleGetZoneState)
     server.registerHandler("/status/traffic", "POST", serverManager.HandleUpdateNpcTraffic)
+    server.registerHandler("/command", "POST", serverManager.HandleServerExecCommand)
 
     -- Player management
     server.registerHandler("/players", "GET", playerManager.HandleGetPlayerStates)
+    server.registerHandler("/players/*/teleport", "POST", playerManager.HandleTeleportPlayer)
     server.registerHandler("/players/*", "GET", playerManager.HandleGetPlayerStates)
 
     -- Event management

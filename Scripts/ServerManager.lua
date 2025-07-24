@@ -1,4 +1,6 @@
 local json = require("JsonParser")
+local UEHelpers = require("UEHelpers")
+local statics = require("Statics")
 
 local maxVehiclePerPlayer = 10
 local npcVehicleDensity = 1.0
@@ -158,7 +160,8 @@ local function AutoAdjustServerCaps(override)
         gameState.Net_ServerConfig.MaxVehiclePerPlayer = newLimit
         AdjustTrafficDensity(math.floor(npcVehicleDensity / 2))
     else
-        LogOutput("DEBUG", "Server FPS at 60 FPS or in override mode, setting maxVehiclePerPlayer to %i", maxVehiclePerPlayer)
+        LogOutput("DEBUG", "Server FPS at 60 FPS or in override mode, setting maxVehiclePerPlayer to %i",
+            maxVehiclePerPlayer)
         gameState.Net_ServerConfig.MaxVehiclePerPlayer = maxVehiclePerPlayer
         AdjustTrafficDensity(npcVehicleDensity)
     end
@@ -230,8 +233,44 @@ local function HandleUpdateNpcTraffic(session)
     return nil, nil, 400
 end
 
+---Handle request to execute command on the server
+---@type RequestPathHandler
+local function HandleServerExecCommand(session)
+    local data = json.parse(session.content)
+
+    if data and data.Command then
+        local world = UEHelpers.GetWorld()
+        if world:IsValid() then
+            local PC = data.PlayerId and GetPlayerControllerFromUniqueId(data.PlayerId) or nil
+            UEHelpers.GetKismetSystemLibrary():ExecuteConsoleCommand(world, data.Command, PC)
+            return json.stringify { status = "ok" }, nil, 201
+        end
+    end
+    return json.stringify { error = "Invalid payload" }, nil, 400
+end
+
+---Handle get server status
+---@type RequestPathHandler
+local function HandleGetServerStatus(session)
+    local gameState = GetMotorTownGameState()
+    if not gameState:IsValid() then
+        -- Game state is not created yet
+        return json.stringify { status = "not ready" }, nil, 503
+    end
+    return json.stringify { status = "ok" }
+end
+
+---Handle get mod version
+---@type RequestPathHandler
+local function HandleGetModVersion(session)
+    return json.stringify { version = statics.ModVersion }
+end
+
 return {
     HandleGetServerState = HandleGetServerState,
     HandleGetZoneState = HandleGetZoneState,
-    HandleUpdateNpcTraffic = HandleUpdateNpcTraffic
+    HandleUpdateNpcTraffic = HandleUpdateNpcTraffic,
+    HandleServerExecCommand = HandleServerExecCommand,
+    HandleGetServerStatus = HandleGetServerStatus,
+    HandleGetModVersion = HandleGetModVersion,
 }
