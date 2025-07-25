@@ -73,6 +73,9 @@ static void get_variable_as_table(
 			case PropertyType::Array:
 				table.add_value(to_string(str).c_str());
 				break;
+			case PropertyType::Map:
+				table.add_key(to_string(str).c_str());
+				break;
 			default:
 				table.add_pair(propName.c_str(), to_string(str).c_str());
 			}
@@ -85,6 +88,9 @@ static void get_variable_as_table(
 			{
 			case PropertyType::Array:
 				table.add_value(to_string(str).c_str());
+				break;
+			case PropertyType::Map:
+				table.add_key(to_string(str).c_str());
 				break;
 			default:
 				table.add_pair(propName.c_str(), to_string(str).c_str());
@@ -99,6 +105,9 @@ static void get_variable_as_table(
 			case PropertyType::Array:
 				table.add_value(to_string(str).c_str());
 				break;
+			case PropertyType::Map:
+				table.add_key(to_string(str).c_str());
+				break;
 			default:
 				table.add_pair(propName.c_str(), to_string(str).c_str());
 			}
@@ -110,6 +119,9 @@ static void get_variable_as_table(
 			{
 			case PropertyType::Array:
 				table.add_value(propertyValue);
+				break;
+			case PropertyType::Map:
+				table.add_key(propertyValue);
 				break;
 			default:
 				table.add_pair(propName.c_str(), propertyValue);
@@ -123,6 +135,9 @@ static void get_variable_as_table(
 			case PropertyType::Array:
 				table.add_value(propertyValue);
 				break;
+			case PropertyType::Map:
+				table.add_key(propertyValue);
+				break;
 			default:
 				table.add_pair(propName.c_str(), propertyValue);
 			}
@@ -135,6 +150,9 @@ static void get_variable_as_table(
 			case PropertyType::Array:
 				table.add_value(propertyValue);
 				break;
+			case PropertyType::Map:
+				table.add_key(propertyValue);
+				break;
 			default:
 				table.add_pair(propName.c_str(), propertyValue);
 			}
@@ -146,6 +164,9 @@ static void get_variable_as_table(
 			{
 			case PropertyType::Array:
 				table.add_value(propertyValue);
+				break;
+			case PropertyType::Map:
+				table.add_key(propertyValue);
 				break;
 			default:
 				table.add_pair(propName.c_str(), propertyValue);
@@ -227,6 +248,8 @@ static void get_variable_as_table(
 		}
 		else if (property->IsA<FArrayProperty>())
 		{
+			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set array as TMap key");
+
 			auto _prop = static_cast<FArrayProperty*>(property);
 			auto propertyValue = property->ContainerPtrToValuePtr<FScriptArray>(data);
 			if (propertyValue)
@@ -260,6 +283,9 @@ static void get_variable_as_table(
 		}
 		else if (property->IsA<FObjectProperty>())
 		{
+			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set object as TMap key");
+			if (propertyType == PropertyType::Array && !convertObject) throw std::format_error("Unable to explicitly iterate array");
+
 			if (convertObject)
 			{
 				auto propertyValue = property->ContainerPtrToValuePtr<UObject>(data);
@@ -279,44 +305,69 @@ static void get_variable_as_table(
 		}
 		else if (property->IsA<FMapProperty>())
 		{
-			auto _prop = static_cast<FMapProperty*>(property);
+			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set TMap as TMap key");
+			if (propertyType == PropertyType::Array) throw std::format_error("Unable to iterate TMap");
+
+			auto innerProp = static_cast<FMapProperty*>(property);
 			auto propertyValue = property->ContainerPtrToValuePtr<FScriptMap>(data);
 
-			if (_prop && propertyValue)
+			if (innerProp && propertyValue)
 			{
+				table.add_key(propName.c_str());
 				auto innerTable = table.get_lua_instance().prepare_new_table();
 
 				const int32 mapSize = propertyValue->GetMaxIndex();
-				auto keyProp = _prop->GetKeyProp();
-				auto valueProp = _prop->GetValueProp();
 
-				auto layout = Unreal::FScriptMap::GetScriptLayout(
-					keyProp->GetSize(),
-					keyProp->GetMinAlignment(),
-					valueProp->GetSize(),
-					valueProp->GetMinAlignment());
-
-				try
+				if (mapSize > 0)
 				{
-					for (int32 i = 0; i < mapSize; i++)
+					auto keyProp = innerProp->GetKeyProp();
+					auto valueProp = innerProp->GetValueProp();
+					try
 					{
-						auto elem = static_cast<uint8*>(propertyValue->GetData(i, layout));
-						get_variable_as_table(keyProp, elem, innerTable, PropertyType::Map);
-						get_variable_as_table(valueProp, elem, innerTable, PropertyType::Array);
-						innerTable.fuse_pair();
+						auto layout = Unreal::FScriptMap::GetScriptLayout(
+							keyProp->GetSize(),
+							keyProp->GetMinAlignment(),
+							valueProp->GetSize(),
+							valueProp->GetMinAlignment());
+
+						for (int32 i = 0; i < mapSize; i++)
+						{
+							auto elem = static_cast<uint8*>(propertyValue->GetData(i, layout));
+							get_variable_as_table(keyProp, elem, innerTable, PropertyType::Map);
+							try
+							{
+								get_variable_as_table(valueProp, elem, innerTable, PropertyType::Array, convertObject);
+							}
+							catch (const std::exception& e)
+							{
+								ModStatics::LogOutput<LogLevel::Warning>(L"Unable to parse TMap value: {}", to_wstring(e.what()));
+								std::vector<int> empty;
+								auto emptyInnerTable = innerTable.get_lua_instance().prepare_new_table();
+								emptyInnerTable.vector_to_table(empty);
+							}
+							innerTable.fuse_pair();
+						}
+					}
+					catch (std::exception& err)
+					{
+						ModStatics::LogOutput<LogLevel::Warning>(
+							L"Unable to parse TMap {} with key {} value {}: {}",
+							propWName,
+							keyProp->GetClass().GetName(),
+							valueProp->GetClass().GetName(),
+							to_wstring(err.what()));
+
+						std::vector<int> empty;
+						innerTable.vector_to_table(empty);
 					}
 				}
-				catch (std::exception& err)
+				else
 				{
-					ModStatics::LogOutput<LogLevel::Warning>(
-						L"Unable to parse TMap {} with key {} value {}: {}",
-						propWName,
-						keyProp->GetClass().GetName(),
-						valueProp->GetClass().GetName(),
-						to_wstring(err.what()));
+					std::vector<int> empty;
+					innerTable.vector_to_table(empty);
 				}
-
 				innerTable.make_local();
+				table.fuse_pair();
 			}
 			else
 			{
@@ -325,6 +376,7 @@ static void get_variable_as_table(
 		}
 		else
 		{
+			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set anything as TMap key");
 			ModStatics::LogOutput<LogLevel::Warning>(L"Unable to parse {} of type {}", propWName, propClass);
 		}
 	}
@@ -406,7 +458,7 @@ auto MotorTownMods::on_lua_start(
 				if (prop)
 				{
 					// Allow object conversion only when parameter name is specified
-					get_variable_as_table(prop, ptr, table, PropertyType::Array, true);
+					get_variable_as_table(prop, ptr, table, PropertyType::None, true);
 				}
 				else
 				{
@@ -430,15 +482,6 @@ auto MotorTownMods::on_lua_start(
 		}
 
 		table.make_local();
-		return 1;
-		});
-	lua.register_function("Test", [](const LuaMadeSimple::Lua& _lua) -> int {
-		auto objClass = UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/MotorTown.MotorTownGameState"));
-		if (objClass)
-		{
-			ModStatics::LogOutput<LogLevel::Verbose>(L"objClass: {}", objClass->GetName());
-		}
-
 		return 1;
 		});
 }
