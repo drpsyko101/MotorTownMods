@@ -5,12 +5,17 @@
 #include <Unreal/UObjectGlobals.hpp>
 #include <Unreal/UObject.hpp>
 #include <Unreal/UScriptStruct.hpp>
+#include <Unreal/UnrealCoreStructs.hpp>
 #include <Unreal/Property/FStructProperty.hpp>
 #include <Unreal/Property/FStrProperty.hpp>
 #include <Unreal/Property/FNameProperty.hpp>
 #include <Unreal/Property/FTextProperty.hpp>
 #include <Unreal/Property/NumericPropertyTypes.hpp>
 #include <Unreal/Property/FBoolProperty.hpp>
+#include <Unreal/Property/FArrayProperty.hpp>
+#include <Unreal/Property/FEnumProperty.hpp>
+#include <Unreal/Property/FObjectProperty.hpp>
+#include <Unreal/Property/FMapProperty.hpp>
 #include <Unreal/AGameModeBase.hpp>
 #include <LuaMadeSimple/LuaMadeSimple.hpp>
 #include <LuaType/LuaUObject.hpp>
@@ -41,57 +46,285 @@ auto MotorTownMods::on_unreal_init() -> void
 	auto server = Webserver::Get();
 }
 
-static void get_variable_as_table(FProperty* property, UObject* data, LuaMadeSimple::Lua::Table& table)
+enum PropertyType {
+	None = 0,
+	Array,
+	Map,
+};
+
+static void get_variable_as_table(
+	FProperty* property,
+	void* data,
+	LuaMadeSimple::Lua::Table& table,
+	const PropertyType propertyType = PropertyType::None,
+	const bool convertObject = false)
 {
 	if (property)
 	{
 		auto propName = to_string(property->GetName());
-		if (auto _prop = CastField<FStrProperty>(property))
+		std::wstring propWName = to_wstring(property->GetName());
+		std::wstring propClass = to_wstring(property->GetClass().GetName());
+		if (property->IsA<FStrProperty>())
 		{
-			table.add_pair(propName.c_str(), to_string(_prop->GetPropertyValue(data).GetCharArray()).c_str());
+			auto propertyValue = property->ContainerPtrToValuePtr<FString>(data);
+			const auto str = propertyValue->GetCharArray();
+			switch (propertyType)
+			{
+			case PropertyType::Array:
+				table.add_value(to_string(str).c_str());
+				break;
+			default:
+				table.add_pair(propName.c_str(), to_string(str).c_str());
+			}
 		}
-		else if (auto _prop = CastField<FNameProperty>(property))
+		else if (property->IsA<FNameProperty>())
 		{
-			//auto& name = _prop->GetPropertyValue(data);
-			//const auto str = name.ToString(); // Crashed when accessing ToString function
-			//table.add_pair(propName.c_str(), to_string(str).c_str());
-
 			auto propertyValue = property->ContainerPtrToValuePtr<FName>(data);
 			const auto str = propertyValue->ToString();
-			table.add_pair(propName.c_str(), to_string(str).c_str());
+			switch (propertyType)
+			{
+			case PropertyType::Array:
+				table.add_value(to_string(str).c_str());
+				break;
+			default:
+				table.add_pair(propName.c_str(), to_string(str).c_str());
+			}
 		}
-		else if (auto _prop = CastField<FTextProperty>(property))
+		else if (property->IsA<FTextProperty>())
 		{
-			table.add_pair(propName.c_str(), to_string(_prop->GetPropertyValue(data).ToString()).c_str());
+			auto propertyValue = property->ContainerPtrToValuePtr<FText>(data);
+			const auto str = propertyValue->ToString();
+			switch (propertyType)
+			{
+			case PropertyType::Array:
+				table.add_value(to_string(str).c_str());
+				break;
+			default:
+				table.add_pair(propName.c_str(), to_string(str).c_str());
+			}
 		}
-		else if (auto _prop = CastField<FFloatProperty>(property))
+		else if (property->IsA<FFloatProperty>())
 		{
-			table.add_pair(propName.c_str(), _prop->GetPropertyValue(data));
+			const auto propertyValue = *property->ContainerPtrToValuePtr<float>(data);
+			switch (propertyType)
+			{
+			case PropertyType::Array:
+				table.add_value(propertyValue);
+				break;
+			default:
+				table.add_pair(propName.c_str(), propertyValue);
+			}
 		}
-		else if (auto _prop = CastField<FDoubleProperty>(property))
+		else if (property->IsA<FDoubleProperty>())
 		{
-			table.add_pair(propName.c_str(), _prop->GetPropertyValue(data));
+			const auto propertyValue = *property->ContainerPtrToValuePtr<double>(data);
+			switch (propertyType)
+			{
+			case PropertyType::Array:
+				table.add_value(propertyValue);
+				break;
+			default:
+				table.add_pair(propName.c_str(), propertyValue);
+			}
 		}
-		else if (auto _prop = CastField<FIntProperty>(property))
+		else if (property->IsA<FIntProperty>() || property->IsA<FEnumProperty>() || property->IsA<FInt64Property>() || property->IsA<FUInt32Property>())
 		{
-			table.add_pair(propName.c_str(), _prop->GetPropertyValue(data));
+			const auto propertyValue = *property->ContainerPtrToValuePtr<int>(data);
+			switch (propertyType)
+			{
+			case PropertyType::Array:
+				table.add_value(propertyValue);
+				break;
+			default:
+				table.add_pair(propName.c_str(), propertyValue);
+			}
 		}
-		else if (auto _prop = CastField<FInt64Property>(property))
+		else if (property->IsA<FBoolProperty>())
 		{
-			table.add_pair(propName.c_str(), _prop->GetPropertyValue(data));
+			const auto propertyValue = *property->ContainerPtrToValuePtr<bool>(data);
+			switch (propertyType)
+			{
+			case PropertyType::Array:
+				table.add_value(propertyValue);
+				break;
+			default:
+				table.add_pair(propName.c_str(), propertyValue);
+			}
 		}
-		else if (auto _prop = CastField<FByteProperty>(property))
+		else if (property->IsA<FStructProperty>())
 		{
-			table.add_pair(propName.c_str(), static_cast<int>(_prop->GetPropertyValue(data)));
+			// Table::add_key only supports char, int, unsigned int
+			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set struct as TMap key");
+
+			auto _prop = static_cast<FStructProperty*>(property);
+			auto _struct = _prop->GetStruct();
+			auto structName = _struct->GetName();
+
+			if (structName == STR("Vector"))
+			{
+
+				auto propertyValue = property->ContainerPtrToValuePtr<FVector>(data);
+				if (propertyValue)
+				{
+					if (propertyType != PropertyType::Array) table.add_key(propName.c_str());
+
+					auto inner_table = table.get_lua_instance().prepare_new_table();
+					inner_table.add_pair("X", propertyValue->GetX());
+					inner_table.add_pair("Y", propertyValue->GetY());
+					inner_table.add_pair("Z", propertyValue->GetZ());
+					inner_table.make_local();
+
+					if (propertyType != PropertyType::Array) table.fuse_pair();
+				}
+			}
+			else if (structName == STR("Rotator"))
+			{
+				auto propertyValue = property->ContainerPtrToValuePtr<FRotator>(data);
+
+				if (propertyType != PropertyType::Array) table.add_key(propName.c_str());
+
+				auto inner_table = table.get_lua_instance().prepare_new_table();
+				inner_table.add_pair("Pitch", propertyValue->GetPitch());
+				inner_table.add_pair("Roll", propertyValue->GetRoll());
+				inner_table.add_pair("Yaw", propertyValue->GetYaw());
+				inner_table.make_local();
+
+				if (propertyType != PropertyType::Array) table.fuse_pair();
+			}
+			else if (structName == STR("Guid"))
+			{
+				FString value;
+				auto propertyValue = property->ContainerPtrToValuePtr<void>(data);
+				property->ExportTextItem(value, propertyValue, nullptr, static_cast<UObject*>(data), 0);
+				switch (propertyType)
+				{
+				case PropertyType::Array:
+					table.add_value(to_string(value.GetCharArray()).c_str());
+					break;
+				default:
+					table.add_pair(propName.c_str(), to_string(value.GetCharArray()).c_str());
+				}
+			}
+			else
+			{
+				auto propertyValue = property->ContainerPtrToValuePtr<void>(data);
+				auto structProp = static_cast<FStructProperty*>(property);
+
+				if (propertyType != PropertyType::Array) table.add_key(propName.c_str());
+
+				if (propertyValue && structProp)
+				{
+					auto inner_table = table.get_lua_instance().prepare_new_table();
+					for (FProperty* innerProp = structProp->GetStruct()->GetPropertyLink(); innerProp; innerProp = innerProp->GetPropertyLinkNext())
+					{
+						get_variable_as_table(innerProp, propertyValue, inner_table);
+					}
+					inner_table.make_local();
+				}
+
+				if (propertyType != PropertyType::Array) table.fuse_pair();
+			}
 		}
-		else if (auto _prop = CastField<FBoolProperty>(property))
+		else if (property->IsA<FArrayProperty>())
 		{
-			table.add_pair(propName.c_str(), false);
+			auto _prop = static_cast<FArrayProperty*>(property);
+			auto propertyValue = property->ContainerPtrToValuePtr<FScriptArray>(data);
+			if (propertyValue)
+			{
+				auto innerProp = _prop->GetInner();
+				const int32 elemSize = innerProp->GetElementSize();
+				const int32 arrayCount = propertyValue->Num();
+
+				table.add_key(propName.c_str());
+				auto inner_table = table.get_lua_instance().prepare_new_table();
+
+				if (arrayCount > 0)
+				{
+					for (int32_t i = 0; i < arrayCount; i++)
+					{
+						inner_table.add_key(i + 1);
+						const int32 offset = i * elemSize;
+						auto elem = static_cast<uint8*>(propertyValue->GetData()) + offset;
+						get_variable_as_table(innerProp, elem, inner_table, PropertyType::Array);
+						inner_table.fuse_pair();
+					}
+				}
+				else
+				{
+					std::vector<int> empty;
+					inner_table.vector_to_table(empty);
+				}
+				inner_table.make_local();
+				table.fuse_pair();
+			}
+		}
+		else if (property->IsA<FObjectProperty>())
+		{
+			if (convertObject)
+			{
+				auto propertyValue = property->ContainerPtrToValuePtr<UObject>(data);
+				auto propertyClass = propertyValue->GetClassPrivate();
+
+				if (propertyType != PropertyType::Array) table.add_key(propName.c_str());
+
+				auto innerTable = table.get_lua_instance().prepare_new_table();
+				for (FProperty* innerProp = propertyClass->GetPropertyLink(); innerProp; innerProp = innerProp->GetPropertyLinkNext())
+				{
+					get_variable_as_table(innerProp, propertyValue, innerTable);
+				}
+				innerTable.make_local();
+
+				if (propertyType != PropertyType::Array) table.fuse_pair();
+			}
+		}
+		else if (property->IsA<FMapProperty>())
+		{
+			auto _prop = static_cast<FMapProperty*>(property);
+			auto propertyValue = property->ContainerPtrToValuePtr<FScriptMap>(data);
+
+			if (_prop && propertyValue)
+			{
+				auto innerTable = table.get_lua_instance().prepare_new_table();
+
+				const int32 mapSize = propertyValue->GetMaxIndex();
+				auto keyProp = _prop->GetKeyProp();
+				auto valueProp = _prop->GetValueProp();
+
+				auto layout = Unreal::FScriptMap::GetScriptLayout(
+					keyProp->GetSize(),
+					keyProp->GetMinAlignment(),
+					valueProp->GetSize(),
+					valueProp->GetMinAlignment());
+
+				try
+				{
+					for (int32 i = 0; i < mapSize; i++)
+					{
+						auto elem = static_cast<uint8*>(propertyValue->GetData(i, layout));
+						get_variable_as_table(keyProp, elem, innerTable, PropertyType::Map);
+						get_variable_as_table(valueProp, elem, innerTable, PropertyType::Array);
+						innerTable.fuse_pair();
+					}
+				}
+				catch (std::exception& err)
+				{
+					ModStatics::LogOutput<LogLevel::Warning>(
+						L"Unable to parse TMap {} with key {} value {}: {}",
+						propWName,
+						keyProp->GetClass().GetName(),
+						valueProp->GetClass().GetName(),
+						to_wstring(err.what()));
+				}
+
+				innerTable.make_local();
+			}
+			else
+			{
+				ModStatics::LogOutput<LogLevel::Warning>(L"Unable to parse {} of type {}", propWName, propClass);
+			}
 		}
 		else
 		{
-			std::wstring propWName = to_wstring(property->GetName());
-			std::wstring propClass = to_wstring(property->GetClass().GetName());
 			ModStatics::LogOutput<LogLevel::Warning>(L"Unable to parse {} of type {}", propWName, propClass);
 		}
 	}
@@ -140,31 +373,57 @@ auto MotorTownMods::on_lua_start(
 			_lua.throw_error("Function 'UScriptStruct:GetStructTextItem' cannot be called with 0 parameters.");
 		}
 
+		// Get the UOject from the 1st parameter
 		auto& object = _lua.get_userdata<RC::LuaType::UObject>();
 		auto ptr = object.get_remote_cpp_object();
+
+		std::wstring propertyName, className;
+		if (_lua.is_string())
+		{
+			// Set the property name from 2nd parameter
+			propertyName = to_wstring(_lua.get_string());
+			if (_lua.is_string())
+			{
+				// Get the class short name from the 3rd paramenter
+				className = to_wstring(_lua.get_string());
+			}
+		}
+		else if (_lua.is_nil() && _lua.is_string(2))
+		{
+			// Get the class short name from the 3rd paramenter if 2nd parameter empty
+			className = to_wstring(_lua.get_string(2));
+		}
+
 		auto table = _lua.prepare_new_table();
 		table.set_has_userdata(false);
 
 		if (ptr)
 		{
 			auto ptrClass = ptr->GetClassPrivate();
-			if (stack_size >= 2 && _lua.is_string())
+			if (!propertyName.empty())
 			{
-				std::string_view param = _lua.get_string();
-				auto prop = ptr->GetPropertyByNameInChain(to_wstring(param).c_str());
-				get_variable_as_table(prop, ptr, table);
+				auto prop = ptr->GetPropertyByNameInChain(propertyName.c_str());
+				if (prop)
+				{
+					// Allow object conversion only when parameter name is specified
+					get_variable_as_table(prop, ptr, table, PropertyType::Array, true);
+				}
+				else
+				{
+					_lua.throw_error("Property name " + to_string(propertyName));
+				}
 			}
 			else
 			{
 				for (FProperty* prop = ptrClass->GetPropertyLink(); prop; prop = prop->GetPropertyLinkNext())
 				{
-					if (prop->GetFullName().contains(ptrClass->GetName()))
+					if (className.empty())
+					{
+						className = ptrClass->GetName();
+					}
+					if (prop->GetFullName().contains(className))
 					{
 						get_variable_as_table(prop, ptr, table);
-					}
-					else
-					{
-						break; // Assume the next property link is super properties
 					}
 				}
 			}
@@ -174,21 +433,12 @@ auto MotorTownMods::on_lua_start(
 		return 1;
 		});
 	lua.register_function("Test", [](const LuaMadeSimple::Lua& _lua) -> int {
-		auto& object = _lua.get_userdata<LuaType::UObject>();
-		auto object_ptr = object.get_remote_cpp_object();
-
-		if (object_ptr)
+		auto objClass = UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/MotorTown.MotorTownGameState"));
+		if (objClass)
 		{
-			auto name = object_ptr->GetValuePtrByPropertyName<FName>(STR("VehicleKey"));
-			if (name)
-			{
-				const auto str = name->ToString();
-				Output::send<LogLevel::Verbose>(STR("value: {}\n"), str);
-				_lua.set_string(to_string(str).c_str());
-				return 1;
-			}
+			ModStatics::LogOutput<LogLevel::Verbose>(L"objClass: {}", objClass->GetName());
 		}
-		_lua.set_string("");
+
 		return 1;
 		});
 }

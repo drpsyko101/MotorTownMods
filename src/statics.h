@@ -31,14 +31,14 @@ public:
 
 	// Primary template for the wrapper function
 	template<RC::LogLevel::LogLevel Level, typename ...Args>
-	inline static auto LogOutput(const std::wstring& format, Args&& ...args) -> void
+	inline static auto LogOutput(std::wstring format, Args ...args) -> void
 	{
 		// Create the formatted message using ostringstream to avoid std::format issues
 		std::wstring formatted_message;
 		if constexpr (sizeof...(args) > 0) {
 			try {
 				// Use vformat with make_wformat_args for runtime formatting
-				formatted_message = std::vformat(format, std::make_wformat_args(std::forward<Args>(args)...));
+				formatted_message = fmt::vformat(fmt::detail::to_string_view(format), fmt::make_format_args<fmt::buffer_context<wchar_t>>(args...));
 			}
 			catch (...) {
 				// Fallback if formatting fails
