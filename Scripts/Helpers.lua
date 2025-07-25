@@ -524,10 +524,11 @@ end
 ---Get object as JSON serializable table
 ---@param object UObject
 ---@param field string? Optional field to serialize, if not specified, all variables are returned
+---@param className string? Filter variables to a specific simple class name like `MotorTownGameState`
 ---@return table
-function GetObjectAsTable(object, field)
+function GetObjectAsTable(object, field, className)
   ---@diagnostic disable-next-line: undefined-global
-  local status, output = pcall(GetObjectVariables, object, field)
+  local status, output = pcall(GetObjectVariables, object, field, className)
   if status then return output end
   return {}
 end
