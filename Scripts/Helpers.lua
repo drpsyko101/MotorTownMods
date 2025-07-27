@@ -506,11 +506,11 @@ end
 ---@param base table
 ---@param append table
 ---@return table
-function MergeTable(base, append)
+function MergeTables(base, append)
   for k, v in pairs(append) do
     if type(v) == "table" then
       if type(base[k] or false) == "table" then
-        MergeTable(base[k] or {}, append[k] or {})
+        MergeTables(base[k] or {}, append[k] or {})
       else
         base[k] = v
       end

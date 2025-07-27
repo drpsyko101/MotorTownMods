@@ -43,7 +43,7 @@ local function __createWebhookRequest(url, content)
 
             -- Merge additional headers i.e. basic/bearer authentication
             if type(extraHeaders) == "table" then
-                MergeTable(bheaders, extraHeaders)
+                MergeTables(bheaders, extraHeaders)
             end
 
             LogOutput("DEBUG", "Sending POST request to %s with payload size: %i", url, #content)

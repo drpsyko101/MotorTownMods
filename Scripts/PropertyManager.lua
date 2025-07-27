@@ -1,31 +1,5 @@
-local UEHelper = require("UEHelpers")
 local json = require("JsonParser")
-local socket = require("socket")
 local assetManager = require("AssetManager")
-
----Convert house to JSON serializable table
----@param house AMTHouse
-local function HouseToTable(house)
-  local data = {}
-
-  data.AreaSize = VectorToTable(house.AreaSize)
-  data.FenceStep = house.FenceStep
-  data.HousegKey = house.HousegKey:ToString()
-  data.Net_OwnerUniqueNetId = house.Net_OwnerUniqueNetId:ToString()
-  data.Net_OwnerCharacterGuid = GuidToString(house.Net_OwnerCharacterGuid)
-  data.Net_OwnerName = house.Net_OwnerName:ToString()
-  data.Net_RentLeftTimeSeconds = house.Net_RentLeftTimeSeconds
-  data.ForSale = house.ForSale:IsValid()
-  data.Teleport = nil
-  data.Location = VectorToTable(house:K2_GetActorLocation())
-  data.Rotation = RotatorToTable(house:K2_GetActorRotation())
-
-  if house.Teleport:IsValid() then
-    data.Teleport = VectorToTable(house.Teleport:K2_GetActorLocation())
-  end
-
-  return data
-end
 
 ---Get all houses
 ---@param guid string? Filter by house GUID
@@ -38,13 +12,11 @@ local function GetHouses(guid)
     for i = 1, #gameState.Houses do
       local house = gameState.Houses[i]
 
-      if guid and guid:upper() ~= GuidToString(house.HouseGuid) then
-        goto continue
+      if guid and guid:upper() == GuidToString(house.HouseGuid) then
+        return GetObjectAsTable(house, nil, "MTHouse")
       end
 
-      table.insert(arr, HouseToTable(house))
-
-      :: continue ::
+      table.insert(arr, GetObjectAsTable(house))
     end
   end
 

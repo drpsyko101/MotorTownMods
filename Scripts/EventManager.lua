@@ -94,17 +94,17 @@ local function GetEvents(eventGuid)
   local eventSystem = GetEventSystem()
   local arr = {}
 
-  if not eventSystem:IsValid() then return arr end
+  if eventSystem:IsValid() then
+    arr = GetObjectAsTable(eventSystem, "Net_Events")
 
-  eventSystem.Net_Events:ForEach(function(index, element)
-    local event = element:get() ---@type FMTEvent
-
-    if eventGuid and eventGuid ~= GuidToString(event.EventGuid) then goto continue end
-
-    table.insert(arr, EventToTable(event))
-
-    ::continue::
-  end)
+    if eventGuid then
+      for i = 1, #arr do
+        if arr[i].EventGuid == eventGuid then
+          return { arr[i] }
+        end
+      end
+    end
+  end
   return arr
 end
 
