@@ -12,6 +12,7 @@
 #include <Unreal/Property/FEnumProperty.hpp>
 #include <Unreal/Property/FObjectProperty.hpp>
 #include <Unreal/Property/FMapProperty.hpp>
+#include <Unreal/Property/FSetProperty.hpp>
 #include <LuaType/LuaUObject.hpp>
 
 const std::string ModStatics::GetWebhookUrl()
@@ -110,7 +111,8 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 			|| property->IsA<FInt64Property>()
 			|| property->IsA<FUInt32Property>()
 			|| property->IsA<FByteProperty>()
-			|| property->IsA<FInt8Property>())
+			|| property->IsA<FInt8Property>()
+			|| property->IsA<FInt16Property>())
 		{
 			const auto propertyValue = *property->ContainerPtrToValuePtr<int>(data);
 			switch (propertyType)
@@ -321,6 +323,8 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 								std::vector<int> empty;
 								auto emptyInnerTable = innerTable.get_lua_instance().prepare_new_table();
 								emptyInnerTable.vector_to_table(empty);
+								innerTable.fuse_pair();
+								break;
 							}
 							innerTable.fuse_pair();
 						}
@@ -350,6 +354,28 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 			{
 				LogOutput<LogLevel::Warning>(L"Unable to parse {} of type {}", propWName, propClass);
 			}
+		}
+		else if (property->IsA<FSetProperty>())
+		{
+			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set TSet as TMap key");
+			if (propertyType == PropertyType::Array) throw std::format_error("Unable to set TSet as array");
+
+			auto setProp = static_cast<FSetProperty*>(property);
+			auto setValue = property->ContainerPtrToValuePtr<void>(data);
+			auto innerProp = setProp->GetElementProp();
+
+			FScriptSetHelper helper(setProp, setValue);
+
+			auto innerTable = table.get_lua_instance().prepare_new_table();
+			for (int32 i = 0; i < helper.Num(); i++)
+			{
+				if (helper.IsValidIndex(i))
+				{
+					uint8* elemPtr = helper.GetElementPtr(i);
+					ExportPropertyAsTable(innerProp, elemPtr, innerTable, PropertyType::Array);
+				}
+			}
+			innerTable.make_local();
 		}
 		else
 		{
