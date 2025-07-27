@@ -251,16 +251,19 @@ local function ChangeEventState(eventGuid, state)
             return false
           end
 
-          -- RPC call doesn't support StructProperty, so were using table instead
-          PC:ServerChangeEventState(
-            {
-              A = event.EventGuid.A,
-              B = event.EventGuid.B,
-              C = event.EventGuid.C,
-              D = event.EventGuid.D
-            },
-            state
-          )
+          ExecuteInGameThread(function()
+            -- RPC call doesn't support StructProperty, so were using table instead
+            PC:ServerChangeEventState(
+              {
+                A = event.EventGuid.A,
+                B = event.EventGuid.B,
+                C = event.EventGuid.C,
+                D = event.EventGuid.D
+              },
+              state
+            )
+          end)
+
           return true
         end
       end
@@ -285,15 +288,17 @@ local function RemoveEvent(eventGuid)
         local event = gameState.Net_EventSystem.Net_Events[i]
 
         if GuidToString(event.EventGuid) == eventGuid then
-          -- RPC call doesn't support StructProperty, so were using table instead
-          PC:ServerRemoveEvent(
-            {
-              A = event.EventGuid.A,
-              B = event.EventGuid.B,
-              C = event.EventGuid.C,
-              D = event.EventGuid.D
-            }
-          )
+          ExecuteInGameThread(function()
+            -- RPC call doesn't support StructProperty, so were using table instead
+            PC:ServerRemoveEvent(
+              {
+                A = event.EventGuid.A,
+                B = event.EventGuid.B,
+                C = event.EventGuid.C,
+                D = event.EventGuid.D
+              }
+            )
+          end)
           return true
         end
       end
