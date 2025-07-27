@@ -91,7 +91,7 @@ local function SetWidgetVisibility(widget, inverse)
       table.insert(inGameWidgets, hudWidget.PlayerList)
     end
 
-    for index, value in ipairs(inGameWidgets) do
+    for _, value in ipairs(inGameWidgets) do
       if value:IsValid() then
         LogOutput("DEBUG", "Setting %s visibility to %q", value:GetFullName(), isVisible)
         if useOpacity then
@@ -114,7 +114,7 @@ local function ShowMessagePopup(message, uniqueId)
     if type(uniqueId) == "string" then
       table.insert(playerControllers, GetPlayerControllerFromUniqueId(uniqueId))
     elseif type(uniqueId) == "table" then
-      for index, value in ipairs(uniqueId) do
+      for _, value in ipairs(uniqueId) do
         table.insert(playerControllers, GetPlayerControllerFromUniqueId(value))
       end
     end
@@ -128,13 +128,15 @@ local function ShowMessagePopup(message, uniqueId)
     end
   end
 
-  for index, value in ipairs(playerControllers) do
-    if value:IsValid() then
-      ---@cast value AMotorTownPlayerController
+  ExecuteInGameThread(function()
+    for _, value in ipairs(playerControllers) do
+      if value:IsValid() then
+        ---@cast value AMotorTownPlayerController
 
-      value:ClientShowPopupMessage(FText(message))
+        value:ClientShowPopupMessage(FText(message))
+      end
     end
-  end
+  end)
 end
 
 ---Set hot bar position

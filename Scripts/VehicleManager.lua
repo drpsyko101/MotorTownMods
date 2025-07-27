@@ -1499,7 +1499,9 @@ local function DespawnVehicleById(id, uniqueId)
 
       if PC:IsValid() and playerState.bIsAdmin then
         if playerState.bIsHost then
-          PC:ServerDespawnVehicle(vehicle, 0)
+          ExecuteInGameThread(function()
+            PC:ServerDespawnVehicle(vehicle, 0)
+          end)
           return true
         else
           return webhook.CreateServerRequest(

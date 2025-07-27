@@ -29,11 +29,13 @@ local function AnnounceServerMessage(message, playerId, pinned)
   if PC:IsValid() then
     ---@cast PC AMotorTownPlayerController
 
-    if pinned then
-      PC:ServerAnnouncePinned(message)
-    else
-      PC:ServerAnnounce(message)
-    end
+    ExecuteInGameThread(function()
+      if pinned then
+        PC:ServerAnnouncePinned(message)
+      else
+        PC:ServerAnnounce(message)
+      end
+    end)
     local id = GetPlayerUniqueId(PC)
     return true, id
   elseif pinned then
