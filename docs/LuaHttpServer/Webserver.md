@@ -209,7 +209,7 @@ Get the current traffic settings.
 
 #### POST `/settings/traffic`
 
-Update the traffic related settings. Each request parameter is optional.
+Update the traffic related settings. Vehicle type parameter is optional. This request overrides the current traffic configuration in-game. To restore to the value from the dedicated config or the initial single player settings, a map restart is required.
 
 <details>
 <summary>Request body:</summary>

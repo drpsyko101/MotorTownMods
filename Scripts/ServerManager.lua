@@ -82,6 +82,7 @@ local function AdjustTrafficDensity(vehicleTypes, amount)
             local density = densities[type]
             if density and (ListContains(vehicleTypes, type) or hasAll) then
                 settings[i].bUseNPCVehicleDensity = false
+                settings[i].bUseNPCVehicleDensity = false
                 local newAmount = math.floor(density.MaxAmount * amount)
                 settings[i].MaxCount = newAmount
 
