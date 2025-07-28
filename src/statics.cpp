@@ -21,13 +21,27 @@ const std::string ModStatics::GetWebhookUrl()
 	return getenv("MOD_WEBHOOK_URL");
 }
 
-void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Table& table, const PropertyType propertyType, const bool convertObject)
+void ModStatics::ExportPropertyAsTable(
+	FProperty* property,
+	void* data,
+	Lua::Table& table,
+	const PropertyType propertyType,
+	const bool convertObject,
+	const int32 depth)
 {
 	if (property)
 	{
+		// Limit recursive depth search
+		std::vector<int> empty;
+		if (convertObject && depth <= 0)
+		{
+			throw std::format_error("Depth limit reached");
+		}
+
 		auto propName = to_string(property->GetName());
 		std::wstring propWName = to_wstring(property->GetName());
 		std::wstring propClass = to_wstring(property->GetClass().GetName());
+
 		if (property->IsA<FStrProperty>())
 		{
 			auto propertyValue = property->ContainerPtrToValuePtr<FString>(data);
@@ -106,13 +120,7 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 				table.add_pair(propName.c_str(), propertyValue);
 			}
 		}
-		else if (property->IsA<FIntProperty>()
-			|| property->IsA<FEnumProperty>()
-			|| property->IsA<FInt64Property>()
-			|| property->IsA<FUInt32Property>()
-			|| property->IsA<FByteProperty>()
-			|| property->IsA<FInt8Property>()
-			|| property->IsA<FInt16Property>())
+		else if (property->IsA<FIntProperty>() || property->IsA<FEnumProperty>() || property->IsA<FInt64Property>() || property->IsA<FUInt32Property>() || property->IsA<FByteProperty>() || property->IsA<FInt8Property>() || property->IsA<FInt16Property>())
 		{
 			const auto propertyValue = *property->ContainerPtrToValuePtr<int>(data);
 			switch (propertyType)
@@ -145,7 +153,8 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 		else if (property->IsA<FStructProperty>())
 		{
 			// Table::add_key only supports char, int, unsigned int
-			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set struct as TMap key");
+			if (propertyType == PropertyType::Map)
+				throw std::format_error("Unable to set struct as TMap key");
 
 			auto _prop = static_cast<FStructProperty*>(property);
 			auto _struct = _prop->GetStruct();
@@ -157,7 +166,8 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 				auto propertyValue = property->ContainerPtrToValuePtr<FVector>(data);
 				if (propertyValue)
 				{
-					if (propertyType != PropertyType::Array) table.add_key(propName.c_str());
+					if (propertyType != PropertyType::Array)
+						table.add_key(propName.c_str());
 
 					auto inner_table = table.get_lua_instance().prepare_new_table();
 					inner_table.add_pair("X", propertyValue->GetX());
@@ -165,14 +175,16 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 					inner_table.add_pair("Z", propertyValue->GetZ());
 					inner_table.make_local();
 
-					if (propertyType != PropertyType::Array) table.fuse_pair();
+					if (propertyType != PropertyType::Array)
+						table.fuse_pair();
 				}
 			}
 			else if (structName == STR("Rotator"))
 			{
 				auto propertyValue = property->ContainerPtrToValuePtr<FRotator>(data);
 
-				if (propertyType != PropertyType::Array) table.add_key(propName.c_str());
+				if (propertyType != PropertyType::Array)
+					table.add_key(propName.c_str());
 
 				auto inner_table = table.get_lua_instance().prepare_new_table();
 				inner_table.add_pair("Pitch", propertyValue->GetPitch());
@@ -180,7 +192,8 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 				inner_table.add_pair("Yaw", propertyValue->GetYaw());
 				inner_table.make_local();
 
-				if (propertyType != PropertyType::Array) table.fuse_pair();
+				if (propertyType != PropertyType::Array)
+					table.fuse_pair();
 			}
 			else if (structName == STR("Guid"))
 			{
@@ -201,24 +214,27 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 				auto propertyValue = property->ContainerPtrToValuePtr<void>(data);
 				auto structProp = static_cast<FStructProperty*>(property);
 
-				if (propertyType != PropertyType::Array) table.add_key(propName.c_str());
+				if (propertyType != PropertyType::Array)
+					table.add_key(propName.c_str());
 
 				if (propertyValue && structProp)
 				{
 					auto inner_table = table.get_lua_instance().prepare_new_table();
 					for (FProperty* innerProp = structProp->GetStruct()->GetPropertyLink(); innerProp; innerProp = innerProp->GetPropertyLinkNext())
 					{
-						ExportPropertyAsTable(innerProp, propertyValue, inner_table);
+						ExportPropertyAsTable(innerProp, propertyValue, inner_table, PropertyType::None, convertObject, depth);
 					}
 					inner_table.make_local();
 				}
 
-				if (propertyType != PropertyType::Array) table.fuse_pair();
+				if (propertyType != PropertyType::Array)
+					table.fuse_pair();
 			}
 		}
 		else if (property->IsA<FArrayProperty>())
 		{
-			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set array as TMap key");
+			if (propertyType == PropertyType::Map)
+				throw std::format_error("Unable to set array as TMap key");
 
 			auto _prop = static_cast<FArrayProperty*>(property);
 			auto propertyValue = property->ContainerPtrToValuePtr<FScriptArray>(data);
@@ -240,12 +256,11 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 						auto elem = static_cast<uint8*>(propertyValue->GetData()) + offset;
 						try
 						{
-							ExportPropertyAsTable(innerProp, elem, innerTable, PropertyType::Array, convertObject);
+							ExportPropertyAsTable(innerProp, elem, innerTable, PropertyType::Array, convertObject, depth - 1);
 						}
 						catch (const std::exception&)
 						{
 							auto emptyInnerTable = innerTable.get_lua_instance().prepare_new_table();
-							std::vector<int> empty;
 							innerTable.vector_to_table(empty);
 						}
 						innerTable.fuse_pair();
@@ -253,7 +268,6 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 				}
 				else
 				{
-					std::vector<int> empty;
 					innerTable.vector_to_table(empty);
 				}
 				innerTable.make_local();
@@ -262,30 +276,46 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 		}
 		else if (property->IsA<FObjectProperty>())
 		{
-			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set object as TMap key");
-			if (propertyType == PropertyType::Array && !convertObject) throw std::format_error("Unable to explicitly iterate array");
+			if (propertyType == PropertyType::Map)
+				throw std::format_error("Unable to set object as TMap key");
+			if (propertyType == PropertyType::Array && !convertObject)
+				throw std::format_error("Unable to explicitly iterate array");
 
 			if (convertObject)
 			{
-				auto propertyValue = property->ContainerPtrToValuePtr<UObject>(data);
-				auto propertyClass = propertyValue->GetClassPrivate();
+				auto propertyValue = *property->ContainerPtrToValuePtr<UObject*>(data);
 
-				if (propertyType != PropertyType::Array) table.add_key(propName.c_str());
-
-				auto innerTable = table.get_lua_instance().prepare_new_table();
-				for (FProperty* innerProp = propertyClass->GetPropertyLink(); innerProp; innerProp = innerProp->GetPropertyLinkNext())
+				if (propertyValue)
 				{
-					ExportPropertyAsTable(innerProp, propertyValue, innerTable);
-				}
-				innerTable.make_local();
+					auto propertyClass = propertyValue->GetClassPrivate();
+					if (propertyType != PropertyType::Array)
+						table.add_key(propName.c_str());
 
-				if (propertyType != PropertyType::Array) table.fuse_pair();
+					auto innerTable = table.get_lua_instance().prepare_new_table();
+					try
+					{
+						for (FProperty* innerProp = propertyClass->GetPropertyLink(); innerProp; innerProp = innerProp->GetPropertyLinkNext())
+						{
+							ExportPropertyAsTable(innerProp, propertyValue, innerTable, PropertyType::None, convertObject, depth - 1);
+						}
+					}
+					catch (std::exception&)
+					{
+						innerTable.vector_to_table(empty);
+					}
+					innerTable.make_local();
+
+					if (propertyType != PropertyType::Array)
+						table.fuse_pair();
+				}
 			}
 		}
 		else if (property->IsA<FMapProperty>())
 		{
-			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set TMap as TMap key");
-			if (propertyType == PropertyType::Array) throw std::format_error("Unable to iterate TMap");
+			if (propertyType == PropertyType::Map)
+				throw std::format_error("Unable to set TMap as TMap key");
+			if (propertyType == PropertyType::Array)
+				throw std::format_error("Unable to iterate TMap");
 
 			auto innerProp = static_cast<FMapProperty*>(property);
 			auto propertyValue = property->ContainerPtrToValuePtr<FScriptMap>(data);
@@ -312,15 +342,14 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 						for (int32 i = 0; i < mapSize; i++)
 						{
 							auto elem = static_cast<uint8*>(propertyValue->GetData(i, layout));
-							ExportPropertyAsTable(keyProp, elem, innerTable, PropertyType::Map);
+							ExportPropertyAsTable(keyProp, elem, innerTable, PropertyType::Map, convertObject, depth - 1);
 							try
 							{
-								ExportPropertyAsTable(valueProp, elem, innerTable, PropertyType::Array, convertObject);
+								ExportPropertyAsTable(valueProp, elem, innerTable, PropertyType::Array, convertObject, depth - 1);
 							}
 							catch (const std::exception& e)
 							{
 								LogOutput<LogLevel::Warning>(L"Unable to parse TMap value: {}", to_wstring(e.what()));
-								std::vector<int> empty;
 								auto emptyInnerTable = innerTable.get_lua_instance().prepare_new_table();
 								emptyInnerTable.vector_to_table(empty);
 								innerTable.fuse_pair();
@@ -338,13 +367,11 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 							valueProp->GetClass().GetName(),
 							to_wstring(err.what()));
 
-						std::vector<int> empty;
 						innerTable.vector_to_table(empty);
 					}
 				}
 				else
 				{
-					std::vector<int> empty;
 					innerTable.vector_to_table(empty);
 				}
 				innerTable.make_local();
@@ -357,8 +384,10 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 		}
 		else if (property->IsA<FSetProperty>())
 		{
-			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set TSet as TMap key");
-			if (propertyType == PropertyType::Array) throw std::format_error("Unable to set TSet as array");
+			if (propertyType == PropertyType::Map)
+				throw std::format_error("Unable to set TSet as TMap key");
+			if (propertyType == PropertyType::Array)
+				throw std::format_error("Unable to set TSet as array");
 
 			auto setProp = static_cast<FSetProperty*>(property);
 			auto setValue = property->ContainerPtrToValuePtr<void>(data);
@@ -372,16 +401,16 @@ void ModStatics::ExportPropertyAsTable(FProperty* property, void* data, Lua::Tab
 				if (helper.IsValidIndex(i))
 				{
 					uint8* elemPtr = helper.GetElementPtr(i);
-					ExportPropertyAsTable(innerProp, elemPtr, innerTable, PropertyType::Array);
+					ExportPropertyAsTable(innerProp, elemPtr, innerTable, PropertyType::Array, convertObject, depth - 1);
 				}
 			}
 			innerTable.make_local();
 		}
 		else
 		{
-			if (propertyType == PropertyType::Map) throw std::format_error("Unable to set anything as TMap key");
+			if (propertyType == PropertyType::Map)
+				throw std::format_error("Unable to set anything as TMap key");
 			LogOutput<LogLevel::Warning>(L"Unable to parse {} of type {}", propWName, propClass);
 		}
 	}
 }
-

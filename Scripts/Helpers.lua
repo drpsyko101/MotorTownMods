@@ -525,10 +525,11 @@ end
 ---@param object UObject
 ---@param field string? Optional field to serialize, if not specified, all variables are returned
 ---@param className string? Filter variables to a specific simple class name like `MotorTownGameState`
+---@param depth integer? Recursive depth limit
 ---@return table
-function GetObjectAsTable(object, field, className)
+function GetObjectAsTable(object, field, className, depth)
   ---@diagnostic disable-next-line: undefined-global
-  local status, output = pcall(GetObjectVariables, object, field, className)
+  local status, output = pcall(GetObjectVariables, object, field, className, depth)
   if status then return output end
   return {}
 end

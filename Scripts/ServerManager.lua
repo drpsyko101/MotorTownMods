@@ -14,48 +14,13 @@ if serverConfig then
     end
 end
 
--- Amount of poll per minute.
--- Change this value to increase/decrease median accuracy
-local pollPerMin = 30
-local serverFps = {} ---@type number[]
-
----Convert FMTZoneState to JSON serializable table
----@param zone FMTZoneState
-local function ZoneToTable(zone)
-    local data = {}
-
-    data.BusTransportRate = zone.BusTransportRate
-    data.FoodSupplyRate = zone.FoodSupplyRate
-    data.GarbageCollectRate = zone.GarbageCollectRate
-    data.PolicePatrolRate = zone.PolicePatrolRate
-    data.NumResidents = zone.NumResidents
-    data.ZoneKey = zone.ZoneKey:ToString()
-
-    return data
-end
-
 ---Get current server state
 ---@return table
-local function GetServerState(zoneName)
+local function GetServerState()
     local gameState = GetMotorTownGameState()
     local data = {}
     if (gameState:IsValid()) then
-        local state = gameState.Net_HotState
-
-        data.FPS = state.FPS
-        data.BusTransportRate = state.BusTransportRate
-        data.FoodSupplyRate = state.FoodSupplyRate
-        data.GarbageCollectRate = state.GarbageCollectRate
-        data.NumResidents = state.NumResidents
-        data.PolicePatrolRate = state.PolicePatrolRate
-        data.ServerPlatformTimeSeconds = state.ServerPlatformTimeSeconds
-
-        local zones = {}
-        state.ZoneStates:ForEach(function(index, element)
-            local zone = element:get() ---@type FMTZoneState
-            table.insert(zones, ZoneToTable(zone))
-        end)
-        data.ZoneStates = zones
+        data = GetObjectAsTable(gameState, "Net_HotState")
     end
     return data
 end
@@ -66,11 +31,10 @@ end
 local function GetZoneState(zoneName)
     local gameState = GetMotorTownGameState()
     if (gameState:IsValid()) then
-        local state = gameState.Net_HotState
-
-        for i = 1, #state.ZoneStates, 1 do
-            if state.ZoneStates[i].ZoneKey:ToString() == zoneName then
-                return ZoneToTable(state.ZoneStates[i])
+        local data = GetObjectAsTable(gameState, "Net_HotState")
+        for _, value in ipairs(data.ZoneStates) do
+            if value.ZoneKey == zoneName then
+                return value
             end
         end
     end
@@ -178,7 +142,8 @@ end
 -- Register console commands
 
 RegisterConsoleCommandHandler("getserverstate", function(Cmd, CommandParts, Ar)
-    LogOutput("INFO", json.stringify(GetServerState()))
+    local data = GetServerState()
+    LogOutput("INFO", "%s: %s", Cmd, json.stringify(data))
     return true
 end)
 
