@@ -523,8 +523,8 @@ end
 
 ---Get object as JSON serializable table
 ---@param object UObject
----@param field string? Optional field to serialize, if not specified, all variables are returned
----@param className string? Filter variables to a specific simple class name like `MotorTownGameState`
+---@param field string? Optional field to serialize, if not specified, all variables are returned. This will search for all property in chain, overriding `className` parameter.
+---@param className string? Filter variables to a specific simple class name like `MotorTownGameState`. Ignored when `field` parameter is set.
 ---@param depth integer? Recursive depth limit
 ---@return table
 function GetObjectAsTable(object, field, className, depth)
@@ -532,4 +532,20 @@ function GetObjectAsTable(object, field, className, depth)
   local status, output = pcall(GetObjectVariables, object, field, className, depth)
   if status then return output end
   return {}
+end
+
+---CHeck if table contains value
+---@param table table
+---@param value any
+function ListContains(table, value)
+  if type(table) == "table" then
+    if #table > 0 then
+      for i, v in ipairs(table) do
+        if v == value then
+          return true
+        end
+      end
+    end
+  end
+  return false
 end

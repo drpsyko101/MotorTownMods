@@ -44,7 +44,7 @@ local function GetVehicles(id, fields, limit, isControlled)
     if fields then
       local data = {}
       for index, value in ipairs(fields) do
-        MergeTables(data, GetObjectAsTable(vehicle, value, "MTVehicle"))
+        MergeTables(data, GetObjectAsTable(vehicle, value))
       end
       -- Always returns the vehicle ID
       data.Net_VehicleId = vehicle.Net_VehicleId

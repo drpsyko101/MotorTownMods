@@ -38,7 +38,9 @@ local function LoadWebserver()
     server.registerHandler("/version", "GET", serverManager.HandleGetModVersion, false)
     server.registerHandler("/status/general", "GET", serverManager.HandleGetServerState)
     server.registerHandler("/status/general/*", "GET", serverManager.HandleGetZoneState)
-    server.registerHandler("/status/traffic", "POST", serverManager.HandleUpdateNpcTraffic)
+    server.registerHandler("/settings/traffic", "GET", serverManager.HandleGetNpcTraffic)
+    server.registerHandler("/settings/traffic", "POST", serverManager.HandleUpdateNpcTraffic)
+    server.registerHandler("/settings/players/maxvehicle", "POST", serverManager.HandleSetPlayerMaxVehicles)
     server.registerHandler("/command", "POST", serverManager.HandleServerExecCommand)
 
     -- Player management
