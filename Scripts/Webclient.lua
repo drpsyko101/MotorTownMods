@@ -70,6 +70,11 @@ local function __createWebhookRequest(url, content)
                     sink = ltn12.sink.table(res),
                 }
             end
+
+            if type(resCode) == "string" then
+                error(string.format("Failed to send webhook request: %s", resCode))
+            end
+
             local execTime = socket.gettime() * 1000 - time
             LogOutput("INFO", "Webhook: %i %s \"%s\" %.1fms", resCode, method, url, execTime)
             if resCode == 200 then
@@ -115,6 +120,7 @@ local function CreateEventWebhook(event, data, callback)
         LogOutput("DEBUG", "Collecting payload:\n%s", payload)
         ExecuteAsync(function()
             LogOutput("DEBUG", "Sending webhook content:\n%s", payload)
+            -- Silently send the webhook request without raising any error
             local status = pcall(__createWebhookRequest, webhookUrl, payload)
             if callback then
                 callback(status)

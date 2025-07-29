@@ -94,17 +94,17 @@ local function GetEvents(eventGuid)
   local eventSystem = GetEventSystem()
   local arr = {}
 
-  if eventSystem:IsValid() then
-    arr = GetObjectAsTable(eventSystem, "Net_Events")
+  if not eventSystem:IsValid() then return arr end
 
-    if eventGuid then
-      for i = 1, #arr do
-        if arr[i].EventGuid == eventGuid then
-          return { arr[i] }
-        end
-      end
-    end
-  end
+  eventSystem.Net_Events:ForEach(function(index, element)
+    local event = element:get() ---@type FMTEvent
+
+    if eventGuid and eventGuid ~= GuidToString(event.EventGuid) then goto continue end
+
+    table.insert(arr, EventToTable(event))
+
+    ::continue::
+  end)
   return arr
 end
 
@@ -118,12 +118,11 @@ local RouteTable = {}
 ---@field EventGuid string?
 ---@field EventType number
 ---@field OwnerCharacterId { UniqueNetId: string, CharacterGuid: string }
----@field RaceSetup { Route: RouteTable, NumLaps: number, VehicleKeys: string[], EngineKeys: string[] }
+---@field RaceSetup { Route: RouteTable, NumLaps: integer, VehicleKeys: string[], EngineKeys: string[] }
 local EventTable = {}
 
 ---Create a new event
 ---@param event EventTable
----@return boolean status
 ---@return string? guid
 local function CreateNewEvent(event)
   local eventSystem = GetEventSystem()
@@ -132,20 +131,23 @@ local function CreateNewEvent(event)
     -- Add a new event without any TArray
     local guid = StringToGuid(event.EventGuid)
     eventSystem.Net_Events[#eventSystem.Net_Events + 1] = {
+      ---@diagnostic disable-next-line:assign-type-mismatch
       EventName = event.EventName,
       EventGuid = guid,
       EventType = event.EventType,
       OwnerCharacterId = {
         CharacterGuid = { A = 0, B = 0, C = 0, D = 0 },
+        ---@diagnostic disable-next-line:assign-type-mismatch
         UniqueNetId = ""
       },
       Players = {},
       bInCountdown = false,
       RaceSetup = {
-        NumLaps = event.RaceSetup.NumLaps,
+        NumLaps = 0,
         EngineKeys = {},
         VehicleKeys = {},
         Route = {
+          ---@diagnostic disable-next-line:assign-type-mismatch
           RouteName = "",
           Waypoints = {}
         }
@@ -153,6 +155,7 @@ local function CreateNewEvent(event)
       State = 1
     }
 
+    ---@diagnostic disable-next-line:assign-type-mismatch
     eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.Route.RouteName = event.RaceSetup.Route.RouteName
 
     -- Add back TArray individually
@@ -171,9 +174,12 @@ local function CreateNewEvent(event)
       eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.VehicleKeys[index] = FName(value)
     end
 
-    return true, GuidToString(eventSystem.Net_Events[#eventSystem.Net_Events].EventGuid)
+    -- Try setting the lap amount after waypoints
+    eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.NumLaps = event.RaceSetup.NumLaps
+
+    return GuidToString(eventSystem.Net_Events[#eventSystem.Net_Events].EventGuid)
   end
-  return false, nil
+  error("Invalid event system")
 end
 
 ---Update an event name
@@ -184,71 +190,94 @@ local function UpdateEventName(eventGuid, eventName)
 
   if eventSystem:IsValid() then
     for i = 1, #eventSystem.Net_Events, 1 do
-      if GuidToString(eventSystem.Net_Events[i].EventGuid) == eventGuid then
+      if GuidToString(eventSystem.Net_Events[i].EventGuid) == eventGuid:upper() then
+        ---@diagnostic disable-next-line:assign-type-mismatch
         eventSystem.Net_Events[i].EventName = eventName
-        return true
+        return
       end
     end
-    return false
+    error(string.format("Unable to find event %s", eventGuid))
   end
+  error("Invalid event system")
 end
 
 ---Update an event race setup
 ---@param eventGuid string
----@param raceSetup { Route: Route, NumLaps: number, VehicleKeys: string[], EngineKeys: string[] }
----@return boolean
+---@param raceSetup { Route: Route?, NumLaps: integer?, VehicleKeys: string[]?, EngineKeys: string[]? }
 local function UpdateEventRaceSetup(eventGuid, raceSetup)
   local eventSystem = GetEventSystem()
 
   if eventSystem:IsValid() then
     for i = 1, #eventSystem.Net_Events, 1 do
-      if GuidToString(eventSystem.Net_Events[i].EventGuid) == eventGuid then
-        eventSystem.Net_Events[i].RaceSetup.NumLaps = raceSetup.NumLaps
-
-        eventSystem.Net_Events[i].RaceSetup.EngineKeys:Empty()
-        for index, value in ipairs(raceSetup.EngineKeys) do
-          eventSystem.Net_Events[i].RaceSetup.EngineKeys[index - 1] = FName(value)
+      if GuidToString(eventSystem.Net_Events[i].EventGuid) == eventGuid:upper() then
+        if raceSetup.NumLaps then
+          eventSystem.Net_Events[i].RaceSetup.NumLaps = raceSetup.NumLaps
         end
 
-        eventSystem.Net_Events[i].RaceSetup.VehicleKeys:Empty()
-        for index, value in ipairs(raceSetup.VehicleKeys) do
-          eventSystem.Net_Events[i].RaceSetup.VehicleKeys[index - 1] = FName(value)
+        if raceSetup.EngineKeys then
+          eventSystem.Net_Events[i].RaceSetup.EngineKeys:Empty()
+          for index, value in ipairs(raceSetup.EngineKeys) do
+            eventSystem.Net_Events[i].RaceSetup.EngineKeys[index - 1] = FName(value)
+          end
         end
 
-        eventSystem.Net_Events[i].RaceSetup.Route.RouteName = raceSetup.Route.RouteName
-
-        eventSystem.Net_Events[i].RaceSetup.Route.Waypoints:Empty()
-        for index, value in ipairs(raceSetup.Route.Waypoints) do
-          eventSystem.Net_Events[i].RaceSetup.Route.Waypoints[index - 1] = value
+        if raceSetup.VehicleKeys then
+          eventSystem.Net_Events[i].RaceSetup.VehicleKeys:Empty()
+          for index, value in ipairs(raceSetup.VehicleKeys) do
+            eventSystem.Net_Events[i].RaceSetup.VehicleKeys[index - 1] = FName(value)
+          end
         end
-        return true
+
+        if raceSetup.Route then
+          ---@diagnostic disable-next-line:assign-type-mismatch
+          eventSystem.Net_Events[i].RaceSetup.Route.RouteName = raceSetup.Route.RouteName
+
+          eventSystem.Net_Events[i].RaceSetup.Route.Waypoints:Empty()
+          for index, value in ipairs(raceSetup.Route.Waypoints) do
+            eventSystem.Net_Events[i].RaceSetup.Route.Waypoints[index - 1] = value
+          end
+        end
+        return
       end
     end
+    error(string.format("Unable to find event %s", eventGuid))
   end
-
-  return false
+  error("Invalid event system")
 end
 
----Change an event status
+---Change an event status. Requires a player in game to execute.
 ---@param eventGuid string
----@param state number
+---@param state EMTEventState
+---@return EMTEventState? previousState
 local function ChangeEventState(eventGuid, state)
   local gameState = GetMotorTownGameState()
 
   if gameState:IsValid() then
-    if gameState.Net_EventSystem:IsValid() and #gameState.PlayerArray > 0 then
+    if gameState.Net_EventSystem:IsValid() then
+      if #gameState.PlayerArray <= 0 then
+        error("No active player in-game")
+      end
+
       local PC = gameState.PlayerArray[1]:GetPlayerController()
       ---@cast PC AMotorTownPlayerController
 
-      if not PC:IsValid() then return false end
+      if not PC:IsValid() then
+        error("Invalid player found")
+      end
 
       for i = 1, #gameState.Net_EventSystem.Net_Events, 1 do
         local event = gameState.Net_EventSystem.Net_Events[i]
 
         if GuidToString(event.EventGuid) == eventGuid then
+          local oldState = event.State
+
+          if oldState == 2 and state == 1 then
+            error("Failed to reset race while in progress")
+          end
+
           -- Race won't start if there are no players or waypoints
-          if #event.Players == 0 or #event.RaceSetup.Route.Waypoints == 0 then
-            return false
+          if oldState == 1 and state == 2 and (#event.Players == 0 or #event.RaceSetup.Route.Waypoints == 0) then
+            error("Unable to start the race without any player or invalid route")
           end
 
           ExecuteInGameThread(function()
@@ -264,12 +293,13 @@ local function ChangeEventState(eventGuid, state)
             )
           end)
 
-          return true
+          return oldState
         end
       end
     end
+    error("Invalid event system")
   end
-  return false
+  error("Invalid game state")
 end
 
 ---Remove an event
@@ -282,12 +312,10 @@ local function RemoveEvent(eventGuid)
       local PC = gameState.PlayerArray[1]:GetPlayerController()
       ---@cast PC AMotorTownPlayerController
 
-      if not PC:IsValid() then return false end
-
       for i = 1, #gameState.Net_EventSystem.Net_Events, 1 do
         local event = gameState.Net_EventSystem.Net_Events[i]
 
-        if GuidToString(event.EventGuid) == eventGuid then
+        if GuidToString(event.EventGuid) == eventGuid:upper() then
           ExecuteInGameThread(function()
             -- RPC call doesn't support StructProperty, so were using table instead
             PC:ServerRemoveEvent(
@@ -299,10 +327,27 @@ local function RemoveEvent(eventGuid)
               }
             )
           end)
-          return true
+          return
         end
       end
+      error(string.format("Unable to find event %s", eventGuid))
     end
+    error("No available player found")
+  end
+  error("Invalid game state")
+end
+
+---Check whether player is in any event
+---@param playerId string
+local function IsPlayerInAnyEvent(playerId)
+  local PC = GetPlayerControllerFromUniqueId(playerId)
+  if PC:IsValid() and PC.PlayerState:IsValid() then
+    local PS = PC.PlayerState ---@cast PS AMotorTownPlayerState
+
+    if #PS.OwnEventGuids > 0 or #PS.JoinedEventGuids > 0 then
+      return true, PC
+    end
+    return false, PC
   end
   return false
 end
@@ -446,7 +491,7 @@ local function HandleGetEvents(session)
   if eventGuid and #res == 0 then
     return json.stringify { message = string.format("Event %s not found", eventGuid) }, nil, 404
   end
-  return json.stringify { data = res }, nil, 200
+  return json.stringify { data = res }
 end
 
 ---Handle request for a new event
@@ -454,19 +499,20 @@ end
 local function HandleCreateNewEvent(session)
   local content = json.parse(session.content)
 
-  if content then
+  if content and content.EventName and content.EventType then
     ---@cast content EventTable
-    local status, guid = CreateNewEvent(content)
+    local status, output = pcall(CreateNewEvent, content)
     if status then
-      LogOutput("DEBUG", "Created new event %s", guid)
+      LogOutput("DEBUG", "Created new event %s", output)
       local events = json.stringify {
-        data = GetEvents(guid)
+        data = GetEvents(output)
       }
       return events, nil, 201
     end
+    return json.stringify { error = string.format("Failed to create event: %s", output) }, nil, 400
   end
 
-  return nil, nil, 400
+  return json.stringify { error = "Invalid payload" }, nil, 400
 end
 
 ---Handle request for changing an event state
@@ -476,12 +522,14 @@ local function HandleChangeEventState(session)
   local content = json.parse(session.content)
 
   if type(content) == "table" and content.State then
-    if ChangeEventState(eventGuid, content.State) then
-      return nil, nil, 204
+    local status, output = pcall(ChangeEventState, eventGuid, content.State)
+    if status then
+      local msg = string.format("Changed event %s state from %i to %i", eventGuid, output, content.State)
+      return json.stringify { message = msg }, nil, 201
     end
+    return json.stringify { error = string.format("Failed to change event %s state: %s", eventGuid, output) }, nil, 400
   end
-
-  return nil, nil, 400
+  return json.stringify { error = "Invalid payload" }, nil, 400
 end
 
 ---Handle request for all events
@@ -496,22 +544,19 @@ local function HandleUpdateEvent(session)
 
     if eventName then
       if not UpdateEventName(eventGuid, eventName) then
-        return nil, nil, 400
+        return json.stringify { error = string.format("Failed to find event %s", eventGuid) }, nil, 404
       end
     end
 
     if eventSetup then
       if not UpdateEventRaceSetup(eventGuid, eventSetup) then
-        return nil, nil, 400
+        return json.stringify { error = string.format("Failed to find event %s", eventGuid) }, nil, 404
       end
     end
 
-    local events = json.stringify {
-      data = GetEvents(eventGuid)
-    }
-    return events
+    return json.stringify { data = GetEvents(eventGuid) }
   end
-  return nil, nil, 400
+  return json.stringify { error = "Invalid payload" }, nil, 400
 end
 
 ---Handle request for event removal
@@ -519,10 +564,118 @@ end
 local function HandleRemoveEvent(session)
   local eventGuid = session.pathComponents[2]
 
-  if RemoveEvent(eventGuid) then
-    return nil, nil, 204
+  local status, err = pcall(RemoveEvent, eventGuid)
+  if status then
+    return json.stringify { message = string.format("Event %s removed", eventGuid) }
   end
-  return nil, nil, 400
+  return json.stringify { error = string.format("Failed to remove event: %s", err) }, nil, 400
+end
+
+---Handle request to forcefully make a player join a game
+---@type RequestPathHandler
+local function HandlePlayerJoinEvent(session)
+  local eventGuid = session.pathComponents[2]
+  local data = json.parse(session.content)
+
+  if eventGuid and data and data.PlayerId then
+    local eventSystem = GetEventSystem()
+    local playerId = data.PlayerId ---@type string|string[]
+    local PCs = {} ---@type AMotorTownPlayerController[]
+
+    if type(playerId) == "string" then
+      local inEvent, PC = IsPlayerInAnyEvent(playerId)
+      if not inEvent and PC then
+        table.insert(PCs, PC)
+      end
+    elseif type(playerId) == "table" and #playerId > 0 then
+      for _, value in ipairs(playerId) do
+        local inEvent, PC = IsPlayerInAnyEvent(value)
+        if not inEvent and PC then
+          table.insert(PCs, PC)
+        end
+      end
+    else
+      return json.stringify { error = "Invalid player ID given" }, nil, 400
+    end
+
+    if #PCs <= 0 then
+      return json.stringify { error = "No valid player to join event" }, nil, 400
+    end
+
+    if eventSystem:IsValid() then
+      for i = 1, #eventSystem.Net_Events do
+        local event = eventSystem.Net_Events[i]
+
+        if GuidToString(event.EventGuid) == eventGuid:upper() then
+          local guid = StringToGuid(eventGuid)
+          ExecuteInGameThread(function()
+            for _, value in ipairs(PCs) do
+              if value:IsValid() then
+                value:ServerJoinEvent(guid)
+              end
+            end
+          end)
+
+          local id = type(data.PlayerId) == "string" and data.PlayerId or table.concat(data.PlayerId, ", ")
+          local msg = string.format("Set player %s to join event %s", id, eventGuid)
+          return json.stringify { message = msg }, nil, 201
+        end
+      end
+      return json.stringify { error = string.format("Failed to find event %s", eventGuid) }, nil, 404
+    end
+    return json.stringify { error = "Invalid event system or player ID" }, nil, 400
+  end
+  return json.stringify { error = "Invalid payload" }, nil, 400
+end
+
+---Handle request to forcefully remove a player from an event
+---@type RequestPathHandler
+local function HandlePlayerLeaveEvent(session)
+  local eventGuid = session.pathComponents[2]
+  local data = json.parse(session.content)
+
+  if eventGuid and data then
+    local eventSystem = GetEventSystem()
+    local playerId = data.PlayerId ---@type string|string[]|nil
+    local PCs = {} ---@type AMotorTownPlayerController[]
+
+    if eventSystem:IsValid() then
+      for i = 1, #eventSystem.Net_Events do
+        local event = eventSystem.Net_Events[i]
+        if GuidToString(event.EventGuid) == eventGuid:upper() then
+          -- Making sure that player is actually in the event
+          local ids = {}
+          for j = 1, #event.Players do
+            local player = event.Players[j]
+            local eventPlayerId = player.CharacterId.UniqueNetId:ToString()
+            if (type(playerId) == "string" and playerId == eventPlayerId) or (type(playerId) == "table" and ListContains(playerId, eventPlayerId)) or type(playerId) == "nil" then
+              table.insert(PCs, player.PC)
+              table.insert(ids, eventPlayerId)
+            end
+          end
+
+          if #PCs <= 0 then
+            return json.stringify { error = "No valid player to be removed from event" }, nil, 400
+          end
+
+          local guid = StringToGuid(eventGuid)
+          ExecuteInGameThread(function()
+            for _, value in ipairs(PCs) do
+              if value:IsValid() then
+                value:ServerLeaveEvent(guid)
+              end
+            end
+          end)
+
+          local msg = string.format("Removed player %s from event %s", table.concat(ids, ", "), eventGuid)
+          return json.stringify { message = msg }, nil, 201
+        end
+      end
+      return json.stringify { error = string.format("Failed to find event %s", eventGuid) }, nil, 404
+    end
+    return json.stringify { error = "Invalid event system" }, nil, 400
+  end
+  return json.stringify { error = "Invalid payload" }, nil, 400
 end
 
 return {
@@ -531,5 +684,7 @@ return {
   HandleUpdateEvent = HandleUpdateEvent,
   HandleCreateNewEvent = HandleCreateNewEvent,
   HandleChangeEventState = HandleChangeEventState,
-  HandleRemoveEvent = HandleRemoveEvent
+  HandleRemoveEvent = HandleRemoveEvent,
+  HandlePlayerJoinEvent = HandlePlayerJoinEvent,
+  HandlePlayerLeaveEvent = HandlePlayerLeaveEvent,
 }

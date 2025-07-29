@@ -160,7 +160,7 @@ function TransformToTable(transform)
   local rotation = QuatToTable(transform.Rotation)
   local scale = VectorToTable(transform.Scale3D)
   return {
-    Location = location,
+    Translation = location,
     Rotation = rotation,
     Scale3D = scale
   }
@@ -174,10 +174,18 @@ function GuidToString(guid)
   local rawGuid = { guid.A, guid.B, guid.C, guid.D }
   local strGuid = ""
   for index, value in ipairs(rawGuid) do
+    -- string.format doesn't support negative hexadecimal conversion
+    -- So we overflow it until it becomes positive
     if value < 0 then
       rawGuid[index] = rawGuid[index] + 0x100000000
     end
-    strGuid = string.format("%s%x", strGuid, rawGuid[index])
+    local part = string.format("%x", rawGuid[index])
+
+    -- Pad GUID part with zeroes
+    for _ = #part, 7 do
+      part = "0" .. part
+    end
+    strGuid = string.format("%s%s", strGuid, part)
   end
   return strGuid:upper()
 end
@@ -311,6 +319,7 @@ function StringToGuid(input)
       error(input .. " is not a valid Guid")
     end
 
+    -- Split input string into 4 parts, 8 characters long hexadecimal
     for i = 1, #input, 8 do
       local a = input:sub(i, i + 8 - 1)
       table.insert(s, tonumber(a, 16))
