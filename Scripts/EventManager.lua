@@ -210,10 +210,6 @@ local function UpdateEventRaceSetup(eventGuid, raceSetup)
   if eventSystem:IsValid() then
     for i = 1, #eventSystem.Net_Events, 1 do
       if GuidToString(eventSystem.Net_Events[i].EventGuid) == eventGuid:upper() then
-        if raceSetup.NumLaps then
-          eventSystem.Net_Events[i].RaceSetup.NumLaps = raceSetup.NumLaps
-        end
-
         if raceSetup.EngineKeys then
           eventSystem.Net_Events[i].RaceSetup.EngineKeys:Empty()
           for index, value in ipairs(raceSetup.EngineKeys) do
@@ -236,6 +232,10 @@ local function UpdateEventRaceSetup(eventGuid, raceSetup)
           for index, value in ipairs(raceSetup.Route.Waypoints) do
             eventSystem.Net_Events[i].RaceSetup.Route.Waypoints[index - 1] = value
           end
+        end
+
+        if raceSetup.NumLaps then
+          eventSystem.Net_Events[i].RaceSetup.NumLaps = raceSetup.NumLaps
         end
         return
       end
