@@ -142,7 +142,6 @@ Create a new event. Will return the new event data similar to above if successfu
 
 ```json
 {
-  "EventType": 1,
   "RaceSetup": {
     "EngineKeys": {},
     "Route": {
@@ -174,76 +173,6 @@ Create a new event. Will return the new event data similar to above if successfu
             "Z": -21477.158924869
           },
           "Scale3D": { "Y": 14, "X": 1, "Z": 10 }
-        },
-        {
-          "Rotation": {
-            "Y": 0.00060647783012685,
-            "X": -0.007671052646189,
-            "W": 0.078812306484315,
-            "Z": 0.9968597732292
-          },
-          "Translation": {
-            "Y": -97408.83208708,
-            "X": -212976.81696971,
-            "Z": -21545.762334066
-          },
-          "Scale3D": { "Y": 14, "X": 1, "Z": 10 }
-        },
-        {
-          "Rotation": {
-            "Y": -0.03607338218842,
-            "X": 0.017288231758791,
-            "W": 0.90106432924534,
-            "Z": 0.43183666206309
-          },
-          "Translation": {
-            "Y": -89493.65477886,
-            "X": -222430.29234268,
-            "Z": -21473.098844742
-          },
-          "Scale3D": { "Y": 14, "X": 1, "Z": 10 }
-        },
-        {
-          "Rotation": {
-            "Y": 0.00079851064577432,
-            "X": 0.04035149366434,
-            "W": 0.019768880754114,
-            "Z": -0.99898964493809
-          },
-          "Translation": {
-            "Y": -62400.74385912,
-            "X": -204969.76993894,
-            "Z": -19238.334390573
-          },
-          "Scale3D": { "Y": 14, "X": 1, "Z": 10 }
-        },
-        {
-          "Rotation": {
-            "Y": -0.013915128851652,
-            "X": 0.0022522273808386,
-            "W": 0.98705532852211,
-            "Z": 0.15975942882025
-          },
-          "Translation": {
-            "Y": -68971.508357785,
-            "X": -168594.6087996,
-            "Z": -18735.925517306
-          },
-          "Scale3D": { "Y": 14, "X": 1, "Z": 10 }
-        },
-        {
-          "Rotation": {
-            "Y": 0,
-            "X": -0,
-            "W": 0.90631793513124,
-            "Z": -0.42259649839941
-          },
-          "Translation": {
-            "Y": -71776.48480768,
-            "X": -138576.74154581,
-            "Z": -18199.999593198
-          },
-          "Scale3D": { "Y": 14, "X": 1, "Z": 10 }
         }
       ],
       "RouteName": "Jalan Kambing"
@@ -251,9 +180,11 @@ Create a new event. Will return the new event data similar to above if successfu
     "VehicleKeys": {},
     "NumLaps": 3
   },
-  "bInCountdown": false,
   "EventName": "The best event ever!",
-  "State": 1
+  "OwnerCharacterId": { // Optional event host
+    "UniqueNetId": "",
+    "CharacterGuid": "" // Optional character ID. Beware that nonexistant character or typo here might cause ownership error
+  }
 }
 ```
 
@@ -265,15 +196,19 @@ Returns the specified event. Outputs the same response JSON as `GET /events`, bu
 
 #### PATCH `/events/<guid>`
 
-Update event data. Currently only supports changing the event name and/or race setup. Will return the event data similar as above if successful.
+Update event data. Currently only supports changing the event name, host and/or race setup. Will return the event data similar as above if successful.
 
 <details>
 <summary>Request body:</summary>
 
 ```json
 {
-  "EventName": "New event name",
-  "RaceSetup": {
+  "EventName": "New event name",  // Optional event name
+  "OwnerCharacterId": {           // Optional event host
+    "UniqueNetId": "",
+    "CharacterGuid": ""
+  },
+  "RaceSetup": {                  // Optional event race setup
     "NumLaps": 0,
     "Route": {
       "RouteName": "My Super Track",

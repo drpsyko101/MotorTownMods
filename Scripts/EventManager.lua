@@ -1,6 +1,7 @@
 local UEHelpers = require("UEHelpers")
 local webhook = require("Webclient")
 local json = require("JsonParser")
+local socket = RequireSafe("socket") ---@type Socket?
 
 ---Convert FMTEventPlayer to JSON serializable table
 ---@param player FMTEventPlayer
@@ -117,7 +118,7 @@ local RouteTable = {}
 ---@field EventName string
 ---@field EventGuid string?
 ---@field EventType number
----@field OwnerCharacterId { UniqueNetId: string, CharacterGuid: string }
+---@field OwnerCharacterId { UniqueNetId: string, CharacterGuid: string? }?
 ---@field RaceSetup { Route: RouteTable, NumLaps: integer, VehicleKeys: string[], EngineKeys: string[] }
 local EventTable = {}
 
@@ -125,59 +126,112 @@ local EventTable = {}
 ---@param event EventTable
 ---@return string? guid
 local function CreateNewEvent(event)
+  local guid = StringToGuid(event.EventGuid)
+  local characterGuid = event.OwnerCharacterId and StringToGuid(event.OwnerCharacterId.CharacterGuid) or
+      { A = 0, B = 0, C = 0, D = 0 }
+  ---@type FMTEvent
+  local newEvent = {
+    ---@diagnostic disable-next-line:assign-type-mismatch
+    EventName = event.EventName,
+    EventGuid = guid,
+    EventType = 1,
+    OwnerCharacterId = {
+      CharacterGuid = characterGuid,
+      ---@diagnostic disable-next-line:assign-type-mismatch
+      UniqueNetId = event.OwnerCharacterId and event.OwnerCharacterId.UniqueNetId or ""
+    },
+    Players = {},
+    bInCountdown = false,
+    RaceSetup = {
+      NumLaps = 0,
+      EngineKeys = {},
+      VehicleKeys = {},
+      Route = {
+        ---@diagnostic disable-next-line:assign-type-mismatch
+        RouteName = "",
+        Waypoints = {}
+      }
+    },
+    State = 0
+  }
+  if event.OwnerCharacterId then
+    local PC = GetPlayerControllerFromUniqueId(event.OwnerCharacterId.UniqueNetId)
+    if PC:IsValid() then
+      ---@cast PC AMotorTownPlayerController
+
+      -- Fill in missing character ID
+      if not event.OwnerCharacterId.CharacterGuid then
+        local PS = PC.PlayerState
+        ---@cast PS AMotorTownPlayerState
+        if PS:IsValid() then
+          -- Deserialize FGuid since it cannot be set as-is
+          local newOwnerCharId = GuidToString(PS.CharacterGuid)
+          newEvent.OwnerCharacterId.CharacterGuid = StringToGuid(newOwnerCharId)
+        end
+      end
+
+      -- Execute new event creation in game thread synchronously
+      local isProcessing = true
+      ExecuteInGameThread(function()
+        PC:ServerAddEvent(newEvent)
+        isProcessing = false
+      end)
+
+      while isProcessing do
+        if socket then
+          socket.sleep(0.01)
+        else
+          Sleep(10)
+        end
+      end
+    else
+      error("Invalid playerId provided")
+    end
+  end
+
   local eventSystem = GetEventSystem()
 
   if eventSystem:IsValid() then
-    -- Add a new event without any TArray
-    local guid = StringToGuid(event.EventGuid)
-    eventSystem.Net_Events[#eventSystem.Net_Events + 1] = {
-      ---@diagnostic disable-next-line:assign-type-mismatch
-      EventName = event.EventName,
-      EventGuid = guid,
-      EventType = event.EventType,
-      OwnerCharacterId = {
-        CharacterGuid = { A = 0, B = 0, C = 0, D = 0 },
-        ---@diagnostic disable-next-line:assign-type-mismatch
-        UniqueNetId = ""
-      },
-      Players = {},
-      bInCountdown = false,
-      RaceSetup = {
-        NumLaps = 0,
-        EngineKeys = {},
-        VehicleKeys = {},
-        Route = {
-          ---@diagnostic disable-next-line:assign-type-mismatch
-          RouteName = "",
-          Waypoints = {}
-        }
-      },
-      State = 1
-    }
+    local eventIndex = #eventSystem.Net_Events + 1
+    if event.OwnerCharacterId then
+      for i = 1, #eventSystem.Net_Events do
+        eventIndex = i
+        if guid == eventSystem.Net_Events[i].EventGuid then
+          break
+        end
+      end
+      -- Handle possible out of range index
+      if eventIndex > #eventSystem.Net_Events then
+        error(string.format("Failed to find the newly added event %s", GuidToString(guid)))
+      end
+    else
+      -- Add a new event without any TArray
+      eventSystem.Net_Events[eventIndex] = newEvent
+    end
 
     ---@diagnostic disable-next-line:assign-type-mismatch
-    eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.Route.RouteName = event.RaceSetup.Route.RouteName
+    eventSystem.Net_Events[eventIndex].RaceSetup.Route.RouteName = event.RaceSetup.Route.RouteName
 
     -- Add back TArray individually
-    eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.Route.Waypoints:Empty()
+    eventSystem.Net_Events[eventIndex].RaceSetup.Route.Waypoints:Empty()
     for index, value in ipairs(event.RaceSetup.Route.Waypoints) do
-      eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.Route.Waypoints[index] = value
+      eventSystem.Net_Events[eventIndex].RaceSetup.Route.Waypoints[index] = value
     end
 
-    eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.EngineKeys:Empty()
+    eventSystem.Net_Events[eventIndex].RaceSetup.EngineKeys:Empty()
     for index, value in ipairs(event.RaceSetup.EngineKeys) do
-      eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.EngineKeys[index] = FName(value)
+      eventSystem.Net_Events[eventIndex].RaceSetup.EngineKeys[index] = FName(value)
     end
 
-    eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.VehicleKeys:Empty()
+    eventSystem.Net_Events[eventIndex].RaceSetup.VehicleKeys:Empty()
     for index, value in ipairs(event.RaceSetup.VehicleKeys) do
-      eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.VehicleKeys[index] = FName(value)
+      eventSystem.Net_Events[eventIndex].RaceSetup.VehicleKeys[index] = FName(value)
     end
 
     -- Try setting the lap amount after waypoints
-    eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.NumLaps = event.RaceSetup.NumLaps
+    eventSystem.Net_Events[eventIndex].RaceSetup.NumLaps = event.RaceSetup.NumLaps
 
-    return GuidToString(eventSystem.Net_Events[#eventSystem.Net_Events].EventGuid)
+    return GuidToString(eventSystem.Net_Events[eventIndex].EventGuid)
   end
   error("Invalid event system")
 end
@@ -237,6 +291,25 @@ local function UpdateEventRaceSetup(eventGuid, raceSetup)
         if raceSetup.NumLaps then
           eventSystem.Net_Events[i].RaceSetup.NumLaps = raceSetup.NumLaps
         end
+        return
+      end
+    end
+    error(string.format("Unable to find event %s", eventGuid))
+  end
+  error("Invalid event system")
+end
+
+---Update an event owner
+---@param eventGuid string
+---@param eventOwner FMTCharacterId
+local function UpdateEventOwner(eventGuid, eventOwner)
+  local eventSystem = GetEventSystem()
+
+  if eventSystem:IsValid() then
+    for i = 1, #eventSystem.Net_Events, 1 do
+      if GuidToString(eventSystem.Net_Events[i].EventGuid) == eventGuid:upper() then
+        ---@diagnostic disable-next-line:assign-type-mismatch
+        eventSystem.Net_Events[i].OwnerCharacterId = eventOwner
         return
       end
     end
@@ -499,8 +572,10 @@ end
 local function HandleCreateNewEvent(session)
   local content = json.parse(session.content)
 
+  -- Do a simple test for a valid EventTable
   if content and content.EventName and content.EventType then
     ---@cast content EventTable
+
     local status, output = pcall(CreateNewEvent, content)
     if status then
       LogOutput("DEBUG", "Created new event %s", output)
@@ -540,18 +615,24 @@ local function HandleUpdateEvent(session)
 
   if content then
     local eventName = content.EventName or nil
+    ---@type { Route: Route?, NumLaps: integer?, VehicleKeys: string[]?, EngineKeys: string[]? }?
     local eventSetup = content.EventSetup or nil
+    local eventOwner = content.OwnerCharacterId or nil ---@type {UniqueNetId: string, CharacterGuid: string}?
+    local errPayload = json.stringify { error = string.format("Failed to find event %s", eventGuid) }
 
     if eventName then
-      if not UpdateEventName(eventGuid, eventName) then
-        return json.stringify { error = string.format("Failed to find event %s", eventGuid) }, nil, 404
-      end
+      UpdateEventName(eventGuid, eventName)
     end
 
     if eventSetup then
-      if not UpdateEventRaceSetup(eventGuid, eventSetup) then
-        return json.stringify { error = string.format("Failed to find event %s", eventGuid) }, nil, 404
-      end
+      UpdateEventRaceSetup(eventGuid, eventSetup)
+    end
+
+    if eventOwner then
+      UpdateEventOwner(
+        eventGuid,
+        ---@diagnostic disable-next-line:assign-type-mismatch
+        { CharacterGuid = StringToGuid(eventOwner.CharacterGuid), UniqueNetId = eventOwner.UniqueNetId })
     end
 
     return json.stringify { data = GetEvents(eventGuid) }

@@ -558,3 +558,12 @@ function ListContains(table, value)
   end
   return false
 end
+
+---Halts CPU operation for the given duration
+---@param ms integer Duration to sleep in miliseconds
+function Sleep(ms)
+  if ms ~= 0 then
+    ---@diagnostic disable-next-line:undefined-global
+    pcall(NativeSleep, ms)
+  end
+end

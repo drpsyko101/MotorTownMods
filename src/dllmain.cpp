@@ -138,4 +138,18 @@ auto MotorTownMods::on_lua_start(
 			table.make_local();
 			return 1;
 		});
+
+	lua.register_function(
+		"NativeSleep",
+		[](const LuaMadeSimple::Lua& _lua)
+		{
+			if (!_lua.is_integer())
+			{
+				_lua.throw_error("Sleep function only accept an integer parameter.");
+			}
+
+			const int duration = _lua.get_integer();
+			Sleep(duration);
+			return 1;
+		});
 }
