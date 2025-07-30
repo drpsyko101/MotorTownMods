@@ -85,7 +85,7 @@ public:
 		std::wstring test = L"LogTest";
 
 		// Create the prefixed format string
-		std::wstring prefixed_format = L"[" + GetModName() + L"] " + logLevelToString(Level) + L": " + formatted_message + L"\n";
+		std::wstring prefixed_format = L"[C++] [" + GetModName() + L"] " + logLevelToString(Level) + L": " + formatted_message + L"\n";
 
 		Output::send<Level>(prefixed_format);
 	}

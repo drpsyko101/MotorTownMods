@@ -22,7 +22,6 @@ using tcp = asio::ip::tcp;
 Webserver* _localServer = nullptr;
 
 Webserver::Webserver() {
-	ModName = ModStatics::GetModName();
 	if (const char* val = getenv("MOD_MANAGEMENT_PORT"))
 	{
 		Port = atoi(val);
@@ -33,7 +32,7 @@ Webserver::Webserver() {
 	serverThread = boost::thread(&Webserver::run_server, this, Port);
 	serverThread.detach();
 
-	Output::send<LogLevel::Verbose>(STR("[{}] API server listening at {}\n"), ModName, Port);
+	ModStatics::LogOutput(L"API server listening at {}", Port);
 }
 
 Webserver::~Webserver() {
@@ -79,19 +78,15 @@ void Webserver::run_server(unsigned short port) {
 	}
 	catch (const std::exception& e)
 	{
-		Output::send<LogLevel::Error>(
-			STR("[{}] Unexpected server failure: {}\n"),
-			ModName,
-			to_wstring(e.what()));
+		ModStatics::LogOutput<LogLevel::Error>(L"Unexpected server failure: {}", to_wstring(e.what()));
 		return;
 	}
 }
 
 // Function to handle incoming HTTP requests
 std::string Webserver::handle_request(http::request<http::string_body> req, http::response<http::string_body>& res) {
-	Output::send<LogLevel::Verbose>(
-		STR("[{}] Processing {} request {}\n"),
-		ModName,
+	ModStatics::LogOutput(
+		L"Processing {} request {}",
 		to_wstring(static_cast<std::string>(req.method_string())),
 		to_wstring(static_cast<std::string>(req.target())));
 
@@ -121,4 +116,3 @@ std::string Webserver::handle_request(http::request<http::string_body> req, http
 	res.result(statusCode);
 	return json::serialize(response_json);
 }
-

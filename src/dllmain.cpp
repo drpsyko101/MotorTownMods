@@ -20,7 +20,7 @@ MotorTownMods::MotorTownMods()
 	// other than the one you're currently building with somehow.
 	// ModIntendedSDKVersion = STR("2.6");
 
-	Output::send<LogLevel::Verbose>(STR("[{}] mod loaded\n"), ModName);
+	ModStatics::LogOutput(L"Mod loaded");
 }
 
 auto MotorTownMods::on_unreal_init() -> void
