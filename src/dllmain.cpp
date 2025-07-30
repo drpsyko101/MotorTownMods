@@ -85,17 +85,14 @@ auto MotorTownMods::on_lua_start(
 			std::wstring propertyName, className;
 			int32 depth = 2;
 
-			if (_lua.is_integer(3))
+			// Parse parameter values
+			if (_lua.is_integer(3)) depth = _lua.get_integer(3);
+			if (_lua.is_string(2)) className = to_wstring(_lua.get_string(2));
+			if (_lua.is_string()) propertyName = to_wstring(_lua.get_string());
+
+			for (int i = 0; i < _lua.get_stack_size(); i++)
 			{
-				depth = _lua.get_integer(3);
-			}
-			if (_lua.is_string(2))
-			{
-				className = to_wstring(_lua.get_string(2));
-			}
-			if (_lua.is_string())
-			{
-				propertyName = to_wstring(_lua.get_string());
+				_lua.discard_value();
 			}
 
 			auto table = _lua.prepare_new_table();

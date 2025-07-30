@@ -13,10 +13,10 @@ local function GetHouses(guid)
       local house = gameState.Houses[i]
 
       if guid and guid:upper() == GuidToString(house.HouseGuid) then
-        return GetObjectAsTable(house, nil, "MTHouse")
+        return GetObjectAsTable(house, nil, "MTHouse", 4)
       end
 
-      table.insert(arr, GetObjectAsTable(house))
+      table.insert(arr, GetObjectAsTable(house, nil, "MTHouse"))
     end
   end
 
@@ -45,7 +45,6 @@ local function SpawnHouse(location, rotation, houseParam)
     actor.Tags[#actor.Tags + 1] = FName(guid)
 
     LogOutput("INFO", "Spawned a new house: %s", actor:GetFullName())
-    gameState.Houses[#gameState.Houses + 1] = actor
 
     return true, guid
   end

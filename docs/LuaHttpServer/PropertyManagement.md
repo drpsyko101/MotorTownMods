@@ -43,7 +43,7 @@ Returns a house with the givent GUID. Returns similar data as above.
 
 #### POST `/houses/spawn`
 
-Spawn a house plot for sale. Returns a `201` status if the plot successfully spawned. Can be despawned using POST `/assets/despawn` with the resulting GUID.
+Spawn a house plot for sale. Returns a `201` status if the plot successfully spawned. Can be despawned using POST `/assets/despawn` with the resulting GUID. The house can only be purchased if the corresponding house GUID and dataset exists in the `MotorTown/Content/DataAsset/Houses.uasset` data table.
 
 <details>
 <summary>Request body:</summary>

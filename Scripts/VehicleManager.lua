@@ -4,6 +4,7 @@ local assetManager = require("AssetManager")
 local timer = require("Debugging/Timer")
 
 local vehicleDealerSoftPath = "/Script/MotorTown.MTDealerVehicleSpawnPoint"
+local garageSoftPath = "/Game/Objects/GarageActorBP.GarageActorBP_C"
 
 ---Convert AMTGarageActor to JSON serializable table
 ---@param garage AMTGarageActor
@@ -51,7 +52,7 @@ local function GetVehicles(id, fields, limit, isControlled)
 
       table.insert(arr, data)
     else
-      table.insert(arr, GetObjectAsTable(vehicle, nil, "MTVehicle"))
+      table.insert(arr, GetObjectAsTable(vehicle, nil, "/Script/MotorTown.MTVehicle"))
     end
 
     -- Limit result if set
@@ -155,14 +156,11 @@ end
 ---@param location FVector
 ---@param rotation FRotator
 local function SpawnGarage(location, rotation)
-  local status, assetTag, actor = assetManager.SpawnActor(vehicleDealerSoftPath, location, rotation)
-  local gameState = GetMotorTownGameState()
+  local status, assetTag, actor = assetManager.SpawnActor(garageSoftPath, location, rotation)
+  local garageClass = StaticFindObject("/Script/MotorTown.MTGarageActor")
+  ---@cast garageClass UClass
 
-  if status and actor and actor:IsValid() and gameState:IsValid() then
-    ---@cast actor AMTGarageActor
-
-    actor.SizeBoxComponent:SetCollisionProfileName(FName("OverlapAllDynamic"), false)
-    gameState.Garages[#gameState.Garages + 1] = actor
+  if status and actor and actor:IsValid() and actor:IsA(garageClass) then
     return true, assetTag
   end
   return false
