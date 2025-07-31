@@ -5,6 +5,15 @@
 Returns all available player states.
 
 <details>
+<summary>Query:</summary>
+
+- `filters` (string|multi) - `Levels`,`OwnEventGuids`,`GridIndex`,`bIsAdmin`,`bIsHost`,`CustomDestinationAbsoluteLocation`,`JoinedEventGuids`,`PlayerName`,`Location`,`BestLapTime`,`VehicleKey`,`JoinedCompanyGuid`,`CharacterGuid`,`OwnCompanyGuid`
+- `limit` (integer) - Limit the amount of results returned
+- `depth` (integer|default `2`) - Recursive search depth limit
+
+</details>
+
+<details>
 <summary>Response data:</summary>
 
 ```json
@@ -55,7 +64,7 @@ Teleport a player pawn to the desired location and optionally its rotation.
     "Pitch": 0.0,
     "Roll": 0.0,
     "Yaw": 0.0
-  },
+  }
 }
 ```
 

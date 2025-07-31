@@ -209,10 +209,59 @@ local function HandleGetServerStatus(session)
     return json.stringify { status = "ok" }
 end
 
----Handle get mod version
+---Handle request to change server settings
 ---@type RequestPathHandler
-local function HandleGetModVersion(session)
-    return json.stringify { version = statics.ModVersion }
+local function HandleSetServerSettings(session)
+    local data = json.parse(session.content)
+    if data then
+        local gameState = GetMotorTownGameState()
+        if gameState:IsValid() then
+            local liveConfig = gameState.Net_ServerConfig
+
+            -- Adjust max player vehicle spawn limit
+            local limit = tonumber(data.MaxVehiclePerPlayer)
+            if limit then
+                liveConfig.MaxVehiclePerPlayer = limit
+            end
+
+            -- Set to allow use of modded vehicles
+            if data.bAllowModdedVehicle and type(data.bAllowModdedVehicle) == "boolean" then
+                liveConfig.bAllowModdedVehicle = data.bAllowModdedVehicle
+            end
+
+            -- Adjust max house rental duration
+            local rentalDays = tonumber(data.MaxHousingPlotRentalDays)
+            if rentalDays then
+                liveConfig.MaxHousingPlotRentalDays = rentalDays
+            end
+
+            -- Set the max plot a player can have at a given time
+            local rentalPlots = tonumber(data.MaxHousingPlotRentalPerPlayer)
+            if rentalPlots then
+                liveConfig.MaxHousingPlotRentalPerPlayer = rentalPlots
+            end
+
+            -- Change server message for newly logged in player
+            if data.ServerMessage and type(data.ServerMessage) == "string" then
+                liveConfig.ServerMessage = data.ServerMessage
+            end
+
+            -- Set the rental rate per days
+            local rentalRate = tonumber(data.HousingPlotRentalPriceRatio)
+            if rentalRate then
+                liveConfig.HousingPlotRentalPriceRatio = rentalRate
+            end
+
+            -- Allow AI driver in company
+            if data.bAllowCompanyAIDriver and type(data.bAllowCompanyAIDriver) == "boolean"then
+                liveConfig.bAllowCompanyAIDriver = data.bAllowCompanyAIDriver
+            end
+
+            -- return current server config
+            return json.stringify { data = GetObjectAsTable(gameState, "Net_ServerConfig") }
+        end
+    end
+    return json.stringify { error = "Invalid payload" }, nil, 400
 end
 
 return {
@@ -222,6 +271,5 @@ return {
     HandleUpdateNpcTraffic = HandleUpdateNpcTraffic,
     HandleServerExecCommand = HandleServerExecCommand,
     HandleGetServerStatus = HandleGetServerStatus,
-    HandleGetModVersion = HandleGetModVersion,
-    HandleSetPlayerMaxVehicles = HandleSetPlayerMaxVehicles,
+    HandleSetServerSettings = HandleSetServerSettings,
 }

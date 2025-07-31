@@ -3,20 +3,33 @@ local assetManager = require("AssetManager")
 
 ---Get all houses
 ---@param guid string? Filter by house GUID
+---@param filters string[]? Fields to filter with
+---@param depth integer? Recursive search depth
 ---@return table[]
-local function GetHouses(guid)
+local function GetHouses(guid, filters, depth)
   local gameState = GetMotorTownGameState()
   local arr = {}
 
   if gameState:IsValid() then
     for i = 1, #gameState.Houses do
       local house = gameState.Houses[i]
+      local data = {}
 
       if guid and guid:upper() == GuidToString(house.HouseGuid) then
-        return GetObjectAsTable(house, nil, "MTHouse", 4)
+        goto continue
       end
 
-      table.insert(arr, GetObjectAsTable(house, nil, "MTHouse"))
+      if filters then
+        for _, value in ipairs(filters) do
+          MergeTables(data, GetObjectAsTable(house, value, nil, depth))
+        end
+      else
+        data = GetObjectAsTable(house, nil, "MTHouse", depth)
+      end
+
+      table.insert(arr, data)
+
+      :: continue ::
     end
   end
 

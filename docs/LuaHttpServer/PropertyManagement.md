@@ -5,6 +5,15 @@
 Returns all houses in the game.
 
 <details>
+<summary>Query:</summary>
+
+- `filters` (string|multi) - `Net_OwnerCharacterGuid`,`AreaSize`,`Net_RentLeftTimeSeconds`,`Net_OwnerName`,`ForSale`,`HousegKey`,`Net_OwnerUniqueNetId`,`FenceStep`,`Teleport`
+- `limit` (integer) - Limit the amount of results returned
+- `depth` (integer|default `2`) - Recursive search depth limit
+
+</details>
+
+<details>
 <summary>Response data:</summary>
 
 ```json

@@ -35,12 +35,11 @@ local function LoadWebserver()
 
     -- General server status
     server.registerHandler("/status", "GET", serverManager.HandleGetServerStatus, false)
-    server.registerHandler("/version", "GET", serverManager.HandleGetModVersion, false)
     server.registerHandler("/status/general", "GET", serverManager.HandleGetServerState)
     server.registerHandler("/status/general/*", "GET", serverManager.HandleGetZoneState)
     server.registerHandler("/settings/traffic", "GET", serverManager.HandleGetNpcTraffic)
     server.registerHandler("/settings/traffic", "POST", serverManager.HandleUpdateNpcTraffic)
-    server.registerHandler("/settings/players/maxvehicle", "POST", serverManager.HandleSetPlayerMaxVehicles)
+    server.registerHandler("/settings", "PATCH", serverManager.HandleSetServerSettings)
     server.registerHandler("/command", "POST", serverManager.HandleServerExecCommand)
 
     -- Player management

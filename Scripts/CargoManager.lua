@@ -18,8 +18,9 @@ end
 ---Get delivery points
 ---@param guid string? Filter by delivery guid
 ---@param fields string[]? Filter by fields
----@param limit number? Limit the number of results
-local function GetDeliveryPoints(guid, fields, limit)
+---@param limit integer? Limit the number of results
+---@param depth integer? Recursive search depth
+local function GetDeliveryPoints(guid, fields, limit, depth)
   local deliverySystem = GetDeliverySystem()
   local arr = {} ---@type table[]
 
@@ -35,12 +36,12 @@ local function GetDeliveryPoints(guid, fields, limit)
         if fields then
           local data = {}
           for _, value in ipairs(fields) do
-            MergeTables(data, GetObjectAsTable(deliveryPoint, value, "MTDeliveryPoint"))
+            MergeTables(data, GetObjectAsTable(deliveryPoint, value, nil, depth))
           end
           data.DeliveryPointGuid = GuidToString(deliveryPoint.DeliveryPointGuid)
           table.insert(arr, data)
         else
-          table.insert(arr, GetObjectAsTable(deliveryPoint, nil, "MTDeliveryPoint"))
+          table.insert(arr, GetObjectAsTable(deliveryPoint, nil, "MTDeliveryPoint", depth))
         end
 
         -- Limit result if set

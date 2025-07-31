@@ -6,26 +6,13 @@ local timer = require("Debugging/Timer")
 local vehicleDealerSoftPath = "/Script/MotorTown.MTDealerVehicleSpawnPoint"
 local garageSoftPath = "/Game/Objects/GarageActorBP.GarageActorBP_C"
 
----Convert AMTGarageActor to JSON serializable table
----@param garage AMTGarageActor
-local function GarageToTable(garage)
-  local data = {}
-
-  data.GarageFlags = garage.GarageFlags
-  data.GameplayTags = GameplayTagContainerToString(garage.GameplayTags)
-  data.AvailableVehiclePartTagQuery = GameplayTagQueryToTable(garage.AvailableVehiclePartTagQuery)
-  data.Location = VectorToTable(garage:K2_GetActorLocation())
-  data.Rotation = RotatorToTable(garage:K2_GetActorRotation())
-
-  return data
-end
-
 ---Get all or selected vehicle state(s)
 ---@param id number? Get specific vehicle with ID
 ---@param fields string[]? Filter the result based on the table key(s)
----@param limit number?
----@param isControlled boolean?
-local function GetVehicles(id, fields, limit, isControlled)
+---@param limit number? Limit the output amount
+---@param isControlled boolean? Filter vehicles that are operated by a player
+---@param depth integer? Recursive search depth
+local function GetVehicles(id, fields, limit, isControlled, depth)
   local gameState = GetMotorTownGameState()
   local arr = {} ---@type table[]
 
@@ -45,14 +32,14 @@ local function GetVehicles(id, fields, limit, isControlled)
     if fields then
       local data = {}
       for index, value in ipairs(fields) do
-        MergeTables(data, GetObjectAsTable(vehicle, value))
+        MergeTables(data, GetObjectAsTable(vehicle, value, nil, depth))
       end
       -- Always returns the vehicle ID
       data.Net_VehicleId = vehicle.Net_VehicleId
 
       table.insert(arr, data)
     else
-      table.insert(arr, GetObjectAsTable(vehicle, nil, "/Script/MotorTown.MTVehicle"))
+      table.insert(arr, GetObjectAsTable(vehicle, nil, "/Script/MotorTown.MTVehicle", depth))
     end
 
     -- Limit result if set
@@ -144,9 +131,13 @@ local function GetGarages()
   local gameState = GetMotorTownGameState()
 
   if gameState:IsValid() then
-    gameState.Garages:ForEach(function(index, element)
-      table.insert(data, GarageToTable(element:get()))
-    end)
+    for i = 1, #gameState.Garages do
+      local garage = gameState.Garages[i]
+      local output = GetObjectAsTable(garage, nil, "MTGarageActor")
+      output.Location = VectorToTable(garage:K2_GetActorLocation())
+      output.Rotation = RotatorToTable(garage:K2_GetActorRotation())
+      table.insert(data, output)
+    end
   end
 
   return data
@@ -247,16 +238,9 @@ end)
 local function HandleGetVehicles(session)
   local id = tonumber(session.pathComponents[2]) or nil
   local fields = SplitString(session.queryComponents.filters, ",")
-  local limit = nil ---@type number?
-  local isPlayerControlled = nil ---@type boolean?
-
-  if session.queryComponents.limit then
-    limit = tonumber(session.queryComponents.limit)
-  end
-
-  if session.queryComponents.isPlayerControlled then
-    isPlayerControlled = true
-  end
+  local limit = tonumber(session.queryComponents.limit)
+  local isPlayerControlled = session.queryComponents.isPlayerControlled == "true" or false
+  local depth = tonumber(session.queryComponents.depth)
 
   local getTime, data = timer.benchmark(GetVehicles, id, fields, limit, isPlayerControlled)
   LogOutput("DEBUG", "GetVehicles time: %fs", getTime)

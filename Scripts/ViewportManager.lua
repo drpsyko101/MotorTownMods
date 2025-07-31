@@ -177,6 +177,23 @@ local function HandleShowPopupMessage(session)
   return nil, nil, 400
 end
 
+---Handle request to set a new server message
+---@type RequestPathHandler
+local function HandleSetServerMessage(session)
+  local data = json.parse(session.content)
+
+  if data and data.message then
+    local gameState = GetMotorTownGameState()
+
+    if gameState:IsValid() then
+      gameState.Net_ServerConfig.ServerMessage = data.message
+      return json.stringify { status = "ok" }
+    end
+    return json.stringify { error = "Failed to change server message" }, nil, 400
+  end
+  return json.stringify { error = "Invalid payload" }, nil, 400
+end
+
 -- Console commands
 
 ---@type table<string, ModConfigKey>
@@ -223,5 +240,6 @@ RegisterHook("/Script/MotorTown.MotorTownPlayerController:ClientFirstTickRespons
 end)
 
 return {
-  HandleShowPopupMessage = HandleShowPopupMessage
+  HandleShowPopupMessage = HandleShowPopupMessage,
+  HandleSetServerMessage = HandleSetServerMessage,
 }
