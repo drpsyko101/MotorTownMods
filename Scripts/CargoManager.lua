@@ -38,6 +38,7 @@ local function GetDeliveryPoints(guid, fields, limit, depth)
           for _, value in ipairs(fields) do
             MergeTables(data, GetObjectAsTable(deliveryPoint, value, nil, depth))
           end
+          -- Always include delivery point GUID in the result
           data.DeliveryPointGuid = GuidToString(deliveryPoint.DeliveryPointGuid)
           table.insert(arr, data)
         else

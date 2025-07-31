@@ -242,7 +242,7 @@ local function HandleGetVehicles(session)
   local isPlayerControlled = session.queryComponents.isPlayerControlled == "true" or false
   local depth = tonumber(session.queryComponents.depth)
 
-  local getTime, data = timer.benchmark(GetVehicles, id, fields, limit, isPlayerControlled)
+  local getTime, data = timer.benchmark(GetVehicles, id, fields, limit, isPlayerControlled, depth)
   LogOutput("DEBUG", "GetVehicles time: %fs", getTime)
 
   if id and #data == 0 then

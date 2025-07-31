@@ -23,6 +23,8 @@ local function GetHouses(guid, filters, depth)
         for _, value in ipairs(filters) do
           MergeTables(data, GetObjectAsTable(house, value, nil, depth))
         end
+        -- Always include house GUID in the result
+        data.HouseGuid = GuidToString(house.HouseGuid)
       else
         data = GetObjectAsTable(house, nil, "MTHouse", depth)
       end

@@ -12,9 +12,10 @@ local function ItemInventorySlotToTable(item)
 end
 
 ---Get characters as JSON serializable table
----@param limit integer?
----@param filters string[]?
-local function GetCharacters(limit, filters)
+---@param limit integer? Limit the amount of return data
+---@param filters string[]? Filter return fields
+---@param depth integer? Recursive search depth
+local function GetCharacters(limit, filters, depth)
   local data = {}
   local gameState = GetMotorTownGameState()
   if gameState:IsValid() then
@@ -25,11 +26,11 @@ local function GetCharacters(limit, filters)
         if filters then
           local innerData = {}
           for _, value in ipairs(filters) do
-            table.insert(innerData, GetObjectAsTable(gameState.Characters[i], value, "MTCharacter"))
+            table.insert(innerData, GetObjectAsTable(gameState.Characters[i], value, nil, depth))
           end
           table.insert(data, innerData)
         else
-          table.insert(data, GetObjectAsTable(gameState.Characters[i], nil, "MTCharacter"))
+          table.insert(data, GetObjectAsTable(gameState.Characters[i], nil, "MTCharacter", depth))
         end
 
         if limit and #data >= limit then
@@ -58,8 +59,9 @@ end)
 local function HandleGetCharacters(session)
   local limit = tonumber(session.queryComponents.limit) or nil
   local filters = SplitString(session.queryComponents.filters)
+  local depth = tonumber(session.queryComponents.depth)
 
-  local data = GetCharacters(limit, filters)
+  local data = GetCharacters(limit, filters, depth)
   return json.stringify { data = data }
 end
 
