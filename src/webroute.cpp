@@ -31,9 +31,7 @@ json::object Route::GetResponseJson(http::request<http::string_body> req, http::
 
 static void OnReqFail(const std::string message)
 {
-	Output::send<LogLevel::Error>(STR("[{}] Failed to send webhook request: {}\n"),
-		ModStatics::GetModName(),
-		to_wstring(message));
+	ModStatics::LogOutput<LogLevel::Error>(L"Failed to send webhook request: {}", to_wstring(message));
 }
 
 void Route::SendWebhookEvent(const json::object payload)
@@ -53,8 +51,7 @@ void Route::SendWebhookEvent(const json::object payload)
 		const std::string port = uri.port().empty() ? "80" : uri.port();
 		const std::string target = uri.path();
 		const std::string schema = uri.scheme().empty() ? "http" : uri.scheme();
-		Output::send<LogLevel::Verbose>(STR("[{}] Sending payload to {}:{}{}\n"),
-			ModStatics::GetModName(),
+		ModStatics::LogOutput(L"Sending payload to {}:{} {}",
 			to_wstring(host),
 			to_wstring(port),
 			to_wstring(target));
@@ -68,9 +65,7 @@ void Route::SendWebhookEvent(const json::object payload)
 		req.prepare_payload();
 
 		const std::string body = json::serialize(payload);
-		Output::send<LogLevel::Verbose>(STR("[{}] Sending payload {}\n"),
-			ModStatics::GetModName(),
-			to_wstring(body));
+		ModStatics::LogOutput(L"Sending payload {}", to_wstring(body));
 
 		req.body() = body;
 
@@ -80,9 +75,7 @@ void Route::SendWebhookEvent(const json::object payload)
 			[uri](boost::beast::error_code e, std::size_t bytesWritten) {
 				if (e) return OnReqFail(e.what());
 
-				Output::send<LogLevel::Verbose>(STR("[{}] Successfully sent webhook {}\n"),
-					ModStatics::GetModName(),
-					to_wstring(uri.path()));
+				ModStatics::LogOutput(L"Successfully sent webhook {}", to_wstring(uri.path()));
 			}
 		);
 	}

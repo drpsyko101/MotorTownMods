@@ -10,6 +10,8 @@ Returns all delivery points in-game. Note that this is a bandwith heavy operatio
 <summary>Query:</summary>
 
 - `filters` (string|multi) - `MaxDeliveryDistance,Supplies,DeliveryPointName,MaxPassiveDeliveries,MissionPointType,MaxDeliveryReceiveDistance,bUseAsDestinationInteraction,bConsumeContainer,Net_RuntimeFlags,bShowStorage,DemandConfigs,InputInventoryShareTarget,BasePayment,InputInventoryShare,Net_OutputInventory,DestinationCargoLimits,bIsSender,PassiveSupplies,Net_ProductionLocalFoodSupply,Net_ProductionBonusByPopulation,Net_ProductionBonusByProduction,ProductionConfigs,MaxStorage,Net_Deliveries,PaymentMultiplier,GameplayTags,bRemoveUnusedInputCargo,DestinationTypes,StorageConfigs,DestinationExcludeTypes,bIsReceiver,MissionPointName,Net_InputInventory,PointName,bLoadCargoBySpawnAtPoint,DemandPriority,MaxDeliveries,Demands`
+- `limit` (integer) - Limit the amount of results returned
+- `depth` (integer|default `2`) - Recursive search depth limit
 
 </details>
 

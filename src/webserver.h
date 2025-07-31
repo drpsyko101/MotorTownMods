@@ -17,7 +17,6 @@ class Route;
 // Simple HTTP server with threading
 class Webserver
 {
-	std::wstring ModName;
 	int Port = 5000;
 	asio::io_context ioc;
 	boost::thread serverThread;

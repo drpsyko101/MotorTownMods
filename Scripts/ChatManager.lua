@@ -38,12 +38,6 @@ local function AnnounceServerMessage(message, playerId, pinned)
     end)
     local id = GetPlayerUniqueId(PC)
     return true, id
-  elseif pinned then
-    local gameState = GetMotorTownGameState()
-    if gameState:IsValid() then
-      gameState.Net_ServerConfig.PinnedAnnounce = message
-      return true
-    end
   end
   return false
 end

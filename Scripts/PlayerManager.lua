@@ -1,50 +1,11 @@
 local json = require("JsonParser")
 
----Convert player state to JSON serializable table
----@param playerState AMotorTownPlayerState
-local function PlayerStateToTable(playerState)
-  local data = {}
-
-  if playerState:IsValid() then
-    data.UniqueID = GetUniqueNetIdAsString(playerState)
-
-    data.PlayerName = playerState:GetPlayerName():ToString()
-    data.GridIndex = playerState.GridIndex
-    data.bIsHost = playerState.bIsHost
-    data.bIsAdmin = playerState.bIsAdmin
-    data.CharacterGuid = GuidToString(playerState.CharacterGuid)
-    data.BestLapTime = playerState.BestLapTime
-
-    data.Levels = {}
-    playerState.Layers:ForEach(function(index, element)
-      table.insert(data.Levels, element:get())
-    end)
-
-    data.OwnCompanyGuid = GuidToString(playerState.OwnCompanyGuid)
-    data.JoinedCompanyGuid = GuidToString(playerState.JoinedCompanyGuid)
-    data.CustomDestinationAbsoluteLocation = VectorToTable(playerState.CustomDestinationAbsoluteLocation)
-
-    data.OwnEventGuids = {}
-    playerState.OwnEventGuids:ForEach(function(index, element)
-      table.insert(data.OwnEventGuids, GuidToString(element:get()))
-    end)
-
-    data.JoinedEventGuids = {}
-    playerState.JoinedEventGuids:ForEach(function(index, element)
-      table.insert(data.JoinedEventGuids, GuidToString(element:get()))
-    end)
-
-    data.Location = VectorToTable(playerState.Location)
-    data.VehicleKey = playerState.VehicleKey:ToString()
-  end
-
-  return data
-end
-
 ---Get all or selected player state(s)
 ---@param uniqueId string? Filter by player state unique net ID
+---@param filters string[]? Fields to be filtered
+---@param depth integer? Recursive search depth
 ---@return table[]
-local function GetPlayerStates(uniqueId)
+local function GetPlayerStates(uniqueId, filters, depth)
   local gameState = GetMotorTownGameState()
   local arr = {}
 
@@ -59,10 +20,22 @@ local function GetPlayerStates(uniqueId)
     if playerState:IsValid() then
       ---@cast playerState AMotorTownPlayerState
 
-      local data = PlayerStateToTable(playerState)
-
+      local playerId = GetUniqueNetIdAsString(playerState)
       -- Filter by uniqueId if provided
-      if uniqueId and uniqueId ~= data.UniqueID then goto continue end
+      if uniqueId and uniqueId ~= playerId then goto continue end
+
+      local data = {}
+      if filters then
+        for _, value in ipairs(filters) do
+          MergeTables(data, GetObjectAsTable(playerState, value, nil, depth))
+        end
+      else
+        data = GetObjectAsTable(playerState, nil, "MotorTownPlayerState", depth)
+        data.Name = playerState:GetPlayerName():ToString()
+      end
+
+      -- Always return unique ID
+      data.UniqueID = playerId
 
       table.insert(arr, data)
 
@@ -104,11 +77,15 @@ end)
 
 -- HTTP request handlers
 
----Handle request for player states
+---Handle request for player states.
+---See [documentation](../docs/LuaHttpServer/PlayerManagement.md)
 ---@type RequestPathHandler
 local function HandleGetPlayerStates(session)
   local playerId = session.pathComponents[2]
-  local res = GetPlayerStates(playerId)
+  local filters = SplitString(session.queryComponents.filters)
+  local depth = tonumber(session.queryComponents.depth)
+  local res = GetPlayerStates(playerId, filters, depth)
+
   if playerId and #res == 0 then
     return json.stringify { message = string.format("Player with unique ID %s not found", playerId) }, nil, 404
   end
@@ -153,6 +130,5 @@ end
 return {
   HandleGetPlayerStates = HandleGetPlayerStates,
   GetMyCurrentTransform = GetMyCurrentTransform,
-  PlayerStateToTable = PlayerStateToTable,
   HandleTeleportPlayer = HandleTeleportPlayer,
 }

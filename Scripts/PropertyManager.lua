@@ -1,48 +1,35 @@
-local UEHelper = require("UEHelpers")
 local json = require("JsonParser")
-local socket = require("socket")
 local assetManager = require("AssetManager")
-
----Convert house to JSON serializable table
----@param house AMTHouse
-local function HouseToTable(house)
-  local data = {}
-
-  data.AreaSize = VectorToTable(house.AreaSize)
-  data.FenceStep = house.FenceStep
-  data.HousegKey = house.HousegKey:ToString()
-  data.Net_OwnerUniqueNetId = house.Net_OwnerUniqueNetId:ToString()
-  data.Net_OwnerCharacterGuid = GuidToString(house.Net_OwnerCharacterGuid)
-  data.Net_OwnerName = house.Net_OwnerName:ToString()
-  data.Net_RentLeftTimeSeconds = house.Net_RentLeftTimeSeconds
-  data.ForSale = house.ForSale:IsValid()
-  data.Teleport = nil
-  data.Location = VectorToTable(house:K2_GetActorLocation())
-  data.Rotation = RotatorToTable(house:K2_GetActorRotation())
-
-  if house.Teleport:IsValid() then
-    data.Teleport = VectorToTable(house.Teleport:K2_GetActorLocation())
-  end
-
-  return data
-end
 
 ---Get all houses
 ---@param guid string? Filter by house GUID
+---@param filters string[]? Fields to filter with
+---@param depth integer? Recursive search depth
 ---@return table[]
-local function GetHouses(guid)
+local function GetHouses(guid, filters, depth)
   local gameState = GetMotorTownGameState()
   local arr = {}
 
   if gameState:IsValid() then
     for i = 1, #gameState.Houses do
       local house = gameState.Houses[i]
+      local data = {}
 
-      if guid and guid:upper() ~= GuidToString(house.HouseGuid) then
+      if guid and guid:upper() == GuidToString(house.HouseGuid) then
         goto continue
       end
 
-      table.insert(arr, HouseToTable(house))
+      if filters then
+        for _, value in ipairs(filters) do
+          MergeTables(data, GetObjectAsTable(house, value, nil, depth))
+        end
+        -- Always include house GUID in the result
+        data.HouseGuid = GuidToString(house.HouseGuid)
+      else
+        data = GetObjectAsTable(house, nil, "MTHouse", depth)
+      end
+
+      table.insert(arr, data)
 
       :: continue ::
     end
@@ -73,7 +60,6 @@ local function SpawnHouse(location, rotation, houseParam)
     actor.Tags[#actor.Tags + 1] = FName(guid)
 
     LogOutput("INFO", "Spawned a new house: %s", actor:GetFullName())
-    gameState.Houses[#gameState.Houses + 1] = actor
 
     return true, guid
   end

@@ -69,7 +69,6 @@ Most of the server settings can be configured using environment variables:
 | `MOD_SERVER_API_URL`        | _none_        | Server API to call from client side                                                                                        |
 | `MOD_SERVER_PASSWORD`       | _none_        | Authenticate server request with `Authorization: Basic ` header                                                            |
 | `MOD_SERVER_SEND_PARTIAL`   | _none_        | Limit server response chunks to 40 bytes (Set to `true` for older `luasocket` compatibility)                               |
-| `MOD_AUTO_FPS_ENABLE`       | _none_        | Enable automatic server traffic adjustment based on the server's FPS                                                       |
 
 ### Reloading mod
 

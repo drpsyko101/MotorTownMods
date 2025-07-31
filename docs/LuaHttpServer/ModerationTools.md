@@ -56,7 +56,7 @@ Omit `playerId` to spawn popup message to everyone:
 
 #### POST `/messages/announce`
 
-Post an announcement on the server. Does have an option to pin the announcement. Requires an admin player to be present on the server, with an exception to the pin option.
+Post an announcement on the server. Does have an option to pin the announcement. Requires an admin player to be present on the server.
 
 <details>
 <summary>Request body:</summary>

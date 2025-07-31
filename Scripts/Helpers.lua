@@ -160,7 +160,7 @@ function TransformToTable(transform)
   local rotation = QuatToTable(transform.Rotation)
   local scale = VectorToTable(transform.Scale3D)
   return {
-    Location = location,
+    Translation = location,
     Rotation = rotation,
     Scale3D = scale
   }
@@ -174,10 +174,18 @@ function GuidToString(guid)
   local rawGuid = { guid.A, guid.B, guid.C, guid.D }
   local strGuid = ""
   for index, value in ipairs(rawGuid) do
+    -- string.format doesn't support negative hexadecimal conversion
+    -- So we overflow it until it becomes positive
     if value < 0 then
       rawGuid[index] = rawGuid[index] + 0x100000000
     end
-    strGuid = string.format("%s%x", strGuid, rawGuid[index])
+    local part = string.format("%x", rawGuid[index])
+
+    -- Pad GUID part with zeroes
+    for _ = #part, 7 do
+      part = "0" .. part
+    end
+    strGuid = string.format("%s%s", strGuid, part)
   end
   return strGuid:upper()
 end
@@ -311,6 +319,7 @@ function StringToGuid(input)
       error(input .. " is not a valid Guid")
     end
 
+    -- Split input string into 4 parts, 8 characters long hexadecimal
     for i = 1, #input, 8 do
       local a = input:sub(i, i + 8 - 1)
       table.insert(s, tonumber(a, 16))
@@ -506,11 +515,11 @@ end
 ---@param base table
 ---@param append table
 ---@return table
-function MergeTable(base, append)
+function MergeTables(base, append)
   for k, v in pairs(append) do
     if type(v) == "table" then
       if type(base[k] or false) == "table" then
-        MergeTable(base[k] or {}, append[k] or {})
+        MergeTables(base[k] or {}, append[k] or {})
       else
         base[k] = v
       end
@@ -519,4 +528,42 @@ function MergeTable(base, append)
     end
   end
   return base
+end
+
+---Get object as JSON serializable table
+---@param object UObject
+---@param field string? Optional field to serialize, if not specified, all variables are returned. This will search for all property in chain, overriding `className` parameter.
+---@param className string? Filter variables to a specific simple class name like `MotorTownGameState`. Ignored when `field` parameter is set.
+---@param depth integer? Recursive depth limit
+---@return table
+function GetObjectAsTable(object, field, className, depth)
+  ---@diagnostic disable-next-line: undefined-global
+  local status, output = pcall(GetObjectVariables, object, field, className, depth)
+  if status then return output end
+  return {}
+end
+
+---CHeck if table contains value
+---@param table table
+---@param value any
+function ListContains(table, value)
+  if type(table) == "table" then
+    if #table > 0 then
+      for i, v in ipairs(table) do
+        if v == value then
+          return true
+        end
+      end
+    end
+  end
+  return false
+end
+
+---Halts CPU operation for the given duration
+---@param ms integer Duration to sleep in miliseconds
+function Sleep(ms)
+  if ms ~= 0 then
+    ---@diagnostic disable-next-line:undefined-global
+    pcall(NativeSleep, ms)
+  end
 end

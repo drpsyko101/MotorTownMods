@@ -35,10 +35,11 @@ local function LoadWebserver()
 
     -- General server status
     server.registerHandler("/status", "GET", serverManager.HandleGetServerStatus, false)
-    server.registerHandler("/version", "GET", serverManager.HandleGetModVersion, false)
     server.registerHandler("/status/general", "GET", serverManager.HandleGetServerState)
     server.registerHandler("/status/general/*", "GET", serverManager.HandleGetZoneState)
-    server.registerHandler("/status/traffic", "POST", serverManager.HandleUpdateNpcTraffic)
+    server.registerHandler("/settings/traffic", "GET", serverManager.HandleGetNpcTraffic)
+    server.registerHandler("/settings/traffic", "POST", serverManager.HandleUpdateNpcTraffic)
+    server.registerHandler("/settings", "PATCH", serverManager.HandleSetServerSettings)
     server.registerHandler("/command", "POST", serverManager.HandleServerExecCommand)
 
     -- Player management
@@ -51,11 +52,14 @@ local function LoadWebserver()
     server.registerHandler("/events", "POST", eventManager.HandleCreateNewEvent)
     server.registerHandler("/events/*", "GET", eventManager.HandleGetEvents)
     server.registerHandler("/events/*/state", "POST", eventManager.HandleChangeEventState)
-    server.registerHandler("/events/*", "POST", eventManager.HandleUpdateEvent)
+    server.registerHandler("/events/*/players", "POST", eventManager.HandlePlayerJoinEvent)
+    server.registerHandler("/events/*/players", "DELETE", eventManager.HandlePlayerLeaveEvent)
+    server.registerHandler("/events/*", "PATCH", eventManager.HandleUpdateEvent)
     server.registerHandler("/events/*", "DELETE", eventManager.HandleRemoveEvent)
 
     -- Properties management
     server.registerHandler("/houses", "GET", propertyManager.HandleGetHouses)
+    server.registerHandler("/houses/*", "GET", propertyManager.HandleGetHouses)
     server.registerHandler("/houses/spawn", "POST", propertyManager.HandleSpawnHouse)
 
     -- Cargo management
@@ -70,7 +74,7 @@ local function LoadWebserver()
     server.registerHandler("/vehicles/*", "PATCH", vehicleManager.HandleSetVehicleParameter)
     server.registerHandler("/dealers/spawn", "POST", vehicleManager.HandleCreateVehicleDealerSpawnPoint)
     server.registerHandler("/garages", "GET", vehicleManager.HandleGetGarages)
-    server.registerHandler("/garages/spawn", "POST", vehicleManager.HandleGetGarages)
+    server.registerHandler("/garages/spawn", "POST", vehicleManager.HandleSpawnGarage)
 
     -- Asset management
     server.registerHandler("/assets/spawn", "POST", assetManager.HandleSpawnActor)

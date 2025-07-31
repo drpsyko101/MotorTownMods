@@ -19,173 +19,99 @@ end
 local pollPerMin = 30
 local serverFps = {} ---@type number[]
 
----Convert FMTZoneState to JSON serializable table
----@param zone FMTZoneState
-local function ZoneToTable(zone)
-    local data = {}
-
-    data.BusTransportRate = zone.BusTransportRate
-    data.FoodSupplyRate = zone.FoodSupplyRate
-    data.GarbageCollectRate = zone.GarbageCollectRate
-    data.PolicePatrolRate = zone.PolicePatrolRate
-    data.NumResidents = zone.NumResidents
-    data.ZoneKey = zone.ZoneKey:ToString()
-
-    return data
-end
-
 ---Get current server state
+---@param zoneName string?
+---@param depth integer?
 ---@return table
-local function GetServerState(zoneName)
+local function GetServerState(zoneName, depth)
     local gameState = GetMotorTownGameState()
     local data = {}
     if (gameState:IsValid()) then
-        local state = gameState.Net_HotState
-
-        data.FPS = state.FPS
-        data.BusTransportRate = state.BusTransportRate
-        data.FoodSupplyRate = state.FoodSupplyRate
-        data.GarbageCollectRate = state.GarbageCollectRate
-        data.NumResidents = state.NumResidents
-        data.PolicePatrolRate = state.PolicePatrolRate
-        data.ServerPlatformTimeSeconds = state.ServerPlatformTimeSeconds
-
-        local zones = {}
-        state.ZoneStates:ForEach(function(index, element)
-            local zone = element:get() ---@type FMTZoneState
-            table.insert(zones, ZoneToTable(zone))
-        end)
-        data.ZoneStates = zones
+        data = GetObjectAsTable(gameState, "Net_HotState", nil, depth).Net_HotState
+        if zoneName and data.ZoneStates then
+            for _, value in ipairs(data.ZoneStates) do
+                if value.ZoneKey == zoneName then
+                    return value
+                end
+            end
+            return {}
+        end
     end
     return data
 end
 
----Get the specified zone state
----@param zoneName string Return only for the specified zone state
----@return table
-local function GetZoneState(zoneName)
-    local gameState = GetMotorTownGameState()
-    if (gameState:IsValid()) then
-        local state = gameState.Net_HotState
-
-        for i = 1, #state.ZoneStates, 1 do
-            if state.ZoneStates[i].ZoneKey:ToString() == zoneName then
-                return ZoneToTable(state.ZoneStates[i])
-            end
-        end
-    end
-    return {}
-end
-
-local function GetServerFps()
-    local gameState = GetMotorTownGameState()
-    if (gameState:IsValid()) then
-        local fps = gameState.Net_HotState.FPS ---@cast fps number
-        table.insert(serverFps, fps)
-        if (#serverFps > pollPerMin) then
-            table.remove(serverFps, 1)
-        end
-        table.sort(serverFps, function(a, b)
-            return a > b
-        end)
-        local medianIdx = math.ceil(#serverFps / 2)
-        local medianFps = serverFps[medianIdx]
-        return medianFps
-    end
-    return -1
-end
-
-local npcAmount = 100
+-- We don't know the initial npcAmount since `FMTDediConfig` isn't exposed
+---@type integer?
+local npcAmount = nil
+-- These are the default density value for each type of vehicles
+---@type table<string, {MinAmount: integer, MaxAmount: integer}>
+local densities = {
+    Small = { MinAmount = -1, MaxAmount = 250 },
+    Special = { MinAmount = -1, MaxAmount = 5 },
+    Truck = { MinAmount = -1, MaxAmount = 50 },
+    Bus = { MinAmount = -1, MaxAmount = 50 },
+    Police = { MinAmount = -1, MaxAmount = 1 },
+    Tow_Ld = { MinAmount = 1, MaxAmount = 2 },
+    Tow = { MinAmount = 3, MaxAmount = 6 },
+    Tow_Heavy = { MinAmount = 1, MaxAmount = 2 },
+    Rescue = { MinAmount = 3, MaxAmount = 4 },
+    HeavyRescue = { MinAmount = 3, MaxAmount = 5 },
+    VehicleDelivery = { MinAmount = 4, MaxAmount = 8 },
+    VehicleDeliveryHeavy = { MinAmount = 5, MaxAmount = 8 },
+    Getaway = { MinAmount = -1, MaxAmount = 1 },
+}
 ---Change the current traffic density
+---@param vehicleTypes string[] Vehicle types to modify
 ---@param amount number New density in %
-local function AdjustTrafficDensity(amount)
+local function AdjustTrafficDensity(vehicleTypes, amount)
     if amount ~= npcAmount then
-        LogOutput("INFO", "Changing traffic amount from %.1f%% to %.1f%%", npcAmount, amount)
+        if npcAmount then
+            LogOutput("INFO", "Changing traffic amount from %.1f%% to %.1f%%", npcAmount, amount)
+        else
+            LogOutput("INFO", "Changing traffic amount to %.1f%%", amount)
+        end
         npcAmount = amount
     end
     local gameState = GetMotorTownGameState()
     if (gameState:IsValid() and gameState.AIVehicleSpawnSystem:IsValid()) then
         local settings = gameState.AIVehicleSpawnSystem.SpawnSettings
-        local densities = {
-            Small = { MinAmount = -1, MaxAmount = 250 },
-            Special = { MinAmount = -1, MaxAmount = 5 },
-            Truck = { MinAmount = -1, MaxAmount = 50 },
-            Bus = { MinAmount = -1, MaxAmount = 50 },
-            -- Police = { MinAmount = -1, MaxAmount = 1 },
-            -- Tow_Ld = { MinAmount = 1, MaxAmount = 2 },
-            -- Tow = { MinAmount = 3, MaxAmount = 6 },
-            -- Tow_Heavy = { MinAmount = 1, MaxAmount = 2 },
-            -- Rescue = { MinAmount = 3, MaxAmount = 4 },
-            -- HeavyRescue = { MinAmount = 3, MaxAmount = 5 },
-            -- VehicleDelivery = { MinAmount = 4, MaxAmount = 8 },
-            -- VehicleDeliveryHeavy = { MinAmount = 5, MaxAmount = 8 },
-            -- Getaway = { MinAmount = -1, MaxAmount = 1 },
-        }
-        for i = 1, #settings, 1 do
-            local setting = settings[1] ---@cast setting FMTAIVehicleSpawnSetting
-            local density = densities[setting.SettingKey]
-            if density then
-                setting.bUseNPCVehicleDensity = false
-                setting.MaxCount = density.MaxAmount * amount
+        local hasAll = ListContains(vehicleTypes, "all")
+        for i = 1, #settings do
+            local type = settings[i].SettingKey:ToString()
+
+            local density = densities[type]
+            if density and (ListContains(vehicleTypes, type) or hasAll) then
+                settings[i].bUseNPCVehicleDensity = false
+                settings[i].bUseNPCVehicleDensity = false
+                local newAmount = math.floor(density.MaxAmount * amount)
+                settings[i].MaxCount = newAmount
+
+                -- If max amount drops below min, adjust min
+                if newAmount < settings[i].MinCount then
+                    settings[i].MinCount = newAmount
+                end
+
+                -- restore min value if more than threshold
+                if newAmount > density.MinAmount then
+                    settings[i].MinCount = density.MinAmount
+                end
             end
         end
     end
 end
 
----Automatically adjust server caps
----@param override boolean?
----@return boolean
-local function AutoAdjustServerCaps(override)
-    local gameState = GetMotorTownGameState()
-    if not gameState:IsValid() then
-        return false
-    end
-
-    local currentFps = 60
-    if not override then
-        currentFps = GetServerFps()
-    end
-
-    if (currentFps <= 0) then
-        LogOutput("DEBUG", "Invalid FPS, not changing anything")
-        return false
-    elseif (currentFps < 30) then
-        local newLimit = math.floor(maxVehiclePerPlayer / 2)
-        LogOutput("DEBUG", "Server FPS lower than 30 FPS, setting maxVehiclePerPlayer to %i", newLimit)
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = newLimit
-        AdjustTrafficDensity(0)
-    elseif (currentFps < 40) then
-        local newLimit = math.floor(maxVehiclePerPlayer / 0.75)
-        LogOutput("DEBUG", "Server FPS lower than 40 FPS, setting maxVehiclePerPlayer to %i", newLimit)
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = newLimit
-        AdjustTrafficDensity(math.floor(npcVehicleDensity / 2))
-    else
-        LogOutput("DEBUG", "Server FPS at 60 FPS or in override mode, setting maxVehiclePerPlayer to %i",
-            maxVehiclePerPlayer)
-        gameState.Net_ServerConfig.MaxVehiclePerPlayer = maxVehiclePerPlayer
-        AdjustTrafficDensity(npcVehicleDensity)
-    end
-    return true
-end
-
-if os.getenv("MOD_AUTO_FPS_ENABLE") then
-    LoopAsync(60 * 1000 / pollPerMin, function()
-        AutoAdjustServerCaps()
-        return false
-    end)
-end
-
 -- Register console commands
 
 RegisterConsoleCommandHandler("getserverstate", function(Cmd, CommandParts, Ar)
-    LogOutput("INFO", json.stringify(GetServerState()))
+    local data = GetServerState()
+    LogOutput("INFO", "%s: %s", Cmd, json.stringify(data))
     return true
 end)
 
 RegisterConsoleCommandHandler("setnpctraffic", function(Cmd, CommandParts, Ar)
-    local density = tonumber(CommandParts[1]) or 1.0
-    npcVehicleDensity = density
-    AutoAdjustServerCaps(true)
+    local types = SplitString(CommandParts[1]) or { "Small", "Special", "Truck", "Bus" }
+    local density = tonumber(CommandParts[2]) or 1.0
+    AdjustTrafficDensity(types, density)
     LogOutput("INFO", "Set NPC traffic density to %.1f", density * 100)
     return true
 end)
@@ -205,11 +131,20 @@ end
 ---@type RequestPathHandler
 local function HandleGetZoneState(session)
     local zoneName = session.pathComponents[3]
+    local depth = tonumber(session.queryComponents.depth)
+
     if zoneName then
-        local serverStatus = json.stringify {
-            data = GetZoneState(zoneName)
-        }
-        return serverStatus
+        return json.stringify { data = GetServerState(zoneName, depth) }
+    end
+    return nil, nil, 400
+end
+
+---Handle get current traffic setting request
+---@type RequestPathHandler
+local function HandleGetNpcTraffic(session)
+    local gameState = GetMotorTownGameState()
+    if gameState:IsValid() then
+        return json.stringify { data = GetObjectAsTable(gameState.AIVehicleSpawnSystem) }
     end
     return nil, nil, 400
 end
@@ -220,15 +155,29 @@ local function HandleUpdateNpcTraffic(session)
     local body = json.parse(session.content)
     if body then
         local density = tonumber(body.NPCVehicleDensity)
+        ---@type string[]
+        local vehicleTypes = body.VehicleTypes or { "Small", "Special", "Truck", "Bus" }
         if density then
-            npcVehicleDensity = density
+            AdjustTrafficDensity(vehicleTypes, density)
+            return json.stringify { status = "ok" }
         end
-        local maxV = tonumber(body.MaxVehiclePerPlayer)
-        if maxV then
-            maxVehiclePerPlayer = maxV
+    end
+    return nil, nil, 400
+end
+
+---Handle request to set a new player maximum spawnable vehicles
+---@type RequestPathHandler
+local function HandleSetPlayerMaxVehicles(session)
+    local body = json.parse(session.content)
+    if body then
+        local limit = tonumber(body.MaxVehiclePerPlayer)
+        if limit then
+            local gameState = GetMotorTownGameState()
+            if gameState:IsValid() then
+                gameState.Net_ServerConfig.MaxVehiclePerPlayer = limit
+                return json.stringify { status = "ok" }, nil, 200
+            end
         end
-        AutoAdjustServerCaps(true)
-        return json.stringify { status = "ok" }
     end
     return nil, nil, 400
 end
@@ -260,17 +209,67 @@ local function HandleGetServerStatus(session)
     return json.stringify { status = "ok" }
 end
 
----Handle get mod version
+---Handle request to change server settings
 ---@type RequestPathHandler
-local function HandleGetModVersion(session)
-    return json.stringify { version = statics.ModVersion }
+local function HandleSetServerSettings(session)
+    local data = json.parse(session.content)
+    if data then
+        local gameState = GetMotorTownGameState()
+        if gameState:IsValid() then
+            local liveConfig = gameState.Net_ServerConfig
+
+            -- Adjust max player vehicle spawn limit
+            local limit = tonumber(data.MaxVehiclePerPlayer)
+            if limit then
+                liveConfig.MaxVehiclePerPlayer = limit
+            end
+
+            -- Set to allow use of modded vehicles
+            if data.bAllowModdedVehicle and type(data.bAllowModdedVehicle) == "boolean" then
+                liveConfig.bAllowModdedVehicle = data.bAllowModdedVehicle
+            end
+
+            -- Adjust max house rental duration
+            local rentalDays = tonumber(data.MaxHousingPlotRentalDays)
+            if rentalDays then
+                liveConfig.MaxHousingPlotRentalDays = rentalDays
+            end
+
+            -- Set the max plot a player can have at a given time
+            local rentalPlots = tonumber(data.MaxHousingPlotRentalPerPlayer)
+            if rentalPlots then
+                liveConfig.MaxHousingPlotRentalPerPlayer = rentalPlots
+            end
+
+            -- Change server message for newly logged in player
+            if data.ServerMessage and type(data.ServerMessage) == "string" then
+                liveConfig.ServerMessage = data.ServerMessage
+            end
+
+            -- Set the rental rate per days
+            local rentalRate = tonumber(data.HousingPlotRentalPriceRatio)
+            if rentalRate then
+                liveConfig.HousingPlotRentalPriceRatio = rentalRate
+            end
+
+            -- Allow AI driver in company
+            if data.bAllowCompanyAIDriver and type(data.bAllowCompanyAIDriver) == "boolean"then
+                liveConfig.bAllowCompanyAIDriver = data.bAllowCompanyAIDriver
+            end
+
+            -- return current server config
+            return json.stringify { data = GetObjectAsTable(gameState, "Net_ServerConfig") }
+        end
+    end
+    return json.stringify { error = "Invalid payload" }, nil, 400
 end
 
 return {
     HandleGetServerState = HandleGetServerState,
     HandleGetZoneState = HandleGetZoneState,
+    HandleGetNpcTraffic = HandleGetNpcTraffic,
     HandleUpdateNpcTraffic = HandleUpdateNpcTraffic,
     HandleServerExecCommand = HandleServerExecCommand,
     HandleGetServerStatus = HandleGetServerStatus,
-    HandleGetModVersion = HandleGetModVersion,
+    HandleSetServerSettings = HandleSetServerSettings,
 }

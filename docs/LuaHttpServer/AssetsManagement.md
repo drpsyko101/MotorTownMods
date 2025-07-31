@@ -13,7 +13,9 @@ Spawning a single actor:
 
 ```json
 {
-  "AssetPath": "/Path/To/Asset.Asset",
+  // Path to the spawnable asset. Currently limited to blueprint actor and static mesh.
+  // The path must be using the mounted path style, where the Content directory will be mounted as Game during runtime.
+  "AssetPath": "/Game/Objects/ParkingSpace/Interaction_ParkingSpace_Large.Interaction_ParkingSpace_Large_C",
   "Location": {
     "X": 0.0,
     "Y": 0.0,
@@ -33,7 +35,7 @@ Spawning multiple actors:
 ```json
 [
   {
-    "AssetPath": "/Path/To/Asset.Asset",
+    "AssetPath": "/Game/Objects/ParkingSpace/Interaction_ParkingSpace_Large.Interaction_ParkingSpace_Large_C",
     "Location": {
       "X": 0.0,
       "Y": 0.0,
