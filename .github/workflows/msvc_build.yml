@@ -2,8 +2,11 @@ name: Build release
 
 on:
   push:
+    tags:
+      - "v*.*.*" # Triggers on version tags like v1.2.3, v2.0.1, etc.
     branches:
       - main
+      - "release/**" # Also triggers on release branches for hotfixes
     paths:
       - src/**
       - "**/*.lua"
@@ -16,21 +19,50 @@ permissions:
 jobs:
   build-core:
     runs-on: windows-2022
+    # Only run for tag pushes or release branch pushes
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/')
     outputs:
       version: ${{ steps.package-build.outputs.version }}
       majorMinorVersion: ${{ steps.package-build.outputs.majorMinorVersion }}
+      is-tag-release: ${{ steps.check-release-type.outputs.is-tag-release }}
 
     steps:
       - name: Checkout working repository
         uses: actions/checkout@v4
         with:
           path: MotorTownMods
-          fetch-depth: 0 # Allows diff to work
+          fetch-depth: 0
+
+      - name: Check release type and extract version
+        id: check-release-type
+        shell: pwsh
+        run: |
+          if ("${{ github.ref }}" -like "refs/tags/v*") {
+            # Tag-based release - extract version from tag
+            $version = "${{ github.ref_name }}" -replace '^v', ''
+            Write-Output "is-tag-release=true" >> $env:GITHUB_OUTPUT
+            Write-Output "Using version from tag: $version"
+            
+            # Update Statics.lua with tag version
+            $staticsPath = ".\MotorTownMods\Scripts\Statics.lua"
+            $staticsContent = Get-Content -Raw $staticsPath
+            $updatedContent = $staticsContent -replace 'ModVersion = ".*"', "ModVersion = `"$version`""
+            Set-Content -Path $staticsPath -Value $updatedContent
+          } else {
+            # Branch-based release - use version from file
+            Write-Output "is-tag-release=false" >> $env:GITHUB_OUTPUT
+            Write-Output "Using version from Statics.lua file"
+          }
 
       - name: Check for src changes
         id: check-src-changes
         run: |
-          git -C MotorTownMods diff --quiet ${{ github.event.before }} ${{ github.sha }} -- src/ || echo "src_changed=true" >> $GITHUB_OUTPUT
+          # Always build for tag releases, check changes for branch releases
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "src_changed=true" >> $GITHUB_OUTPUT
+          else
+            git -C MotorTownMods diff --quiet ${{ github.event.before }} ${{ github.sha }} -- src/ || echo "src_changed=true" >> $GITHUB_OUTPUT
+          fi
         shell: bash
 
       - name: Checkout UE4SS
@@ -63,7 +95,6 @@ jobs:
         with:
           python-version: "3.9"
 
-      # Specifically use MSVC toolset v19.39.33523
       - name: Install VS2022 BuildTools 17.9.7
         if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         run: choco install -y visualstudio2022buildtools --version=117.9.7.0 --params "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --installChannelUri https://aka.ms/vs/17/release/180911598_-255012421/channel"
@@ -89,15 +120,28 @@ jobs:
           New-Item -ItemType File .\output\MotorTownMods\enabled.txt
           Copy-Item .\Binaries\Game__Shipping__Win64\MotorTownMods\MotorTownMods.dll .\output\MotorTownMods\dlls\main.dll
           Copy-Item -Recurse .\MotorTownMods\Scripts .\output\MotorTownMods\
+
+          # Extract version from Statics.lua (now updated with tag version if applicable)
           $staticsFile = Get-Content -Raw .\MotorTownMods\Scripts\Statics.lua
           [regex]$versionRegex = 'ModVersion = "(.*),?"'
           $modVersion = $versionRegex.Match($staticsFile).Groups[1].Value
+
           Compress-Archive -Path .\output\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
           Write-Output "version=$modVersion" >> $env:GITHUB_OUTPUT
+
           [regex]$majorMinorVersionRegex = '^([0-9]+\.[0-9]+)'
           Write-Output "majorMinorVersion=$($majorMinorVersionRegex.Match($modVersion).Groups[1].Value)" >> $env:GITHUB_OUTPUT
-          (Get-Content -Path $env:GITHUB_EVENT_PATH | ConvertFrom-Json).head_commit.message > commit_msg.txt
-          Get-Content commit_msg.txt | select -skip 2 > release_description.md
+
+          # Create release description
+          if ("${{ github.ref }}" -like "refs/tags/v*") {
+            "Release v$modVersion" | Out-File release_description.md
+            if ("${{ github.ref }}" -like "refs/heads/release/*") {
+              "`n**Hotfix Release**" | Out-File -Append release_description.md
+            }
+          } else {
+            (Get-Content -Path $env:GITHUB_EVENT_PATH | ConvertFrom-Json).head_commit.message > commit_msg.txt
+            Get-Content commit_msg.txt | select -skip 2 > release_description.md
+          }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -110,6 +154,8 @@ jobs:
 
   build-deps:
     runs-on: windows-2022
+    # Only run for tag pushes or release branch pushes
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/')
     steps:
       - name: Cache
         uses: actions/cache@v4
@@ -231,6 +277,8 @@ jobs:
       - build-deps
     permissions: write-all
     runs-on: ubuntu-latest
+    # Only create GitHub releases for tag pushes
+    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Download artifacts
@@ -239,19 +287,11 @@ jobs:
           pattern: MotorTownMods_deps_*
           merge-multiple: true
 
-      - name: Delete old release assets
-        uses: mknejp/delete-release-assets@v1
-        continue-on-error: true
-        with:
-          token: ${{ github.token }}
-          tag: v${{ needs.build-core.outputs.majorMinorVersion }}
-          assets: "*"
-
-      - name: Create/update release
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           name: MotorTownMods v${{ needs.build-core.outputs.version }}
-          tag_name: v${{ needs.build-core.outputs.majorMinorVersion }}
+          tag_name: ${{ github.ref_name }}
           body_path: release_description.md
           files: "**/*.zip"
           make_latest: true
