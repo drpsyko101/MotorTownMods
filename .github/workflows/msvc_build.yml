@@ -22,7 +22,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: MotorTownMods
-          fetch-depth: 0
 
       - name: Checkout UE4SS
         uses: actions/checkout@v4
