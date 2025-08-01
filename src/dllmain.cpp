@@ -2,6 +2,8 @@
 
 #include <Mod/CppUserModBase.hpp>
 #include <LuaType/LuaUObject.hpp>
+#include <Unreal/AGameModeBase.hpp>
+#include <LuaMadeSimple/LuaMadeSimple.hpp>
 
 #include "webserver.h"
 #include "statics.h"
