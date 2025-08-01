@@ -1,6 +1,6 @@
 # Event Webhooks
 
-Requires `socket` module installed and `MOD_WEBHOOK_URL` environment variable set to function properly. Most of the event hook payloads have similarities with the REST API endpoints return data. Webhook can be enabled separately using `MOD_WEBHOOK_ENABLE_EVENTS` environment variable according to the code block in their headings respectively. All event hooks are enabled by default.
+Requires `socket` module installed and `MOD_WEBHOOK_URL` environment variable set to function properly. Most of the event hook payloads have similarities with the REST API endpoints return data. Webhook can be enabled individually using `MOD_WEBHOOK_ENABLE_EVENTS` environment variable according to the code block in their headings respectively. All event hooks are enabled by default. To enable multiple events, concatenate them with `,` like `ServerJoinEvent,ServerLeaveEvent`. To disable the webhooks entirely, set it to `none`.
 
 ### Events
 
