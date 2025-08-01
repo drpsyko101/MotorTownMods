@@ -151,7 +151,7 @@ LoopAsync(delay, function()
             value(status)
         end
     end
-    return false
+    return webhookEvents[1] == "none"
 end)
 
 ---Send a request synchronously to the specified webhook URL
@@ -175,6 +175,8 @@ end
 ---@return boolean enabled
 ---@return string? eventName
 local function isEventEnabled(event)
+    if webhookEvents[1] == "none" then return false end
+
     for index, value in ipairs(webhookEvents) do
         if events[event] and (value == "all" or event == value) then
             return true, events[event]
