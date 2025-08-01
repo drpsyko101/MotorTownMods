@@ -1,16 +1,13 @@
-name: Build release
+name: Build and Release on Tag
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - src/**
-      - "**/*.lua"
-      - xmake.lua
+    tags:
+      - "v[0-9]+.[0-9]+(.[0-9]+)?"
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 jobs:
@@ -25,13 +22,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: MotorTownMods
-          fetch-depth: 0 # Allows diff to work
-
-      - name: Check for src changes
-        id: check-src-changes
-        run: |
-          git -C MotorTownMods diff --quiet ${{ github.event.before }} ${{ github.sha }} -- src/ || echo "src_changed=true" >> $GITHUB_OUTPUT
-        shell: bash
 
       - name: Checkout UE4SS
         uses: actions/checkout@v4
@@ -43,7 +33,6 @@ jobs:
           token: ${{ secrets.UEPSEUDO_PAT }}
 
       - name: Prep xmake
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         shell: pwsh
         run: Write-Output "includes(`"RE-UE4SS`")`r`nincludes(`"MotorTownMods`")" | Out-File xmake.lua
 
@@ -59,23 +48,18 @@ jobs:
 
       - name: Setup Python
         uses: actions/setup-python@v4
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         with:
           python-version: "3.9"
 
-      # Specifically use MSVC toolset v19.39.33523
       - name: Install VS2022 BuildTools 17.9.7
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         run: choco install -y visualstudio2022buildtools --version=117.9.7.0 --params "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --installChannelUri https://aka.ms/vs/17/release/180911598_-255012421/channel"
 
       - name: Setup xmake
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: "2.9.3"
 
       - name: Build
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         run: |
           xmake f -m "Game__Shipping__Win64" -y
           xmake project -k vsxmake2022 -m "Game__Shipping__Win64" -y
@@ -85,17 +69,25 @@ jobs:
         id: package-build
         shell: pwsh
         run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag.StartsWith("v")) { $modVersion = $tag.Substring(1) } else { $modVersion = $tag }
+
+          [regex]$majorMinorRegex = '^([0-9]+\.[0-9]+)'
+          $majorMinorVersion = $majorMinorRegex.Match($modVersion).Groups[1].Value
+
           New-Item -ItemType Directory -Force .\output\MotorTownMods\dlls
           New-Item -ItemType File .\output\MotorTownMods\enabled.txt
           Copy-Item .\Binaries\Game__Shipping__Win64\MotorTownMods\MotorTownMods.dll .\output\MotorTownMods\dlls\main.dll
           Copy-Item -Recurse .\MotorTownMods\Scripts .\output\MotorTownMods\
-          $staticsFile = Get-Content -Raw .\MotorTownMods\Scripts\Statics.lua
-          [regex]$versionRegex = 'ModVersion = "(.*),?"'
-          $modVersion = $versionRegex.Match($staticsFile).Groups[1].Value
+
+          $staticsFilePath = ".\output\MotorTownMods\Scripts\Statics.lua"
+          (Get-Content $staticsFilePath) -replace '(ModVersion\s*=\s*").*(")', ('${1}' + $modVersion + '${2}') | Set-Content $staticsFilePath
+
           Compress-Archive -Path .\output\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
+
           Write-Output "version=$modVersion" >> $env:GITHUB_OUTPUT
-          [regex]$majorMinorVersionRegex = '^([0-9]+\.[0-9]+)'
-          Write-Output "majorMinorVersion=$($majorMinorVersionRegex.Match($modVersion).Groups[1].Value)" >> $env:GITHUB_OUTPUT
+          Write-Output "majorMinorVersion=$majorMinorVersion" >> $env:GITHUB_OUTPUT
+
           (Get-Content -Path $env:GITHUB_EVENT_PATH | ConvertFrom-Json).head_commit.message > commit_msg.txt
           Get-Content commit_msg.txt | select -skip 2 > release_description.md
 
@@ -129,17 +121,12 @@ jobs:
           curl -L -o lua-5.4.8.tar.gz https://www.lua.org/ftp/lua-5.4.8.tar.gz
           tar -xzf lua-5.4.8.tar.gz
           cd lua-5.4.8/src
-
           cl /c /O2 /W3 /DLUA_COMPAT_5_3 lapi.c lcode.c lctype.c ldebug.c ldo.c ldump.c lfunc.c lgc.c llex.c lmem.c lobject.c lopcodes.c lparser.c lstate.c lstring.c ltable.c ltm.c lundump.c lvm.c lzio.c lauxlib.c lbaselib.c lcorolib.c ldblib.c liolib.c lmathlib.c loslib.c lstrlib.c ltablib.c lutf8lib.c loadlib.c linit.c
-
           lib /out:lua54.lib *.obj
-
           cl /O2 lua.c lua54.lib /Fe:lua.exe
-
           mkdir ..\..\lua\bin
           mkdir ..\..\lua\include
           mkdir ..\..\lua\lib
-
           copy lua.exe ..\..\lua\bin\
           copy lua.h ..\..\lua\include\
           copy luaconf.h ..\..\lua\include\
@@ -229,7 +216,8 @@ jobs:
     needs:
       - build-core
       - build-deps
-    permissions: write-all
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
 
     steps:
