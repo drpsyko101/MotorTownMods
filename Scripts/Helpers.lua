@@ -177,7 +177,7 @@ function GuidToString(guid)
     if value < 0 then
       rawGuid[index] = rawGuid[index] + 0x100000000
     end
-    strGuid = string.format("%s%x", strGuid, rawGuid[index])
+    strGuid = string.format("%s%08x", strGuid, rawGuid[index])
   end
   return strGuid:upper()
 end
