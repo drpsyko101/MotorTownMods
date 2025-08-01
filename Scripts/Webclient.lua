@@ -104,6 +104,10 @@ local function CreateWebhookRequest(content)
     end)
 end
 
+---Request pool
+---@type [table, fun(status: boolean)?][]
+local requests = {}
+
 ---Create a webhook request from and event and its data.
 ---The request will be made asynchronously
 ---@param event string Event name. Usually the full path to the function hook.
@@ -112,22 +116,43 @@ end
 local function CreateEventWebhook(event, data, callback)
     LogOutput("DEBUG", "Received hook event %s", event)
     if socket and webhookUrl then
-        local payload = json.stringify {
+        local payload = {
             hook = event,
             timestamp = math.floor(socket.gettime() * 1000),
             data = data
         }
         LogOutput("DEBUG", "Collecting payload:\n%s", payload)
-        ExecuteAsync(function()
-            LogOutput("DEBUG", "Sending webhook content:\n%s", payload)
-            -- Silently send the webhook request without raising any error
-            local status = pcall(__createWebhookRequest, webhookUrl, payload)
-            if callback then
-                callback(status)
-            end
-        end)
+        table.insert(requests, { payload, callback })
     end
 end
+
+-- Get the amount of delay in between async loop (ms).
+-- This will slot in between webserver loops.
+local delay = (tonumber(os.getenv("MOD_SERVER_PROCESS_AMOUNT")) or 5) * 100
+LoopAsync(delay, function()
+    if #requests > 0 then
+        local payloads = {} ---@type table[]
+        local callbacks = {} ---@type fun(status: boolean)[]
+
+        -- Return the payload in order
+        -- This also takes into account possible table insertion while processing data
+        while #requests ~= 0 do
+            local payload, callback = table.unpack(table.remove(requests, 1))
+            table.insert(payloads, payload)
+            table.insert(callbacks, callback)
+        end
+
+        local payload = json.stringify(payloads)
+        LogOutput("DEBUG", "Sending webhook content:\n%s", payload)
+        -- Silently send the webhook request without raising any error
+        local status = pcall(__createWebhookRequest, webhookUrl, payload)
+
+        for _, value in ipairs(callbacks) do
+            value(status)
+        end
+    end
+    return false
+end)
 
 ---Send a request synchronously to the specified webhook URL
 ---@param path string
