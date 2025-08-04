@@ -212,10 +212,40 @@ jobs:
           path: shared.zip
           overwrite: true
 
+  check-latest:
+    runs-on: ubuntu-latest
+    outputs:
+      is-latest: ${{ steps.compare-tags.outputs.is-latest }}
+
+    steps:
+      - name: Get latest tag
+        id: latest-tag
+        uses: oprypin/find-latest-tag@v1
+        with:
+          repository: drpsyko101/MotorTownMods
+          releases-only: true
+
+      - name: Compare tags
+        id: compare-tags
+        run: | # Compare tag wth latest tag
+          latest_tag="${{ steps.latest-tag.outputs.tag }}"
+          current_tag="${{ github.ref_name }}"
+
+          echo "Latest tag: $latest_tag"
+          echo "Current tag: $current_tag"
+
+          function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
+          if [[ $(version "$current_tag") -ge $(version "$latest_tag") ]]; then
+            echo "is-latest=true" >> $GITHUB_OUTPUT 
+          else
+            echo "is-latest=false" >> $GITHUB_OUTPUT 
+          fi
+
   create-release:
     needs:
       - build-core
       - build-deps
+      - check-latest
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -242,4 +272,4 @@ jobs:
           tag_name: v${{ needs.build-core.outputs.majorMinorVersion }}
           body_path: release_description.md
           files: "**/*.zip"
-          make_latest: true
+          make_latest: ${{ needs.check-latest.outputs.is-latest }}

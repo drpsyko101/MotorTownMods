@@ -4,6 +4,8 @@ Powered by UE4SS lua scripts! This mod focuses primarily towards dedicated serve
 
 ## Usage
 
+This mod uses a forked UE4SS release available [here](https://github.com/drpsyko101/RE-UE4SS/releases). If you have the [experimental-latest](https://github.com/UE4SS-RE/RE-UE4SS/releases/tag/experimental-latest) from the base repository, just replace the included `UE4SS.dll`.
+
 ### Installation
 
 Download the latest releases [here](https://github.com/drpsyko101/MotorTownMods/releases). Extract its contents to `path/to/ue4ss/Mods/` directory. The Lua static modules are also available in the relase as `shared.zip`. Download and extract the contents into the `path/to/ue4ss/Mods/shared` directory.
