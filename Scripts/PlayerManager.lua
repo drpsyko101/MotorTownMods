@@ -50,11 +50,27 @@ end
 ---@return FRotator? rotation
 local function GetMyCurrentTransform()
   local PC = GetMyPlayerController()
-  if PC:IsValid() then
-    local pawn = PC:K2_GetPawn()
-    if pawn:IsValid() then
-      local location = pawn:K2_GetActorLocation()
-      local rotation = pawn:K2_GetActorRotation()
+  local pcClass = StaticFindObject("/Script/MotorTown.MotorTownPlayerController")
+  ---@cast pcClass UClass
+
+  if PC:IsValid() and PC:IsA(pcClass) then
+    ---@cast PC AMotorTownPlayerController
+    local actor = CreateInvalidObject()
+    ---@cast actor AActor
+
+    -- Account for drone usage since drone isn't a pawn
+    if PC.Drone:IsValid() then
+      actor = PC.Drone
+    else
+      local pawn = PC:K2_GetPawn()
+      if pawn:IsValid() then
+        actor = pawn
+      end
+    end
+
+    if actor:IsValid() then
+      local location = actor:K2_GetActorLocation()
+      local rotation = actor:K2_GetActorRotation()
       return location, rotation
     end
   end

@@ -57,6 +57,27 @@ local function GetDeliveryPoints(guid, fields, limit, depth)
   return arr
 end
 
+---Get currently active deliveries
+---@param id integer?
+---@param depth integer?
+local function GetDeliveries(id, depth)
+  depth = depth or 2
+  local data = {}
+  local gameState = GetMotorTownGameState()
+  if gameState:IsValid() and gameState.Net_DeliverySystem:IsValid() then
+    data = GetObjectAsTable(gameState.Net_DeliverySystem, "Deliveries", nil, depth)
+    if id then
+      for _, delivery in ipairs(data) do
+        ---@cast delivery FMTDelivery
+        if id == delivery.ID then
+          return delivery
+        end
+      end
+    end
+  end
+  return data
+end
+
 -- Register event hooks
 
 webhook.RegisterEventHook(
@@ -108,6 +129,16 @@ local function HandleGetDeliveryPoints(session)
   }
 end
 
+---Handle request for getting deliveries
+---@type RequestPathHandler
+local function HandleGetDeliveries(session)
+  local id = tonumber(session.pathComponents[2])
+  local depth = tonumber(session.queryComponents.depth)
+
+  return json.stringify { data = GetDeliveries(id, depth) }
+end
+
 return {
   HandleGetDeliveryPoints = HandleGetDeliveryPoints,
+  HandleGetDeliveries = HandleGetDeliveries,
 }
