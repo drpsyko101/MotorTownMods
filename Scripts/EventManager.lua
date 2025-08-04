@@ -171,6 +171,8 @@ local function CreateNewEvent(event)
       eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.VehicleKeys[index] = FName(value)
     end
 
+    eventSystem.Net_Events[#eventSystem.Net_Events].RaceSetup.NumLaps = event.RaceSetup.NumLaps
+
     return true, GuidToString(eventSystem.Net_Events[#eventSystem.Net_Events].EventGuid)
   end
   return false, nil
