@@ -3,12 +3,15 @@ name: Build and Release on Tag
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+(.[0-9]+)?"
+      - "v*"
   workflow_dispatch:
 
 permissions:
   contents: write
   actions: write
+
+env:
+  RELEASE_MESSAGE_PATH: release_description.md
 
 jobs:
   build-core:
@@ -82,7 +85,6 @@ jobs:
           name: MotorTownMods_deps_release
           path: |
             MotorTownMods_v*.zip
-            release_description.md
           overwrite: true
 
   build-deps:
@@ -209,19 +211,25 @@ jobs:
       version: ${{ steps.get-version.outputs.version }}
 
     steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: MotorTownMods_deps_*
+          merge-multiple: true
+
       - name: Get latest tag
         id: latest-tag
         uses: oprypin/find-latest-tag@v1
         with:
           repository: drpsyko101/MotorTownMods
-          releases-only: true
+          prefix: v
 
       - name: Get major.minor version
         id: get-version
         run: |
           echo "version=${{ github.ref_name }}" | sed -E 's/v([0-9]+)\.([0-9]+).*/\1.\2/g' >> $GITHUB_OUTPUT
 
-          jq -r .head_commit.message $GITHUB_EVENT_PATH | sed 1,2d > release_description.md
+          jq -r .head_commit.message $GITHUB_EVENT_PATH | sed 1,2d > $RELEASE_MESSAGE_PATH
 
           latest_tag="${{ steps.latest-tag.outputs.tag }}"
           current_tag="${{ github.ref_name }}"
@@ -230,17 +238,11 @@ jobs:
           echo "Current tag: $current_tag"
 
           function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
-          if [[ $(version "$current_tag") -ge $(version "$latest_tag") ]]; then
+          if [ $(version "$current_tag") -ge $(version "$latest_tag") ]; then
             echo "is-latest=true" >> $GITHUB_OUTPUT 
           else
             echo "is-latest=false" >> $GITHUB_OUTPUT 
           fi
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: MotorTownMods_deps_*
-          merge-multiple: true
 
       - name: Delete old release assets
         uses: mknejp/delete-release-assets@v1
@@ -255,7 +257,7 @@ jobs:
         with:
           name: MotorTownMods ${{ github.ref_name }}
           tag_name: v${{ steps.get-version.outputs.version }}
-          body_path: release_description.md
+          body_path: ${{ env.RELEASE_MESSAGE_PATH }}
           files: "**/*.zip"
           make_latest: ${{ steps.get-version.outputs.is-latest }}
 
@@ -280,6 +282,4 @@ jobs:
           tag_prefix: v
 
       - name: Remove patch tag
-        run: |
-          git tag -d ${{ github.ref_name }}
-          git push -d origin ${{ github.ref_name }}
+        uses: prompt/actions-delete-tag@v1
