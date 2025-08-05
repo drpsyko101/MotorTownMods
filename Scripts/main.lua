@@ -45,7 +45,7 @@ local function LoadWebserver()
     -- Player management
     server.registerHandler("/players", "GET", playerManager.HandleGetPlayerStates)
     server.registerHandler("/players/*/teleport", "POST", playerManager.HandleTeleportPlayer)
-    server.registerHandler("/players/*/gameplay/effect", "DELETE", playerManager.HandleRemoveGameplayEffect)
+    server.registerHandler("/players/*/gameplay/effects", "DELETE", playerManager.HandleRemoveGameplayEffect)
     server.registerHandler("/players/*", "GET", playerManager.HandleGetPlayerStates)
 
     -- Event management
