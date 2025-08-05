@@ -13,9 +13,6 @@ permissions:
 jobs:
   build-core:
     runs-on: windows-2022
-    outputs:
-      version: ${{ steps.package-build.outputs.version }}
-      majorMinorVersion: ${{ steps.package-build.outputs.majorMinorVersion }}
 
     steps:
       - name: Checkout working repository
@@ -69,27 +66,15 @@ jobs:
         id: package-build
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-          if ($tag.StartsWith("v")) { $modVersion = $tag.Substring(1) } else { $modVersion = $tag }
-
-          [regex]$majorMinorRegex = '^([0-9]+\.[0-9]+)'
-          $majorMinorVersion = $majorMinorRegex.Match($modVersion).Groups[1].Value
-
           New-Item -ItemType Directory -Force .\output\MotorTownMods\dlls
           New-Item -ItemType File .\output\MotorTownMods\enabled.txt
           Copy-Item .\Binaries\Game__Shipping__Win64\MotorTownMods\MotorTownMods.dll .\output\MotorTownMods\dlls\main.dll
           Copy-Item -Recurse .\MotorTownMods\Scripts .\output\MotorTownMods\
 
           $staticsFilePath = ".\output\MotorTownMods\Scripts\Statics.lua"
-          (Get-Content $staticsFilePath) -replace '(ModVersion\s*=\s*").*(")', ('${1}' + $modVersion + '${2}') | Set-Content $staticsFilePath
+          (Get-Content $staticsFilePath) -replace '(ModVersion\s*=\s*").*(")', ('${1}' + "${{ github.ref_name }}" + '${2}') | Set-Content $staticsFilePath
 
-          Compress-Archive -Path .\output\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
-
-          Write-Output "version=$modVersion" >> $env:GITHUB_OUTPUT
-          Write-Output "majorMinorVersion=$majorMinorVersion" >> $env:GITHUB_OUTPUT
-
-          (Get-Content -Path $env:GITHUB_EVENT_PATH | ConvertFrom-Json).head_commit.message > commit_msg.txt
-          Get-Content commit_msg.txt | select -skip 2 > release_description.md
+          Compress-Archive -Path .\output\MotorTownMods ".\MotorTownMods_${{ github.ref_name }}.zip"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -212,10 +197,16 @@ jobs:
           path: shared.zip
           overwrite: true
 
-  check-latest:
+  create-release:
+    needs:
+      - build-core
+      - build-deps
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     outputs:
-      is-latest: ${{ steps.compare-tags.outputs.is-latest }}
+      is-latest: ${{ steps.get-version.outputs.is-latest }}
+      version: ${{ steps.get-version.outputs.version }}
 
     steps:
       - name: Get latest tag
@@ -225,9 +216,13 @@ jobs:
           repository: drpsyko101/MotorTownMods
           releases-only: true
 
-      - name: Compare tags
-        id: compare-tags
-        run: | # Compare tag wth latest tag
+      - name: Get major.minor version
+        id: get-version
+        run: |
+          echo "version=${{ github.ref_name }}" | sed -E 's/v([0-9]+)\.([0-9]+).*/\1.\2/g' >> $GITHUB_OUTPUT
+
+          jq -r .head_commit.message $GITHUB_EVENT_PATH | sed 1,2d > release_description.md
+
           latest_tag="${{ steps.latest-tag.outputs.tag }}"
           current_tag="${{ github.ref_name }}"
 
@@ -241,16 +236,6 @@ jobs:
             echo "is-latest=false" >> $GITHUB_OUTPUT 
           fi
 
-  create-release:
-    needs:
-      - build-core
-      - build-deps
-      - check-latest
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-
-    steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -262,14 +247,39 @@ jobs:
         continue-on-error: true
         with:
           token: ${{ github.token }}
-          tag: v${{ needs.build-core.outputs.majorMinorVersion }}
+          tag: v${{ steps.get-version.outputs.version }}
           assets: "*"
 
       - name: Create/update release
         uses: softprops/action-gh-release@v2
         with:
-          name: MotorTownMods v${{ needs.build-core.outputs.version }}
-          tag_name: v${{ needs.build-core.outputs.majorMinorVersion }}
+          name: MotorTownMods ${{ github.ref_name }}
+          tag_name: v${{ steps.get-version.outputs.version }}
           body_path: release_description.md
           files: "**/*.zip"
-          make_latest: ${{ needs.check-latest.outputs.is-latest }}
+          make_latest: ${{ steps.get-version.outputs.is-latest }}
+
+  repo-cleanup:
+    needs:
+      - create-release
+    if: needs.create-release.outputs.is-latest == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          custom_tag: ${{ needs.create-release.outputs.version }}
+          tag_prefix: v
+
+      - name: Remove patch tag
+        run: |
+          git tag -d ${{ github.ref_name }}
+          git push -d origin ${{ github.ref_name }}
