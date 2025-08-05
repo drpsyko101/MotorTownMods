@@ -20,6 +20,10 @@ local events = {
     ServerJoinEvent = "/Script/MotorTown.MotorTownPlayerController:ServerJoinEvent",
     ServerLeaveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerLeaveEvent",
     ServerCargoArrived = "/Script/MotorTown.MotorTownPlayerController:ServerCargoArrived",
+    ServerCreateCompany = "/Script/MotorTown.MotorTownPlayerController:ServerCreateCompany",
+    ServerCloseDownCompany = "/Script/MotorTown.MotorTownPlayerController:ServerCloseDownCompany",
+    ServerRequestJoinCompany = "/Script/MotorTown.MotorTownPlayerController:ServerRequestJoinCompany",
+    ServerDenyCompanyJoinRequest = "/Script/MotorTown.MotorTownPlayerController:ServerDenyCompanyJoinRequest",
 }
 
 ---Send a request to the specified URL
@@ -187,7 +191,7 @@ end
 
 ---Register event hook wrapper
 ---@param event EventHook
----@param hookFunction fun(self: UObject, ...): table|table[]|nil
+---@param hookFunction fun(self: UObject, ...): table|table[]
 ---@param callback fun(status: boolean)?
 ---@return integer? preId
 ---@return integer? postId
@@ -198,8 +202,10 @@ local function RegisterEventHook(event, hookFunction, callback)
             local preId, postId = RegisterHook(eventName, function(self, ...)
                 local status, result = pcall(hookFunction, self, ...)
                 if status then
-                    if result then
+                    if result and type(result) == "table" then
                         CreateEventWebhook(eventName, result, callback)
+                    else
+                        error("Invalid return value specified")
                     end
                 else
                     LogOutput("ERROR", "Failed to execute event hook: %s", result)
