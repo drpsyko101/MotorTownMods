@@ -559,11 +559,33 @@ function ListContains(table, value)
   return false
 end
 
+local socket = RequireSafe("socket") ---@type Socket?
 ---Halts CPU operation for the given duration
 ---@param ms integer Duration to sleep in miliseconds
 function Sleep(ms)
   if ms ~= 0 then
-    ---@diagnostic disable-next-line:undefined-global
-    pcall(NativeSleep, ms)
+    if socket then
+      socket.sleep(ms / 1000)
+    else
+      ---@diagnostic disable-next-line:undefined-global
+      local status = pcall(NativeSleep, ms)
+      if not status then
+        LogOutput("WARN", "Failed to use native sleep")
+      end
+    end
+  end
+end
+
+---Execute given function in the GameThread
+---@param exec fun()
+function ExecuteInGameThreadSync(exec)
+  local isProcessing = true
+  ExecuteInGameThread(function()
+    exec()
+    isProcessing = false
+  end)
+
+  while isProcessing do
+    Sleep(1)
   end
 end

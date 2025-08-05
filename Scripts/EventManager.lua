@@ -171,19 +171,9 @@ local function CreateNewEvent(event)
       end
 
       -- Execute new event creation in game thread synchronously
-      local isProcessing = true
-      ExecuteInGameThread(function()
+      ExecuteInGameThreadSync(function()
         PC:ServerAddEvent(newEvent)
-        isProcessing = false
       end)
-
-      while isProcessing do
-        if socket then
-          socket.sleep(0.01)
-        else
-          Sleep(10)
-        end
-      end
     else
       error("Invalid playerId provided")
     end
