@@ -143,8 +143,40 @@ local function HandleTeleportPlayer(session)
   return json.stringify { error = "Invalid payload" }, nil, 400
 end
 
+---Handle removing given amount from gameplay effect stack
+---@type RequestPathHandler
+local function HandleRemoveGameplayEffect(session)
+  local playerId = session.pathComponents[2]
+  local data = json.parse(session.content)
+  local amount = math.floor(tonumber(data and data.Amount) or 1)
+
+  if data and playerId then
+    local PC = GetPlayerControllerFromUniqueId(playerId)
+    if PC:IsValid() then
+      local PS = PC.PlayerState
+
+      if PS:IsValid() then
+        ---@cast PS AMotorTownPlayerState
+
+        if PS.Character:IsValid() then
+          local comp = PS.Character.AbilityComponent
+
+          if comp:RemoveActiveGameplayEffect({}, amount) then
+            return json.stringify { message = "Successfully removed gameplay effect" }
+          else
+            return json.stringify { error = "Failed to remove active gameplay effect" }, nil, 400
+          end
+        end
+      end
+    end
+  end
+
+  return json.stringify { error = "invalid payload" }, nil, 400
+end
+
 return {
   HandleGetPlayerStates = HandleGetPlayerStates,
   GetMyCurrentTransform = GetMyCurrentTransform,
   HandleTeleportPlayer = HandleTeleportPlayer,
+  HandleRemoveGameplayEffect = HandleRemoveGameplayEffect,
 }

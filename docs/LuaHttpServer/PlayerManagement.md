@@ -78,3 +78,29 @@ Teleport a player pawn to the desired location and optionally its rotation.
 ```
 
 </details>
+
+#### DELETE `/players/<uniqueId>/gameplay/effects`
+
+Remove a specific amount from the gameplay effect stack. Useful for removing GAS related effect without specifying the tag. Currently only used for removing `Police.Suspect` effect.
+
+<details>
+<summary>Request body:</summary>
+
+```json
+{
+  "Amount": 1 // Optional amount. Defaults to 1.
+}
+```
+
+</details>
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "message": "Successfully removed gameplay effect"
+}
+```
+
+</details>
