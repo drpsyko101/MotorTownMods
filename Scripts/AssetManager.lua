@@ -1,6 +1,5 @@
 local UEHelpers = require("UEHelpers")
 local json = require("JsonParser")
-local socket = require("socket")
 
 ---Spawn an actor at the desired place
 ---@param assetPath string
@@ -19,10 +18,9 @@ local function SpawnActor(assetPath, location, rotation, tag)
     ---@cast staticMeshClass UClass
     local actor = CreateInvalidObject() ---@cast actor AActor
     local object = StaticFindObject(assetPath)
-    local isProcessing = true
 
     local assetTag = tag
-    ExecuteInGameThread(function()
+    ExecuteInGameThreadSync(function()
       pcall(function()
         LoadAsset(assetPath)
         local assetClass = {}
@@ -53,11 +51,7 @@ local function SpawnActor(assetPath, location, rotation, tag)
           }
         )
       end)
-      isProcessing = false
     end)
-    while isProcessing do
-      socket.sleep(0.01)
-    end
     if actor:IsValid() then
       LogOutput("DEBUG", "Spawned actor %s", actor:GetFullName())
 
