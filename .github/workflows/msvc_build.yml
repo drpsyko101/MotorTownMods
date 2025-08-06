@@ -15,6 +15,7 @@ env:
 
 jobs:
   build-core:
+    if: github.actor != 'github-actions[bot]'
     runs-on: windows-2022
 
     steps:
@@ -88,7 +89,9 @@ jobs:
           overwrite: true
 
   build-deps:
+    if: github.actor != 'github-actions[bot]'
     runs-on: windows-2022
+
     steps:
       - name: Cache
         uses: actions/cache@v4
@@ -200,6 +203,7 @@ jobs:
           overwrite: true
 
   create-release:
+    if: github.actor != 'github-actions[bot]'
     needs:
       - build-core
       - build-deps
@@ -262,9 +266,9 @@ jobs:
           make_latest: ${{ steps.get-version.outputs.is-latest }}
 
   repo-cleanup:
+    if: github.actor != 'github-actions[bot]'
     needs:
       - create-release
-    if: needs.create-release.outputs.is-latest == 'false'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -273,13 +277,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Bump version and push tag
-        id: tag_version
-        uses: mathieudutour/github-tag-action@v6.2
+      - name: Generate App Token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          custom_tag: ${{ needs.create-release.outputs.version }}
-          tag_prefix: v
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
 
-      - name: Remove patch tag
-        uses: prompt/actions-delete-tag@v1
+      - name: Bump version
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          git tag ${{ needs.create-release.outputs.version }}
+          git push -f origin ${{ needs.create-release.outputs.version }}
+
+      - name: Delete tag
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          git push -d origin ${{ github.ref_name }}
