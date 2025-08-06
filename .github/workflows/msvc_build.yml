@@ -290,8 +290,6 @@ jobs:
           token: ${{ steps.generate_token.outputs.token }}
 
       - name: Bump version
-        env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           git config --global user.name "MotorTownRepoManager [bot]"
           git config --global user.email "motortownrepomanager@users.noreply.github.com"
