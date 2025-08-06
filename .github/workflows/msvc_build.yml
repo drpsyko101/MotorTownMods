@@ -282,7 +282,7 @@ jobs:
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.PRIVATE_KEY }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Bump version
         env:
