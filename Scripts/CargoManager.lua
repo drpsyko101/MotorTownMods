@@ -96,7 +96,7 @@ webhook.RegisterEventHook(
     local playerId = GetPlayerUniqueId(context:get())
     local data = {}
     Cargos:get():ForEach(function(key, value)
-      table.insert(data, GetObjectAsTable(value:get()))
+      table.insert(data, GetObjectAsTable(value:get(), nil, "MTCargo"))
     end)
     return {
       PlayerId = playerId,
