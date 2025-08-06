@@ -212,6 +212,7 @@ jobs:
     outputs:
       is-latest: ${{ steps.get-version.outputs.is-latest }}
       version: ${{ steps.get-version.outputs.version }}
+      majorminor-version: ${{ steps.get-version.outputs.majorminor-version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -232,8 +233,10 @@ jobs:
         id: get-version
         run: |
           latest_tag="${{ steps.latest-tag.outputs.tag }}"
-          current_tag=$(echo "${{ github.ref_name }}" | sed -E 's/(release|hotfix)\/(v[0-9]+)\.([0-9]+).*/\2.\3/g')
+          current_tag=$(echo "${{ github.ref_name }}" | sed -E 's/(release|hotfix)\/(v.*)/\2/g')
+          majorminor_tag=$(echo "${{ github.ref_name }}" | sed -E 's/(release|hotfix)\/(v[0-9]+)\.([0-9]+).*/\2.\3/g')
           echo "version=$current_tag" >> $GITHUB_OUTPUT
+          echo "majorminor-version=$majorminor_tag" >> $GITHUB_OUTPUT
 
           if [ ! -f "$RELEASE_MESSAGE_PATH" ]; then
             jq -r .head_commit.message $GITHUB_EVENT_PATH | sed 1,2d > $RELEASE_MESSAGE_PATH
@@ -254,14 +257,14 @@ jobs:
         continue-on-error: true
         with:
           token: ${{ github.token }}
-          tag: v${{ steps.get-version.outputs.version }}
+          tag: ${{ steps.get-version.outputs.majorminor-version }}
           assets: "*"
 
       - name: Create/update release
         uses: softprops/action-gh-release@v2
         with:
-          name: MotorTownMods ${{ github.ref_name }}
-          tag_name: ${{ steps.get-version.outputs.version }}
+          name: MotorTownMods ${{ steps.get-version.outputs.version }}
+          tag_name: ${{ steps.get-version.outputs.majorminor-version }}
           body_path: ${{ env.RELEASE_MESSAGE_PATH }}
           files: "**/*.zip"
           make_latest: ${{ steps.get-version.outputs.is-latest }}
@@ -275,8 +278,6 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
-
       - name: Generate App Token
         id: generate_token
         uses: actions/create-github-app-token@v1
@@ -284,9 +285,15 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+
       - name: Bump version
         env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
-          git tag -f ${{ needs.create-release.outputs.version }}
-          git push -f origin ${{ needs.create-release.outputs.version }}
+          git config --global user.name "MotorTownRepoManager [bot]"
+          git config --global user.email "motortownrepomanager@users.noreply.github.com"
+          git tag -f ${{ needs.create-release.outputs.majorminor-version }}
+          git push -f origin ${{ needs.create-release.outputs.majorminor-version }}
