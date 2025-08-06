@@ -1,37 +1,28 @@
-name: Build release
+name: Build and Release on Tag
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - src/**
-      - "**/*.lua"
-      - xmake.lua
+    tags:
+      - "v*"
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   actions: write
+
+env:
+  RELEASE_MESSAGE_PATH: release_description.md
 
 jobs:
   build-core:
+    if: github.actor != 'github-actions[bot]'
     runs-on: windows-2022
-    outputs:
-      version: ${{ steps.package-build.outputs.version }}
-      majorMinorVersion: ${{ steps.package-build.outputs.majorMinorVersion }}
 
     steps:
       - name: Checkout working repository
         uses: actions/checkout@v4
         with:
           path: MotorTownMods
-          fetch-depth: 0 # Allows diff to work
-
-      - name: Check for src changes
-        id: check-src-changes
-        run: |
-          git -C MotorTownMods diff --quiet ${{ github.event.before }} ${{ github.sha }} -- src/ || echo "src_changed=true" >> $GITHUB_OUTPUT
-        shell: bash
 
       - name: Checkout UE4SS
         uses: actions/checkout@v4
@@ -43,7 +34,6 @@ jobs:
           token: ${{ secrets.UEPSEUDO_PAT }}
 
       - name: Prep xmake
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         shell: pwsh
         run: Write-Output "includes(`"RE-UE4SS`")`r`nincludes(`"MotorTownMods`")" | Out-File xmake.lua
 
@@ -59,23 +49,18 @@ jobs:
 
       - name: Setup Python
         uses: actions/setup-python@v4
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         with:
           python-version: "3.9"
 
-      # Specifically use MSVC toolset v19.39.33523
       - name: Install VS2022 BuildTools 17.9.7
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         run: choco install -y visualstudio2022buildtools --version=117.9.7.0 --params "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --installChannelUri https://aka.ms/vs/17/release/180911598_-255012421/channel"
 
       - name: Setup xmake
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: "2.9.3"
 
       - name: Build
-        if: steps.check-src-changes.outputs.src_changed == 'true' || hashFiles('Binaries/Game__Shipping__Win64/MotorTownMods/MotorTownMods.dll') == ''
         run: |
           xmake f -m "Game__Shipping__Win64" -y
           xmake project -k vsxmake2022 -m "Game__Shipping__Win64" -y
@@ -89,15 +74,11 @@ jobs:
           New-Item -ItemType File .\output\MotorTownMods\enabled.txt
           Copy-Item .\Binaries\Game__Shipping__Win64\MotorTownMods\MotorTownMods.dll .\output\MotorTownMods\dlls\main.dll
           Copy-Item -Recurse .\MotorTownMods\Scripts .\output\MotorTownMods\
-          $staticsFile = Get-Content -Raw .\MotorTownMods\Scripts\Statics.lua
-          [regex]$versionRegex = 'ModVersion = "(.*),?"'
-          $modVersion = $versionRegex.Match($staticsFile).Groups[1].Value
-          Compress-Archive -Path .\output\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
-          Write-Output "version=$modVersion" >> $env:GITHUB_OUTPUT
-          [regex]$majorMinorVersionRegex = '^([0-9]+\.[0-9]+)'
-          Write-Output "majorMinorVersion=$($majorMinorVersionRegex.Match($modVersion).Groups[1].Value)" >> $env:GITHUB_OUTPUT
-          (Get-Content -Path $env:GITHUB_EVENT_PATH | ConvertFrom-Json).head_commit.message > commit_msg.txt
-          Get-Content commit_msg.txt | select -skip 2 > release_description.md
+
+          $staticsFilePath = ".\output\MotorTownMods\Scripts\Statics.lua"
+          (Get-Content $staticsFilePath) -replace '(ModVersion\s*=\s*").*(")', ('${1}' + "${{ github.ref_name }}" + '${2}') | Set-Content $staticsFilePath
+
+          Compress-Archive -Path .\output\MotorTownMods ".\MotorTownMods_${{ github.ref_name }}.zip"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -105,11 +86,12 @@ jobs:
           name: MotorTownMods_deps_release
           path: |
             MotorTownMods_v*.zip
-            release_description.md
           overwrite: true
 
   build-deps:
+    if: github.actor != 'github-actions[bot]'
     runs-on: windows-2022
+
     steps:
       - name: Cache
         uses: actions/cache@v4
@@ -129,17 +111,12 @@ jobs:
           curl -L -o lua-5.4.8.tar.gz https://www.lua.org/ftp/lua-5.4.8.tar.gz
           tar -xzf lua-5.4.8.tar.gz
           cd lua-5.4.8/src
-
           cl /c /O2 /W3 /DLUA_COMPAT_5_3 lapi.c lcode.c lctype.c ldebug.c ldo.c ldump.c lfunc.c lgc.c llex.c lmem.c lobject.c lopcodes.c lparser.c lstate.c lstring.c ltable.c ltm.c lundump.c lvm.c lzio.c lauxlib.c lbaselib.c lcorolib.c ldblib.c liolib.c lmathlib.c loslib.c lstrlib.c ltablib.c lutf8lib.c loadlib.c linit.c
-
           lib /out:lua54.lib *.obj
-
           cl /O2 lua.c lua54.lib /Fe:lua.exe
-
           mkdir ..\..\lua\bin
           mkdir ..\..\lua\include
           mkdir ..\..\lua\lib
-
           copy lua.exe ..\..\lua\bin\
           copy lua.h ..\..\lua\include\
           copy luaconf.h ..\..\lua\include\
@@ -226,11 +203,16 @@ jobs:
           overwrite: true
 
   create-release:
+    if: github.actor != 'github-actions[bot]'
     needs:
       - build-core
       - build-deps
-    permissions: write-all
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
+    outputs:
+      is-latest: ${{ steps.get-version.outputs.is-latest }}
+      version: ${{ steps.get-version.outputs.version }}
 
     steps:
       - name: Download artifacts
@@ -239,19 +221,78 @@ jobs:
           pattern: MotorTownMods_deps_*
           merge-multiple: true
 
+      - name: Get latest tag
+        id: latest-tag
+        uses: oprypin/find-latest-tag@v1
+        with:
+          repository: drpsyko101/MotorTownMods
+          prefix: v
+
+      - name: Get major.minor version
+        id: get-version
+        run: |
+          echo "version=${{ github.ref_name }}" | sed -E 's/v([0-9]+)\.([0-9]+).*/\1.\2/g' >> $GITHUB_OUTPUT
+
+          jq -r .head_commit.message $GITHUB_EVENT_PATH | sed 1,2d > $RELEASE_MESSAGE_PATH
+
+          latest_tag="${{ steps.latest-tag.outputs.tag }}"
+          current_tag="${{ github.ref_name }}"
+
+          echo "Latest tag: $latest_tag"
+          echo "Current tag: $current_tag"
+
+          function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
+          if [ $(version "$current_tag") -ge $(version "$latest_tag") ]; then
+            echo "is-latest=true" >> $GITHUB_OUTPUT 
+          else
+            echo "is-latest=false" >> $GITHUB_OUTPUT 
+          fi
+
       - name: Delete old release assets
         uses: mknejp/delete-release-assets@v1
         continue-on-error: true
         with:
           token: ${{ github.token }}
-          tag: v${{ needs.build-core.outputs.majorMinorVersion }}
+          tag: v${{ steps.get-version.outputs.version }}
           assets: "*"
 
       - name: Create/update release
         uses: softprops/action-gh-release@v2
         with:
-          name: MotorTownMods v${{ needs.build-core.outputs.version }}
-          tag_name: v${{ needs.build-core.outputs.majorMinorVersion }}
-          body_path: release_description.md
+          name: MotorTownMods ${{ github.ref_name }}
+          tag_name: v${{ steps.get-version.outputs.version }}
+          body_path: ${{ env.RELEASE_MESSAGE_PATH }}
           files: "**/*.zip"
-          make_latest: true
+          make_latest: ${{ steps.get-version.outputs.is-latest }}
+
+  repo-cleanup:
+    if: github.actor != 'github-actions[bot]'
+    needs:
+      - create-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate App Token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Bump version
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          git tag ${{ needs.create-release.outputs.version }}
+          git push -f origin ${{ needs.create-release.outputs.version }}
+
+      - name: Delete tag
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          git push -d origin ${{ github.ref_name }}
