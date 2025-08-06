@@ -1,10 +1,10 @@
-name: Build and Release on Tag
+name: Build and Release on Branches
 
 on:
   push:
-    tags:
-      - "v*"
-  workflow_dispatch:
+    branches:
+      - release/v[0-9]+.[0-9]+.[0-9]+
+      - hotfix/v[0-9]+.[0-9]+.[0-9]+
 
 permissions:
   contents: write
@@ -15,7 +15,6 @@ env:
 
 jobs:
   build-core:
-    if: github.actor != 'github-actions[bot]'
     runs-on: windows-2022
 
     steps:
@@ -76,9 +75,11 @@ jobs:
           Copy-Item -Recurse .\MotorTownMods\Scripts .\output\MotorTownMods\
 
           $staticsFilePath = ".\output\MotorTownMods\Scripts\Statics.lua"
-          (Get-Content $staticsFilePath) -replace '(ModVersion\s*=\s*").*(")', ('${1}' + "${{ github.ref_name }}" + '${2}') | Set-Content $staticsFilePath
+          [regex]$versionRegex = '(release|hotfix)/v(.*)'
+          $modVersion = $versionRegex.Match("${{ github.ref_name }}").Groups[2].Value
+          (Get-Content $staticsFilePath) -replace '(ModVersion\s*=\s*").*(")', ('${1}' + "$modVersion" + '${2}') | Set-Content $staticsFilePath
 
-          Compress-Archive -Path .\output\MotorTownMods ".\MotorTownMods_${{ github.ref_name }}.zip"
+          Compress-Archive -Path .\output\MotorTownMods ".\MotorTownMods_v${modVersion}.zip"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -89,7 +90,6 @@ jobs:
           overwrite: true
 
   build-deps:
-    if: github.actor != 'github-actions[bot]'
     runs-on: windows-2022
 
     steps:
@@ -203,7 +203,6 @@ jobs:
           overwrite: true
 
   create-release:
-    if: github.actor != 'github-actions[bot]'
     needs:
       - build-core
       - build-deps
@@ -215,6 +214,7 @@ jobs:
       version: ${{ steps.get-version.outputs.version }}
 
     steps:
+      - uses: actions/checkout@v4
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -231,12 +231,13 @@ jobs:
       - name: Get major.minor version
         id: get-version
         run: |
-          echo "version=${{ github.ref_name }}" | sed -E 's/v([0-9]+)\.([0-9]+).*/\1.\2/g' >> $GITHUB_OUTPUT
-
-          jq -r .head_commit.message $GITHUB_EVENT_PATH | sed 1,2d > $RELEASE_MESSAGE_PATH
-
           latest_tag="${{ steps.latest-tag.outputs.tag }}"
-          current_tag="${{ github.ref_name }}"
+          current_tag=$(echo "${{ github.ref_name }}" | sed -E 's/(release|hotfix)\/(v[0-9]+)\.([0-9]+).*/\2.\3/g')
+          echo "version=$current_tag" >> $GITHUB_OUTPUT
+
+          if [ ! -f "$RELEASE_MESSAGE_PATH" ]; then
+            jq -r .head_commit.message $GITHUB_EVENT_PATH | sed 1,2d > $RELEASE_MESSAGE_PATH
+          fi
 
           echo "Latest tag: $latest_tag"
           echo "Current tag: $current_tag"
@@ -260,13 +261,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: MotorTownMods ${{ github.ref_name }}
-          tag_name: v${{ steps.get-version.outputs.version }}
+          tag_name: ${{ steps.get-version.outputs.version }}
           body_path: ${{ env.RELEASE_MESSAGE_PATH }}
           files: "**/*.zip"
           make_latest: ${{ steps.get-version.outputs.is-latest }}
 
   repo-cleanup:
-    if: github.actor != 'github-actions[bot]'
     needs:
       - create-release
     runs-on: ubuntu-latest
@@ -288,11 +288,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
-          git tag ${{ needs.create-release.outputs.version }}
+          git tag -f ${{ needs.create-release.outputs.version }}
           git push -f origin ${{ needs.create-release.outputs.version }}
-
-      - name: Delete tag
-        env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
-        run: |
-          git push -d origin ${{ github.ref_name }}
