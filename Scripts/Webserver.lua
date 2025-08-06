@@ -75,19 +75,30 @@ function ClientTable.new(newId, client)
     return obj
 end
 
----@enum (key) ResponseStatus
+---See [HTTP response status codes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status)
+---@enum ResponseStatus
 local _resCode = {
-    [200] = "200 OK",
-    [201] = "201 Created",
-    [204] = "204 No Content",
-    [400] = "400 Bad Request",
-    [401] = "401 Unauthorized",
-    [403] = "403 Forbidden",
-    [404] = "404 Not Found",
-    [405] = "405 Method Not Allowed",
-    [500] = "500 Internal Server Error",
-    [503] = "503 Service Unavailable"
+    ["200 OK"] = 200,
+    ["201 Created"] = 201,
+    ["204 No Content"] = 204,
+    ["400 Bad Request"] = 400,
+    ["401 Unauthorized"] = 401,
+    ["403 Forbidden"] = 403,
+    ["404 Not Found"] = 404,
+    ["405 Method Not Allowed"] = 405,
+    ["500 Internal Server Error"] = 500,
+    ["503 Service Unavailable"] = 503,
 }
+
+---Inverse resCode table
+---@type table<integer, string>
+local resDesc = {}
+for key, value in pairs(_resCode) do
+    if resDesc[value] then
+        error("Duplicate key" .. value .. "found")
+    end
+    resDesc[value] = key
+end
 
 ---Request handler for the specified path
 ---@alias RequestPathHandler fun(session: ClientTable): resContent: string?, resType: MimeType?, resCode: ResponseStatus?
@@ -191,14 +202,14 @@ end
 local function buildHeaders(content, contentType, resCode, timestamp)
     contentType = contentType or _mimeType.json
     timestamp = timestamp or -1
-    local code = _resCode[resCode or (content and 200) or 204]
+    resCode = resCode or (content and 200 or 204)
     local h = {}
 
     local function add(name, value)
         table.insert(h, string.format("%s: %s", name, value))
     end
 
-    table.insert(h, "HTTP/1.1 " .. code)
+    table.insert(h, "HTTP/1.1 " .. resDesc[resCode])
 
     add("Server", serverString)
     add("Date", os.date("!%a, %d %b %Y %H:%M:%S GMT"))

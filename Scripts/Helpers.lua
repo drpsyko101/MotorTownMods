@@ -179,15 +179,9 @@ function GuidToString(guid)
     if value < 0 then
       rawGuid[index] = rawGuid[index] + 0x100000000
     end
-    local part = string.format("%x", rawGuid[index])
-
-    -- Pad GUID part with zeroes
-    for _ = #part, 7 do
-      part = "0" .. part
-    end
-    strGuid = string.format("%s%s", strGuid, part)
+    strGuid = string.format("%s%08X", strGuid, rawGuid[index])
   end
-  return strGuid:upper()
+  return strGuid
 end
 
 local MotorTownGameState = CreateInvalidObject()
