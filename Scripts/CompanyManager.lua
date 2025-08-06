@@ -47,8 +47,6 @@ webhook.RegisterEventHook("ServerCloseDownCompany", function(context, CompanyGui
   local PC = context:get() ---@type AMotorTownPlayerController
   local guid = GuidToString(CompanyGuid:get())
 
-  local company = GetCompanies(guid)
-
   LogOutput("DEBUG", "A company/corporation %s has closed down", guid)
 
   return {
