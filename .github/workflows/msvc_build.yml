@@ -215,7 +215,17 @@ jobs:
       majorminor-version: ${{ steps.get-version.outputs.majorminor-version }}
 
     steps:
+      - name: Generate App Token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -268,6 +278,7 @@ jobs:
           body_path: ${{ env.RELEASE_MESSAGE_PATH }}
           files: "**/*.zip"
           make_latest: ${{ steps.get-version.outputs.is-latest }}
+          token: ${{ steps.generate_token.outputs.token }}
 
   repo-cleanup:
     needs:
