@@ -31,7 +31,7 @@ Returns all houses in the game.
       "Net_OwnerName": "EnhancedBrow",
       "ForSale": false,
       "HousegKey": "FirstHouse",
-      "Net_OwnerUniqueNetId": "76561198041602277",
+      "Net_OwnerUniqueNetId": "76561198041602276",
       "FenceStep": 200.0,
       "Teleport": {
         "Y": 154461.02123321,

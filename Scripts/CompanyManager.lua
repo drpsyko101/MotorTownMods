@@ -4,12 +4,14 @@ local webhook = require("Webclient")
 ---Get all companies or selected company by given GUID
 ---@param id string?
 ---@param depth integer?
+---@return table|table[]
 local function GetCompanies(id, depth)
   local gameState = GetMotorTownGameState()
   if gameState:IsValid() then
     local comp = gameState.Net_CompanySystem
     if comp:IsValid() then
-      local companies = GetObjectAsTable(gameState.Net_CompanySystem, "Server_Companies", "MTCompanySystem", depth)
+      local field = "Server_Companies"
+      local companies = GetObjectAsTable(gameState.Net_CompanySystem, field, nil, depth)[field] or {}
 
       if id then
         for _, company in ipairs(companies) do
@@ -23,6 +25,72 @@ local function GetCompanies(id, depth)
     end
   end
   return {}
+end
+
+---Get depots
+---@param id string? Optional depot building GUID
+---@param depth integer? Recursive search depth
+---@return table|table[]
+local function GetDepots(id, depth)
+  local gameState = GetMotorTownGameState()
+  if gameState:IsValid() then
+    local comp = gameState.Net_CompanySystem
+    if comp:IsValid() then
+      local field = "Net_Depots"
+      local depots = GetObjectAsTable(comp, field, nil, depth)[field] or {}
+
+      if id then
+        for _, depot in ipairs(depots) do
+          if depot.BuildingGuid == id then
+            return depot
+          end
+        end
+      else
+        return depots
+      end
+    end
+  end
+  return {}
+end
+
+---Get company bus route by company ID and route ID
+---@param companyId string
+---@param routeId string?
+---@return table|table[]
+local function GetCompanyBusRoute(companyId, routeId)
+  local company = GetCompanies(companyId, 4)
+  if next(company) == nil then
+    return {}
+  end
+
+  local data = {}
+  for _, route in ipairs(company.BusRoutes) do
+    if routeId and route.Guid == routeId then
+      return route
+    end
+
+    table.insert(data, route)
+  end
+
+  return data
+end
+
+local function GetCompanyTructRoute(companyId, routeId)
+  local company = GetCompanies(companyId, 4)
+  if next(company) == nil then
+    return {}
+  end
+
+  local data = {}
+  for _, route in ipairs(company.TruckRoutes) do
+    if routeId and route.Guid == routeId then
+      return route
+    end
+
+    table.insert(data, route)
+  end
+
+  return data
 end
 
 -- Register event callbacks
@@ -96,13 +164,20 @@ local function HandleGetCompanies(session)
   local companyGuid = session.pathComponents[2]
   local depth = tonumber(session.queryComponents.depth)
 
-  local company = GetCompanies(companyGuid, depth)
+  local companies = GetCompanies(companyGuid, depth)
 
-  if companyGuid and #company == 0 then
+  if companyGuid and next(companies) == nil then
     return json.stringify { message = string.format("Company with %s GUID not found", companyGuid) }, nil, 404
   end
 
-  return json.stringify { data = company }
+  return json.stringify { data = companies }
+end
+
+---Handle request to get all depots
+---@type RequestPathHandler
+local function HandleGetDepots(session)
+  local depots = GetDepots()
+  return json.stringify { data = depots }
 end
 
 ---Handle get company depots request
@@ -112,35 +187,86 @@ local function HandleGetCompanyDepots(session)
   local buildingGuid = session.pathComponents[4]
   local depth = tonumber(session.queryComponents.depth)
 
-  local gameState = GetMotorTownGameState()
-  if gameState:IsValid() then
-    local comp = gameState.Net_CompanySystem
-    if comp:IsValid() then
-      local depots = GetObjectAsTable(comp, "Net_Depots", nil, depth)
-      local data = {}
-
-      for _, depot in ipairs(depots) do
-        if depot.CompanyGuid == guid then
-          if buildingGuid and buildingGuid == depot.BuildingGuid then
-            return json.stringify { data = depot }
-          end
-
-          table.insert(data, depot)
-        end
+  local depots = GetDepots(nil, depth)
+  local data = {}
+  for _, depot in ipairs(depots) do
+    if depot.CompanyGuid == guid then
+      if buildingGuid and depot.BuildingGuid == buildingGuid then
+        return json.stringify { data = depot }
       end
-
-      if buildingGuid then
-        local msg = string.format("Building %s for company %s not found", buildingGuid, guid)
-        return json.stringify { error = msg }, nil, 404
-      end
-
-      return json.stringify { data = data }
+      table.insert(data, depot)
     end
   end
-  error("Invalid game state/company system")
+  if buildingGuid and #data == 0 then
+    return json.stringify { message = string.format("Depot with GUID %s not found", buildingGuid) }, nil, 404
+  end
+  return json.stringify { data = data }
+end
+
+---Handle request to get company vehicles
+---@type RequestPathHandler
+local function HandleGetCompanyVehicles(session)
+  local companyGuid = session.pathComponents[2]
+  local depth = tonumber(session.queryComponents.depth) or 4
+  local company = GetCompanies(companyGuid, depth)
+
+  if next(company) == nil then
+    return json.stringify { error = string.format("Company with GUID %s not found", companyGuid) }, nil, 404
+  end
+
+  local vehicles = company.Vehicles or {} ---@type table[]
+  for _, vehicle in ipairs(vehicles) do
+    -- Remove vehicle actor reference to avoid sending unnecessary data
+    vehicle.VehicleActor = nil
+  end
+  return json.stringify { data = vehicles }
+end
+
+---Handle request to get company bus routes
+---@type RequestPathHandler
+local function HandleGetCompanyBusRoutes(session)
+  local companyGuid = session.pathComponents[2]
+  local routeId = session.pathComponents[4]
+  local routes = GetCompanyBusRoute(companyGuid, routeId)
+
+  if routeId and next(routes) == nil then
+    local msg = string.format("Bus route with ID %s not found for company with GUID %s", routeId, companyGuid)
+    return json.stringify { error = msg }, nil, 404
+  end
+
+  if #routes == 0 then
+    local msg = string.format("No bus routes found for company with GUID %s", companyGuid)
+    return json.stringify { error = msg }, nil, 404
+  end
+
+  return json.stringify { data = routes }
+end
+
+---Handle request to get company truck routes
+---@type RequestPathHandler
+local function HandleGetCompanyTruckRoutes(session)
+  local companyGuid = session.pathComponents[2]
+  local routeId = session.pathComponents[4]
+  local routes = GetCompanyTructRoute(companyGuid, routeId)
+
+  if routeId and next(routes) == nil then
+    local msg = string.format("Truck route with ID %s not found for company with GUID %s", routeId, companyGuid)
+    return json.stringify { error = msg }, nil, 404
+  end
+
+  if #routes == 0 then
+    local msg = string.format("No truck routes found for company with GUID %s", companyGuid)
+    return json.stringify { error = msg }, nil, 404
+  end
+
+  return json.stringify { data = routes }
 end
 
 return {
   HandleGetCompanies = HandleGetCompanies,
   HandleGetCompanyDepots = HandleGetCompanyDepots,
+  HandleGetCompanyVehicles = HandleGetCompanyVehicles,
+  HandleGetDepots = HandleGetDepots,
+  HandleGetCompanyBusRoutes = HandleGetCompanyBusRoutes,
+  HandleGetCompanyTruckRoutes = HandleGetCompanyTruckRoutes,
 }

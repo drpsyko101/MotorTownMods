@@ -9,14 +9,22 @@ using namespace RC;
 using namespace RC::Unreal;
 using namespace RC::LuaMadeSimple;
 
+static std::map<LogLevel::LogLevel, int> levels = {
+	{ LogLevel::Error, 0 },
+	{ LogLevel::Warning, 1 },
+	{ LogLevel::Normal, 2 },
+	{ LogLevel::Default, 3 },
+	{ LogLevel::Verbose, 4 }
+};
+
 constexpr std::wstring logLevelToString(LogLevel::LogLevel level)
 {
 	switch (level)
 	{
 	case LogLevel::Default:
-		return L"DEFAULT";
+		return L"INFO";
 	case LogLevel::Normal:
-		return L"NORMAL";
+		return L"INFO";
 	case LogLevel::Verbose:
 		return L"VERBOSE";
 	case LogLevel::Warning:
@@ -47,13 +55,19 @@ public:
 	// Get current mod version
 	static std::wstring GetVersion() { return L"0.1.0"; }
 
+	static int GetLogLevel();
+
 	// Get webhook URL for external callback
 	static const std::string GetWebhookUrl();
 
 	// Primary template for the wrapper function
-	template <LogLevel::LogLevel Level = LogLevel::Verbose, typename... Args>
+	template <LogLevel::LogLevel Level = LogLevel::Default, typename... Args>
 	inline static auto LogOutput(std::wstring format, Args... args) -> void
 	{
+		// Limit output log to the given level
+		const int lvl = GetLogLevel();
+		if (levels[Level] > lvl) return;
+
 		// Create the formatted message using ostringstream to avoid std::format issues
 		std::wstring formatted_message;
 		if constexpr (sizeof...(args) > 0)

@@ -328,7 +328,7 @@ Adding multiple players:
 <summary>Response data:</summary>
 
 ```json
-{"message":"Set player 76561198041602277 to join event 3D5828EF7F06DF4561EAD97C19D2BFE9"}
+{"message":"Set player 76561198041602276 to join event 3D5828EF7F06DF4561EAD97C19D2BFE9"}
 ```
 </details>
 
@@ -361,6 +361,6 @@ Removing multiple players:
 <summary>Response data:</summary>
 
 ```json
-{"message":"Set player 76561198041602277 to join event 3D5828EF7F06DF4561EAD97C19D2BFE9"}
+{"message":"Set player 76561198041602276 to join event 3D5828EF7F06DF4561EAD97C19D2BFE9"}
 ```
 </details>
