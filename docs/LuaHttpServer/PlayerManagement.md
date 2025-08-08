@@ -49,7 +49,6 @@ Returns the specified player state based on the player unique net ID. Output the
 
 Teleport a player pawn to the desired location and optionally its rotation.
 
-
 <details>
 <summary>Request body:</summary>
 
@@ -75,6 +74,22 @@ Teleport a player pawn to the desired location and optionally its rotation.
 
 ```json
 {"status":"Teleported player 76561198041602276 to {\"X\":-191656.25868804,\"Y\":-68211.974820721,\"Z\":-19425.726114405}"}
+```
+
+</details>
+
+#### POST `/players/<uniqueId>/money`
+
+Add a specific amount of money to a player.
+
+<details>
+<summary>Request body:</summary>
+
+```json
+{
+  "Amount": 1000, // Optional amount. Defaults to 0.
+  "Message": "Here is some money" // Optional message to be displayed.
+}
 ```
 
 </details>

@@ -58,7 +58,7 @@ end)
 ---@type RequestPathHandler
 local function HandleGetCharacters(session)
   local limit = tonumber(session.queryComponents.limit) or nil
-  local filters = SplitString(session.queryComponents.filters)
+  local filters = SplitString(session.queryComponents.filters, ",")
   local depth = tonumber(session.queryComponents.depth)
 
   local data = GetCharacters(limit, filters, depth)

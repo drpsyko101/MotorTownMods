@@ -131,7 +131,7 @@ end)
 ---@type RequestPathHandler
 local function HandleGetPlayerStates(session)
   local playerId = session.pathComponents[2]
-  local filters = SplitString(session.queryComponents.filters)
+  local filters = SplitString(session.queryComponents.filters, ",")
   local depth = tonumber(session.queryComponents.depth)
   local res = GetPlayerStates(playerId, filters, depth)
 
