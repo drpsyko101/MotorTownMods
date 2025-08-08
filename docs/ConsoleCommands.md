@@ -10,6 +10,9 @@ List of Motor Town console commands.
 ## Player management
 
 * `getplayers` - Returns all player states data
+* `getplayertransform` - Print the current location and rotation of the pawn.
+* `addmoney` - Add money to player. May trigger `bIsCheater` flag in the save game.
+* `teleporttodest` - Teleport to specified player waypoint.
 
 ## Event management
 
