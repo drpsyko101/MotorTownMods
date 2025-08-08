@@ -29,7 +29,7 @@ Returns the new event data.
       "bInCountdown": false,
       "OwnerCharacterId": {
         "CharacterGuid": "EA50F9CE42B8A468F4FBFE8C42AD87ED",
-        "UniqueNetId": "76561198041602277"
+        "UniqueNetId": "76561198041602276"
       },
       "Players": [],
       "EventGuid": "6E6705764C17B7F764098091A10567E7",

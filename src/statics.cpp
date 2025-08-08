@@ -15,6 +15,14 @@
 #include <Unreal/Property/FSetProperty.hpp>
 #include <LuaType/LuaUObject.hpp>
 
+int ModStatics::GetLogLevel()
+{
+	const auto lvl = std::getenv("MOD_SERVER_LOG_LEVEL");
+	if (lvl) return std::atoi(lvl);
+
+	return 2;
+}
+
 const std::string ModStatics::GetWebhookUrl()
 {
 	std::string test = getenv("MOD_WEBHOOK_URL");
@@ -138,6 +146,22 @@ void ModStatics::ExportPropertyAsTable(
 	else if (property->IsA<FEnumProperty>() || property->IsA<FByteProperty>())
 	{
 		const auto propertyValueRaw = *property->ContainerPtrToValuePtr<uint8>(data);
+		const int propertyValue = static_cast<int>(propertyValueRaw);
+		switch (propertyType)
+		{
+		case PropertyType::Array:
+			table.add_value(propertyValue);
+			break;
+		case PropertyType::Map:
+			table.add_key(std::to_string(propertyValue).c_str());
+			break;
+		default:
+			table.add_pair(propName.c_str(), propertyValue);
+		}
+	}
+	else if (property->IsA<FUInt16Property>())
+	{
+		const auto propertyValueRaw = *property->ContainerPtrToValuePtr<uint16>(data);
 		const int propertyValue = static_cast<int>(propertyValueRaw);
 		switch (propertyType)
 		{
@@ -371,7 +395,7 @@ void ModStatics::ExportPropertyAsTable(
 					}
 					catch (std::exception& err)
 					{
-						LogOutput<LogLevel::Warning>(
+						LogOutput<LogLevel::Verbose>(
 							L"Unable to parse TMap {} with key type {}: {}",
 							propWName,
 							keyProp->GetClass().GetName(),
@@ -386,7 +410,7 @@ void ModStatics::ExportPropertyAsTable(
 					}
 					catch (const std::exception& e)
 					{
-						LogOutput<LogLevel::Warning>(L"Unable to parse TMap value: {}", to_wstring(e.what()));
+						LogOutput<LogLevel::Verbose>(L"Unable to parse TMap value: {}", to_wstring(e.what()));
 						auto emptyInnerTable = innerTable.get_lua_instance().prepare_new_table();
 						emptyInnerTable.vector_to_table(empty);
 						emptyInnerTable.make_local();
@@ -405,7 +429,7 @@ void ModStatics::ExportPropertyAsTable(
 		}
 		else
 		{
-			LogOutput<LogLevel::Warning>(L"Unable to parse {} of type {}", propWName, propClass);
+			LogOutput<LogLevel::Verbose>(L"Unable to parse {} of type {}", propWName, propClass);
 		}
 	}
 	else if (property->IsA<FSetProperty>())
@@ -465,6 +489,6 @@ void ModStatics::ExportPropertyAsTable(
 	{
 		if (propertyType == PropertyType::Map)
 			throw std::format_error("Unable to set anything as TMap key");
-		LogOutput<LogLevel::Warning>(L"Unable to parse {} of type {}", propWName, propClass);
+		LogOutput<LogLevel::Verbose>(L"Unable to parse {} of type {}", propWName, propClass);
 	}
 }

@@ -19,19 +19,13 @@ local chatManager = require("ChatManager")
 local widgetManager = require("ViewportManager")
 local companyManager = require("CompanyManager")
 local characterManager = require("CharacterManager")
+local propertyManager = require("PropertyManager")
+local vehicleManager = require("VehicleManager")
+local assetManager = require("AssetManager")
 
 local function LoadWebserver()
   local status, err = pcall(function()
     local server = require("Webserver")
-
-    -- Local imports are placed here due to socket dependency
-
-    local propertyManager = require("PropertyManager")
-    local vehicleManager = require("VehicleManager")
-    local assetManager = require("AssetManager")
-
-    -- Note that the ordering of the path registration matters.
-    -- Put more specific paths before more general ones
 
     -- General server status
     server.registerHandler("/status", "GET", serverManager.HandleGetServerStatus, false)
@@ -45,6 +39,7 @@ local function LoadWebserver()
     -- Player management
     server.registerHandler("/players", "GET", playerManager.HandleGetPlayerStates)
     server.registerHandler("/players/*/teleport", "POST", playerManager.HandleTeleportPlayer)
+    server.registerHandler("/players/*/money", "POST", playerManager.HandleAddMoney)
     server.registerHandler("/players/*/gameplay/effects", "DELETE", playerManager.HandleRemoveGameplayEffect)
     server.registerHandler("/players/*", "GET", playerManager.HandleGetPlayerStates)
 
@@ -89,8 +84,15 @@ local function LoadWebserver()
 
     -- Company management
     server.registerHandler("/companies", "GET", companyManager.HandleGetCompanies)
+    server.registerHandler("/companies/*/vehicles", "GET", companyManager.HandleGetCompanyVehicles)
+    server.registerHandler("/companies/*/routes/bus", "GET", companyManager.HandleGetCompanyBusRoutes)
+    server.registerHandler("/companies/*/routes/bus/*", "GET", companyManager.HandleGetCompanyBusRoutes)
+    server.registerHandler("/companies/*/routes/truck", "GET", companyManager.HandleGetCompanyTruckRoutes)
+    server.registerHandler("/companies/*/routes/truck/*", "GET", companyManager.HandleGetCompanyTruckRoutes)
     server.registerHandler("/companies/*/depots", "GET", companyManager.HandleGetCompanyDepots)
     server.registerHandler("/companies/*/depots/*", "GET", companyManager.HandleGetCompanyDepots)
+    server.registerHandler("/companies/*", "GET", companyManager.HandleGetCompanies)
+    server.registerHandler("/depots", "GET", companyManager.HandleGetDepots)
 
     -- Character management
     server.registerHandler("/characters", "GET", characterManager.HandleGetCharacters)

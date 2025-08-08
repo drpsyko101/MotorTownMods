@@ -220,6 +220,56 @@ RegisterConsoleCommandHandler("sethotbarposition", function(Cmd, CommandParts, A
   return true
 end)
 
+local posTextBlock = CreateInvalidObject()
+---@cast posTextBlock UEditableText
+RegisterConsoleCommandHandler("toggleposition", function(Cmd, CommandParts, Ar)
+  local PC = GetMyPlayerController()
+  if PC:IsValid() then
+    if posTextBlock:IsValid() then
+      posTextBlock:SetRenderOpacity(posTextBlock:GetRenderOpacity() == 1.0 and 0.0 or 1.0)
+    else
+      local HUD = PC:GetHUD()
+      local hudClass = StaticFindObject("/Script/MotorTown.MotorTownInGameHUD")
+      ---@cast hudClass UClass
+
+      if HUD:IsValid() and HUD:IsA(hudClass) then
+        ---@cast HUD AMotorTownInGameHUD
+
+        local widget = HUD.HUDWidget
+        if widget:IsValid() then
+          local parent = widget.FPSTextBlock:GetParent()
+
+          if parent:IsValid() then
+            ---@cast parent UCanvasPanel
+
+            local textClass = StaticFindObject("/Script/UMG.EditableText")
+            ---@cast textClass UClass
+            posTextBlock = StaticConstructObject(textClass, parent, FName("Position"))
+            if posTextBlock:IsValid() then
+              ---@cast posTextBlock UEditableText
+              posTextBlock:SetIsReadOnly(true)
+              posTextBlock:SetRenderScale({ X = 0.8, Y = 0.8 })
+
+              local slot = parent:AddChildToCanvas(posTextBlock)
+              slot:SetAutoSize(true)
+              slot:SetAlignment({ X = 0.5, Y = 0.0 })
+              slot:SetAnchors({ Maximum = { X = 0.5, Y = 0.0 }, Minimum = { X = 0.5, Y = 0.0 } })
+              slot:SetPosition({ X = 0.0, Y = 60.0 })
+            end
+          end
+        end
+      end
+    end
+    LoopAsync(1000, function()
+      local pawn = PC:K2_GetPawn()
+      local loc = VectorToTable(pawn:K2_GetActorLocation())
+      posTextBlock:SetText(FText(json.stringify(loc)))
+      return false
+    end)
+    return true
+  end
+end)
+
 -- Register event hooks
 
 -- Restore all previously set widget settings
