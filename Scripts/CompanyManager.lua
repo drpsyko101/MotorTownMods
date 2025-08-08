@@ -207,13 +207,18 @@ end
 ---@type RequestPathHandler
 local function HandleGetCompanyVehicles(session)
   local companyGuid = session.pathComponents[2]
-  local company = GetCompanies(companyGuid, 3)
+  local depth = tonumber(session.queryComponents.depth) or 4
+  local company = GetCompanies(companyGuid, depth)
 
-  if #company == 0 then
+  if next(company) == nil then
     return json.stringify { error = string.format("Company with GUID %s not found", companyGuid) }, nil, 404
   end
 
   local vehicles = company.Vehicles or {} ---@type table[]
+  for _, vehicle in ipairs(vehicles) do
+    -- Remove vehicle actor reference to avoid sending unnecessary data
+    vehicle.VehicleActor = nil
+  end
   return json.stringify { data = vehicles }
 end
 

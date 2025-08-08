@@ -80,6 +80,7 @@ end
 local _resCode = {
     ["200 OK"] = 200,
     ["201 Created"] = 201,
+    ["202 Accepted"] = 202,
     ["204 No Content"] = 204,
     ["400 Bad Request"] = 400,
     ["401 Unauthorized"] = 401,
@@ -617,7 +618,7 @@ local function run(bindHost, bindPort)
     -- Register core webserver command
     registerHandler("/stop", "POST", function(session)
         isServerRunning = false
-        return json.stringify { status = "ok" }, nil, 201
+        return json.stringify { status = "ok" }, nil, 202
     end)
 
     init(bindHost, bindPort)
