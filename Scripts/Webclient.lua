@@ -11,18 +11,31 @@ local webhookEvents = SplitString(os.getenv("MOD_WEBHOOK_ENABLE_EVENTS") or "all
 
 ---@enum (key) EventHook
 local events = {
+    ---@see AMotorTownPlayerController.ServerSendChat
     ServerSendChat = "/Script/MotorTown.MotorTownPlayerController:ServerSendChat",
+    ---@see AMotorTownPlayerController.ServerAcceptDelivery
     ServerAcceptDelivery = "/Script/MotorTown.MotorTownPlayerController:ServerAcceptDelivery",
+    ---@see AMotorTownPlayerController.ServerAddEvent
     ServerAddEvent = "/Script/MotorTown.MotorTownPlayerController:ServerAddEvent",
+    ---@see AMotorTownPlayerController.ServerChangeEventState
     ServerChangeEventState = "/Script/MotorTown.MotorTownPlayerController:ServerChangeEventState",
+    ---@see AMotorTownPlayerController.ServerRemoveEvent
     ServerRemoveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerRemoveEvent",
+    ---@see AMotorTownPlayerController.ServerPassedRaceSection
     ServerPassedRaceSection = "/Script/MotorTown.MotorTownPlayerController:ServerPassedRaceSection",
+    ---@see AMotorTownPlayerController.ServerJoinEvent
     ServerJoinEvent = "/Script/MotorTown.MotorTownPlayerController:ServerJoinEvent",
+    ---@see AMotorTownPlayerController.ServerLeaveEvent
     ServerLeaveEvent = "/Script/MotorTown.MotorTownPlayerController:ServerLeaveEvent",
+    ---@see AMotorTownPlayerController.ServerCargoArrived
     ServerCargoArrived = "/Script/MotorTown.MotorTownPlayerController:ServerCargoArrived",
+    ---@see AMotorTownPlayerController.ServerCreateCompany
     ServerCreateCompany = "/Script/MotorTown.MotorTownPlayerController:ServerCreateCompany",
+    ---@see AMotorTownPlayerController.ServerCloseDownCompany
     ServerCloseDownCompany = "/Script/MotorTown.MotorTownPlayerController:ServerCloseDownCompany",
+    ---@see AMotorTownPlayerController.ServerRequestJoinCompany
     ServerRequestJoinCompany = "/Script/MotorTown.MotorTownPlayerController:ServerRequestJoinCompany",
+    ---@see AMotorTownPlayerController.ServerDenyCompanyJoinRequest
     ServerDenyCompanyJoinRequest = "/Script/MotorTown.MotorTownPlayerController:ServerDenyCompanyJoinRequest",
 }
 
