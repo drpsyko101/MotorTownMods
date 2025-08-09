@@ -2,6 +2,10 @@
 
 #include <Mod/CppUserModBase.hpp>
 #include <LuaType/LuaUObject.hpp>
+#include <LuaType/LuaUScriptStruct.hpp>
+#include <Unreal/UFunction.hpp>
+#include <Unreal/UScriptStruct.hpp>
+#include <Unreal/Property/FStrProperty.hpp>
 
 #include "webserver.h"
 #include "statics.h"
@@ -147,6 +151,43 @@ auto MotorTownMods::on_lua_start(
 
 			const int duration = _lua.get_integer();
 			Sleep(duration);
+			return 1;
+		});
+
+	lua.register_function(
+		"GetStructVariables",
+		[](const LuaMadeSimple::Lua& _lua)
+		{
+			ModStatics::LogOutput<LogLevel::Verbose>(L"stackSize: {}", _lua.get_stack_size());
+			if (!_lua.is_userdata())
+			{
+				_lua.throw_error("Invalid argument passed.");
+			}
+
+			auto& param = _lua.get_userdata<LuaType::UScriptStruct>();
+			auto& wrapper = param.get_local_cpp_object();
+
+			int depth = 2;
+			if (_lua.is_integer())
+			{
+				depth = _lua.get_integer();
+			}
+
+			auto table = _lua.prepare_new_table();
+			if (auto scriptStruct = wrapper.script_struct)
+			{
+				auto data = wrapper.get_data_ptr();
+				for (FProperty* prop = scriptStruct->GetPropertyLink(); prop; prop = prop->GetPropertyLinkNext())
+				{
+					ModStatics::ExportPropertyAsTable(prop, data, table, PropertyType::None, false, depth);
+				}
+			}
+			else
+			{
+				_lua.throw_error("Invalid struct value.");
+			}
+
+			table.make_local();
 			return 1;
 		});
 }
