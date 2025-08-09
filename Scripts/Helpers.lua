@@ -133,36 +133,12 @@ function VectorToTable(vector)
 end
 
 ---Convert FRotator to JSON serializable table
----@param rotation FQuat
-function QuatToTable(rotation)
-  return {
-    W = rotation.W,
-    X = rotation.X,
-    Y = rotation.Y,
-    Z = rotation.Z
-  }
-end
-
----Convert FRotator to JSON serializable table
 ---@param rotation FRotator
 function RotatorToTable(rotation)
   return {
     Pitch = rotation.Pitch,
     Yaw = rotation.Yaw,
     Roll = rotation.Roll
-  }
-end
-
----Convert FTransform to JSON serializable table
----@param transform FTransform
-function TransformToTable(transform)
-  local location = VectorToTable(transform.Translation)
-  local rotation = QuatToTable(transform.Rotation)
-  local scale = VectorToTable(transform.Scale3D)
-  return {
-    Translation = location,
-    Rotation = rotation,
-    Scale3D = scale
   }
 end
 
@@ -253,42 +229,6 @@ function GetPlayerControllerFromGuid(guid)
   return CreateInvalidObject() ---@type APlayerController
 end
 
----Convert FMTCharacterId to JSON serializable table
----@param characterId FMTCharacterId
-function CharacterIdToTable(characterId)
-  return {
-    CharacterGuid = GuidToString(characterId.CharacterGuid),
-    UniqueNetId = characterId.UniqueNetId:ToString(),
-  }
-end
-
----Convert FMTShadowedInt64 to JSON serializable table
----@param reward FMTShadowedInt64
-function RewardToTable(reward)
-  return {
-    BaseValue = reward.BaseValue,
-    ShadowedValue = reward.ShadowedValue
-  }
-end
-
----@class Route
----@field RouteName string
----@field Waypoints TArray<FTransform>
-local Route = {}
-
----Convert FMTRoute to JSON serializable table
----@param route FMTRoute
-function RouteToTable(route)
-  local data = {}
-
-  data.RouteName = route.RouteName:ToString()
-  data.Waypoints = {}
-  route.Waypoints:ForEach(function(index, element)
-    table.insert(data.Waypoints, TransformToTable(element:get()))
-  end)
-  return data
-end
-
 ---Read file as strings
 ---@param path string
 ---@return string|nil
@@ -335,46 +275,6 @@ function StringToGuid(input)
     }
   end
   error(input .. " is not a valid Guid")
-end
-
----Convert FGameplayTag to string
----@param gameplayTag FGameplayTag
-function GameplayTagToString(gameplayTag)
-  return gameplayTag.TagName:ToString()
-end
-
----Convert FGameplayTagContainer to string
----@param gameplayTag FGameplayTagContainer
----@return string[]
-function GameplayTagContainerToString(gameplayTag)
-  local arr = {}
-  gameplayTag.GameplayTags:ForEach(function(index, element)
-    table.insert(arr, element:get().TagName:ToString())
-  end)
-  return arr
-end
-
----Convert FGameplayTagQuery to JSON serializable table
----@param query FGameplayTagQuery
-function GameplayTagQueryToTable(query)
-  local data = {}
-
-  data.AutoDescription = query.AutoDescription:ToString()
-
-  data.QueryTokenStream = {} ---@type number[]
-  query.QueryTokenStream:ForEach(function(index, element)
-    table.insert(data.QueryTokenStream, element:get())
-  end)
-
-  data.TagDictionary = {} ---@type string[]
-  query.TagDictionary:ForEach(function(index, element)
-    table.insert(data.TagDictionary, GameplayTagToString(element:get()))
-  end)
-
-  data.TokenStreamVersion = query.TokenStreamVersion
-  data.UserDescription = query.UserDescription:ToString()
-
-  return data
 end
 
 ---Split string by the separator.
@@ -425,55 +325,6 @@ function GetPlayerUniqueId(playerController)
     end
   end
   return nil
-end
-
----Convert FColor to JSON serializable table
----@param color FColor
-function ColorToTable(color)
-  return {
-    R = color.R,
-    G = color.G,
-    B = color.B,
-    A = color.A
-  }
-end
-
----Converts FVector2D to JSON serializable table
----@param vector FVector2D
-function Vector2DToTable(vector)
-  return {
-    X = vector.X,
-    Y = vector.Y
-  }
-end
-
----Convert FMTSettingValue to JSON serializable table
----@param setting FMTSettingValue
-function SettingValueToTable(setting)
-  return {
-    ValueType = setting.ValueType,
-    FloatValue = setting.FloatValue,
-    Int64Value = setting.Int64Value,
-    BoolValue = setting.BoolValue,
-    StringValue = setting.StringValue:ToString(),
-    EnumValue = setting.EnumValue,
-  }
-end
-
----Convert FMTItemInventory to JSON serializable table
----@param item FMTItemInventory
-function ItemInventoryToTable(item)
-  local data = {}
-
-  data.Slots = {}
-  item.Slots:ForEach(function(index, element)
-    table.insert(data.Slots, {
-      Key = element:get().Key:ToString(),
-      NumStack = element:get().NumStack
-    })
-  end)
-
-  return data
 end
 
 ---Deep set table value
@@ -534,6 +385,19 @@ function GetObjectAsTable(object, field, className, depth)
   ---@diagnostic disable-next-line: undefined-global
   local status, output = pcall(GetObjectVariables, object, field, className, depth)
   if status then return output end
+  LogOutput("WARN", "Failed to get object as table: %s", output)
+  return {}
+end
+
+---Get struct as JSON serializable tables
+---@param struct any
+---@param depth integer? Recursive search depth
+---@return table
+function GetStructAsTable(struct, depth)
+  ---@diagnostic disable-next-line: undefined-global
+  local status, output = pcall(GetStructVariables, struct, depth)
+  if status then return output end
+  LogOutput("WARN", "Failed to get struct as table: %s", output)
   return {}
 end
 

@@ -27,7 +27,8 @@ local function GetServerState(zoneName, depth)
     local gameState = GetMotorTownGameState()
     local data = {}
     if (gameState:IsValid()) then
-        data = GetObjectAsTable(gameState, "Net_HotState", nil, depth).Net_HotState
+        local field = "Net_HotState"
+        data = GetObjectAsTable(gameState, field, nil, depth)[field] or {}
         if zoneName and data.ZoneStates then
             for _, value in ipairs(data.ZoneStates) do
                 if value.ZoneKey == zoneName then
@@ -253,12 +254,14 @@ local function HandleSetServerSettings(session)
             end
 
             -- Allow AI driver in company
-            if data.bAllowCompanyAIDriver and type(data.bAllowCompanyAIDriver) == "boolean"then
+            if data.bAllowCompanyAIDriver and type(data.bAllowCompanyAIDriver) == "boolean" then
                 liveConfig.bAllowCompanyAIDriver = data.bAllowCompanyAIDriver
             end
 
             -- return current server config
-            return json.stringify { data = GetObjectAsTable(gameState, "Net_ServerConfig") }
+            local field = "Net_ServerConfig"
+            local config = GetObjectAsTable(gameState, field)[field] or {}
+            return json.stringify { data = config }
         end
     end
     return json.stringify { error = "Invalid payload" }, nil, 400

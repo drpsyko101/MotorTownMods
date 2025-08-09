@@ -1,15 +1,4 @@
-local cargo = require("CargoManager")
 local json = require("JsonParser")
-local player = require("PlayerManager")
-
----Convert item inventory slot to table
----@param item FMTItemInventorySlot
-local function ItemInventorySlotToTable(item)
-  return {
-    Key = item.Key:ToString(),
-    NumStack = item.NumStack
-  }
-end
 
 ---Get characters as JSON serializable table
 ---@param limit integer? Limit the amount of return data
@@ -66,6 +55,5 @@ local function HandleGetCharacters(session)
 end
 
 return {
-  ItemInventorySlotToTable = ItemInventorySlotToTable,
   HandleGetCharacters = HandleGetCharacters
 }

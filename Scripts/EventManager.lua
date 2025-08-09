@@ -1,77 +1,5 @@
-local UEHelpers = require("UEHelpers")
 local webhook = require("Webclient")
 local json = require("JsonParser")
-local socket = RequireSafe("socket") ---@type Socket?
-
----Convert FMTEventPlayer to JSON serializable table
----@param player FMTEventPlayer
-local function EventPlayerToTable(player)
-  local data = {}
-
-  data.BestLapTime = player.BestLapTime
-  data.CharacterId = CharacterIdToTable(player.CharacterId)
-  data.PlayerName = player.PlayerName:ToString()
-  data.Rank = player.Rank
-  data.SectionIndex = player.SectionIndex
-  data.Laps = player.Laps
-  data.bDisqualified = player.bDisqualified
-  data.bFinished = player.bFinished
-  data.bWrongVehicle = player.bWrongVehicle
-  data.bWrongEngine = player.bWrongEngine
-  data.LastSectionTotalTimeSeconds = player.LastSectionTotalTimeSeconds
-
-  data.LapTimes = {}
-  player.LapTimes:ForEach(function(index, element)
-    table.insert(data.LapTimes, element:get())
-  end)
-
-  data.BestLapTime = player.BestLapTime
-  data.Reward_RacingExp = player.Reward_RacingExp
-  data.Reward_Money = RewardToTable(player.Reward_Money)
-
-  return data
-end
-
----Convert FMTRaceEventSetup to JSON serializable table
----@param event FMTRaceEventSetup
-local function RaceEventToTable(event)
-  local data = {}
-  data.EngineKeys = {}
-  for i = 1, #event.EngineKeys do
-    table.insert(data.EngineKeys, event.EngineKeys[i]:ToString())
-  end
-
-  data.VehicleKeys = {}
-  for j = 1, #event.VehicleKeys do
-    table.insert(data.VehicleKeys, event.VehicleKeys[j]:ToString())
-  end
-
-  data.NumLaps = event.NumLaps
-  data.Route = RouteToTable(event.Route)
-
-  return data
-end
-
----Convert a FMTEvent to JSON serializable table
----@param event FMTEvent
-local function EventToTable(event)
-  local data = {}
-  data.EventGuid = GuidToString(event.EventGuid)
-  data.EventName = event.EventName:ToString()
-  data.EventType = event.EventType
-  data.OwnerCharacterId = CharacterIdToTable(event.OwnerCharacterId)
-
-  data.Players = {}
-  event.Players:ForEach(function(index, element)
-    table.insert(data.Players, EventPlayerToTable(element:get()))
-  end)
-
-  data.RaceSetup = RaceEventToTable(event.RaceSetup)
-  data.State = event.State
-  data.bInCountdown = event.bInCountdown
-
-  return data
-end
 
 local EventSystem = CreateInvalidObject()
 ---comment Get Motor Town event system
@@ -90,22 +18,25 @@ end
 
 ---Get all active events in a JSON serializable table
 ---@param eventGuid string? Return specific event matching this GUID
----@return table[]
-local function GetEvents(eventGuid)
+---@param depth integer? Recursive search depth
+---@return table|table[]
+local function GetEvents(eventGuid, depth)
   local eventSystem = GetEventSystem()
   local arr = {}
 
   if not eventSystem:IsValid() then return arr end
 
-  eventSystem.Net_Events:ForEach(function(index, element)
-    local event = element:get() ---@type FMTEvent
+  local field = "Net_Events"
+  local events = GetObjectAsTable(eventSystem, field, nil, depth)[field] or {}
 
-    if eventGuid and eventGuid ~= GuidToString(event.EventGuid) then goto continue end
+  for _, event in ipairs(events) do
+    if eventGuid and eventGuid == event.EventGuid then
+      return event
+    end
 
-    table.insert(arr, EventToTable(event))
+    table.insert(arr, event)
+  end
 
-    ::continue::
-  end)
   return arr
 end
 
@@ -441,9 +372,13 @@ webhook.RegisterEventHook(
 
     LogOutput("DEBUG", "New event %s created", GuidToString(event.EventGuid))
 
+    local eventTable = GetStructAsTable(event)
+
+    LogOutput("DEBUG", "event: %s", json.stringify(eventTable))
+
     return {
       PlayerId = GetPlayerUniqueId(PC),
-      Event = EventToTable(event),
+      Event = eventTable,
     }
   end
 )
@@ -460,11 +395,9 @@ webhook.RegisterEventHook(
 
     local event = GetEvents(eventGuid)
 
-    if #event == 0 then return end
-
     return {
       PlayerId = GetPlayerUniqueId(PC),
-      Event = EventToTable(event[1])
+      Event = event
     }
   end
 )
@@ -489,8 +422,6 @@ webhook.RegisterEventHook(
   "ServerPassedRaceSection",
   function(context, eventGuid, sectionIndex, totalTimeSeconds, laptimeSeconds)
     local PC = context:get() ---@cast PC APlayerController
-
-    if not PC:IsValid() then return end
 
     local data = {
       PlayerId = GetPlayerUniqueId(PC),
@@ -529,8 +460,6 @@ webhook.RegisterEventHook(
   "ServerLeaveEvent",
   function(context, eventGuid)
     local PC = context:get() ---@cast PC APlayerController
-
-    if not PC:IsValid() then return end
 
     local guid = GuidToString(eventGuid:get())
 
