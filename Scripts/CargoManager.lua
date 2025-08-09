@@ -65,7 +65,8 @@ local function GetDeliveries(id, depth)
   local data = {}
   local gameState = GetMotorTownGameState()
   if gameState:IsValid() and gameState.Net_DeliverySystem:IsValid() then
-    data = GetObjectAsTable(gameState.Net_DeliverySystem, "Deliveries", nil, depth)
+    local field = "Deliveries"
+    data = GetObjectAsTable(gameState.Net_DeliverySystem, field, nil, depth)[field] or {}
     if id then
       for _, delivery in ipairs(data) do
         ---@cast delivery FMTDelivery

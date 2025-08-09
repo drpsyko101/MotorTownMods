@@ -26,7 +26,8 @@ local function GetEvents(eventGuid, depth)
 
   if not eventSystem:IsValid() then return arr end
 
-  local events = GetObjectAsTable(eventSystem, "Net_Events", nil, depth)
+  local field = "Net_Events"
+  local events = GetObjectAsTable(eventSystem, field, nil, depth)[field] or {}
 
   for _, event in ipairs(events) do
     if eventGuid and eventGuid == event.EventGuid then
