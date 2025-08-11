@@ -155,7 +155,7 @@ local function HandleTeleportPlayer(session)
     local rotation = {
       Roll = data.Rotation and data.Rotation.Roll or 0.0,
       Pitch = data.Rotation and data.Rotation.Pitch or 0.0,
-      Yaw = data.Rotation and data.Rotation.Roll or 0.0
+      Yaw = data.Rotation and data.Rotation.Yaw or 0.0
     }
 
     if playerId then
