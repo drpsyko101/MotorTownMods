@@ -34,14 +34,13 @@ void ModStatics::ExportPropertyAsTable(
 	void* data,
 	Lua::Table& table,
 	const PropertyType propertyType,
-	const bool convertObject,
 	const int32 depth)
 {
 	if (!property) return;
 
 	// Limit recursive depth search
 	std::vector<int> empty;
-	if (convertObject && depth <= 0)
+	if (depth < 0)
 	{
 		throw std::format_error("Depth limit reached");
 	}
@@ -262,7 +261,7 @@ void ModStatics::ExportPropertyAsTable(
 				auto inner_table = table.get_lua_instance().prepare_new_table();
 				for (FProperty* innerProp = structProp->GetStruct()->GetPropertyLink(); innerProp; innerProp = innerProp->GetPropertyLinkNext())
 				{
-					ExportPropertyAsTable(innerProp, propertyValue, inner_table, PropertyType::None, convertObject, depth);
+					ExportPropertyAsTable(innerProp, propertyValue, inner_table, PropertyType::None, depth);
 				}
 				inner_table.make_local();
 			}
@@ -305,7 +304,7 @@ void ModStatics::ExportPropertyAsTable(
 				auto elem = static_cast<uint8*>(propertyValue->GetData()) + offset;
 				try
 				{
-					ExportPropertyAsTable(innerProp, elem, innerTable, PropertyType::Array, convertObject, depth - 1);
+					ExportPropertyAsTable(innerProp, elem, innerTable, PropertyType::Array, depth);
 				}
 				catch (const std::exception&)
 				{
@@ -327,36 +326,33 @@ void ModStatics::ExportPropertyAsTable(
 	{
 		if (propertyType == PropertyType::Map)
 			throw std::format_error("Unable to set object as TMap key");
-		if (propertyType == PropertyType::Array && !convertObject)
+		if (propertyType == PropertyType::Array)
 			throw std::format_error("Unable to explicitly iterate array");
 
-		if (convertObject)
+		auto propertyValue = *property->ContainerPtrToValuePtr<UObject*>(data);
+
+		if (propertyValue)
 		{
-			auto propertyValue = *property->ContainerPtrToValuePtr<UObject*>(data);
+			auto propertyClass = propertyValue->GetClassPrivate();
+			if (propertyType != PropertyType::Array)
+				table.add_key(propName.c_str());
 
-			if (propertyValue)
+			auto innerTable = table.get_lua_instance().prepare_new_table();
+			try
 			{
-				auto propertyClass = propertyValue->GetClassPrivate();
-				if (propertyType != PropertyType::Array)
-					table.add_key(propName.c_str());
-
-				auto innerTable = table.get_lua_instance().prepare_new_table();
-				try
+				for (FProperty* innerProp = propertyClass->GetPropertyLink(); innerProp; innerProp = innerProp->GetPropertyLinkNext())
 				{
-					for (FProperty* innerProp = propertyClass->GetPropertyLink(); innerProp; innerProp = innerProp->GetPropertyLinkNext())
-					{
-						ExportPropertyAsTable(innerProp, propertyValue, innerTable, PropertyType::None, convertObject, depth - 1);
-					}
+					ExportPropertyAsTable(innerProp, propertyValue, innerTable, PropertyType::None, depth - 1);
 				}
-				catch (std::exception&)
-				{
-					innerTable.vector_to_table(empty);
-				}
-				innerTable.make_local();
-
-				if (propertyType != PropertyType::Array)
-					table.fuse_pair();
 			}
+			catch (std::exception&)
+			{
+				innerTable.vector_to_table(empty);
+			}
+			innerTable.make_local();
+
+			if (propertyType != PropertyType::Array)
+				table.fuse_pair();
 		}
 	}
 	else if (property->IsA<FMapProperty>())
@@ -391,7 +387,7 @@ void ModStatics::ExportPropertyAsTable(
 					auto elem = static_cast<uint8*>(propertyValue->GetData(i, layout));
 					try
 					{
-						ExportPropertyAsTable(keyProp, elem, innerTable, PropertyType::Map, convertObject, depth - 1);
+						ExportPropertyAsTable(keyProp, elem, innerTable, PropertyType::Map, depth);
 					}
 					catch (std::exception& err)
 					{
@@ -406,7 +402,7 @@ void ModStatics::ExportPropertyAsTable(
 					}
 					try
 					{
-						ExportPropertyAsTable(valueProp, elem, innerTable, PropertyType::Array, convertObject, depth - 1);
+						ExportPropertyAsTable(valueProp, elem, innerTable, PropertyType::Array, depth);
 					}
 					catch (const std::exception& e)
 					{
@@ -466,7 +462,7 @@ void ModStatics::ExportPropertyAsTable(
 					uint8* elemPtr = helper.GetElementPtr(i);
 					try
 					{
-						ExportPropertyAsTable(innerProp, elemPtr, innerTable, PropertyType::Array, convertObject, depth - 1);
+						ExportPropertyAsTable(innerProp, elemPtr, innerTable, PropertyType::Array, depth);
 					}
 					catch (std::exception&)
 					{
