@@ -37,6 +37,10 @@ local events = {
     ServerRequestJoinCompany = "/Script/MotorTown.MotorTownPlayerController:ServerRequestJoinCompany",
     ---@see AMotorTownPlayerController.ServerDenyCompanyJoinRequest
     ServerDenyCompanyJoinRequest = "/Script/MotorTown.MotorTownPlayerController:ServerDenyCompanyJoinRequest",
+    ---@see AMotorTownPlayerController.ServerEnterVehicle
+    ServerEnterVehicle = "/Script/MotorTown.MotorTownPlayerController:ServerEnterVehicle",
+    ---@see AMotorTownPlayerController.ServerEnterVehicleByIdAndSeatName
+    ServerEnterVehicleByIdAndSeatName = "/Script/MotorTown.MotorTownPlayerController:ServerEnterVehicleByIdAndSeatName",
 }
 
 ---Send a request to the specified URL

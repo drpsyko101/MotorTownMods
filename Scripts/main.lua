@@ -42,6 +42,7 @@ local function LoadWebserver()
     server.registerHandler("/players/*/money", "POST", playerManager.HandleAddMoney)
     server.registerHandler("/players/*/gameplay/effects", "DELETE", playerManager.HandleRemoveGameplayEffect)
     server.registerHandler("/players/*", "GET", playerManager.HandleGetPlayerStates)
+    server.registerHandler("/players/*/eject", "POST", vehicleManager.HandleEjectPlayer)
 
     -- Event management
     server.registerHandler("/events", "GET", eventManager.HandleGetEvents)
