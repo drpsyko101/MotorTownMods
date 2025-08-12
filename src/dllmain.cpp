@@ -87,7 +87,7 @@ auto MotorTownMods::on_lua_start(
 			auto ptr = object.get_remote_cpp_object();
 
 			std::wstring propertyName, className;
-			int32 depth = 2;
+			int32 depth = 0;
 
 			// Parse parameter values
 			if (_lua.is_integer(3)) depth = _lua.get_integer(3);
@@ -111,7 +111,7 @@ auto MotorTownMods::on_lua_start(
 					if (prop)
 					{
 						// Allow object conversion only when parameter name is specified
-						ModStatics::ExportPropertyAsTable(prop, ptr, table, PropertyType::None, true, depth);
+						ModStatics::ExportPropertyAsTable(prop, ptr, table, PropertyType::None, depth);
 					}
 					else
 					{
@@ -130,7 +130,7 @@ auto MotorTownMods::on_lua_start(
 						// Crude way to check the owner class since FProperty::GetOwnerClass isn't supported
 						if (prop->GetFullName().contains(className))
 						{
-							ModStatics::ExportPropertyAsTable(prop, ptr, table, PropertyType::None, false, depth);
+							ModStatics::ExportPropertyAsTable(prop, ptr, table, PropertyType::None, depth);
 						}
 					}
 				}
@@ -167,7 +167,7 @@ auto MotorTownMods::on_lua_start(
 			auto& param = _lua.get_userdata<LuaType::UScriptStruct>();
 			auto& wrapper = param.get_local_cpp_object();
 
-			int depth = 2;
+			int depth = 0;
 			if (_lua.is_integer())
 			{
 				depth = _lua.get_integer();
@@ -179,7 +179,7 @@ auto MotorTownMods::on_lua_start(
 				auto data = wrapper.get_data_ptr();
 				for (FProperty* prop = scriptStruct->GetPropertyLink(); prop; prop = prop->GetPropertyLinkNext())
 				{
-					ModStatics::ExportPropertyAsTable(prop, data, table, PropertyType::None, false, depth);
+					ModStatics::ExportPropertyAsTable(prop, data, table, PropertyType::None, depth);
 				}
 			}
 			else
