@@ -17,6 +17,10 @@
 * `addmoney` - Add money to player. May trigger `bIsCheater` flag in the save game.
 * `teleporttodest` - Teleport to specified player waypoint.
 
+### Breaking changes
+
+The `depth` parameter in the endpoints now only affect `UObject` instead of the general recurse depth. Beware that increasing this value may cause excessive data overfetch and may cause data recursion. Use `depth` in conjunction with `filters` to get the desired result.
+
 ### Minor performance upgrade
 
 C++ object parser now supports larger data type and faster in normal operation mode. The C++ debug log level is now matched with the Lua counterparts.
@@ -26,3 +30,4 @@ C++ object parser now supports larger data type and faster in normal operation m
 * Fix endpoints wildcard ambiguity
 * Fix return code for some endpoints
 * Fix character and player filter query parameter not returning intended data
+* Fix teleport player wrong rotation payload
