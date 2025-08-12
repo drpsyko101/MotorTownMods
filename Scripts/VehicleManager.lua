@@ -231,6 +231,44 @@ RegisterConsoleCommandHandler("setvehicleparam", function(Cmd, CommandParts, Ar)
   return true
 end)
 
+-- Register webhook
+
+webhook.RegisterEventHook(
+  "ServerEnterVehicle",
+  function(context, Vehicle, SeatType, SeatIndex, bSteal)
+    local PC = context:get() ---@cast PC APlayerController
+    local vehicle = GetObjectAsTable(Vehicle:get(), nil, "/Script/MotorTown.MTVehicle")
+    local seatType = SeatType:get() ---@cast seatType EMTSeatType
+    local seatIndex = SeatIndex:get() ---@cast seatIndex int32
+    local stolen = bSteal:get() ---@cast bSteal boolean
+
+    return {
+      PlayerId = GetPlayerUniqueId(PC),
+      Vehicle = vehicle,
+      SeatType = seatType,
+      SeatIndex = seatIndex,
+      Stolen = stolen
+    }
+  end
+)
+
+webhook.RegisterEventHook(
+  "ServerEnterVehicleByIdAndSeatName",
+  function(context, VehicleId, SeatName, bCheckDistance)
+    local PC = context:get() ---@cast PC APlayerController
+    local vehicleId = VehicleId:get() ---@cast vehicleId int64
+    local seatName = SeatName:get() ---@cast seatName FString
+    local checkDistance = bCheckDistance:get() ---@cast checkDistance boolean
+
+    return {
+      PlayerId = GetPlayerUniqueId(PC),
+      VehicleId = vehicleId,
+      SeatName = seatName:ToString(),
+      CheckDistance = checkDistance
+    }
+  end
+)
+
 -- HTTP request handler
 
 ---Handle the get vehicles commands
@@ -377,6 +415,25 @@ local function HandleSetVehicleParameter(session)
   return json.stringify { error = "Invalid payload provided" }, nil, 400
 end
 
+---Handle request to eject a player from a vehicle
+---@type RequestPathHandler
+local function HandleEjectPlayer(session)
+  local id = session.pathComponents[2]
+
+  local PC = GetPlayerControllerFromUniqueId(id)
+  if PC:IsValid() then
+    ---@cast PC AMotorTownPlayerController
+
+    ExecuteInGameThreadSync(function()
+      PC:ServerExitVehicle()
+    end)
+
+    return json.stringify { status = "ok" }
+  end
+
+  return json.stringify { error = "Invalid player ID" }, nil, 400
+end
+
 return {
   HandleGetVehicles = HandleGetVehicles,
   HandleDespawnVehicle = HandleDespawnVehicle,
@@ -384,4 +441,5 @@ return {
   HandleGetGarages = HandleGetGarages,
   HandleSpawnGarage = HandleSpawnGarage,
   HandleSetVehicleParameter = HandleSetVehicleParameter,
+  HandleEjectPlayer = HandleEjectPlayer,
 }
