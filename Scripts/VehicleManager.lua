@@ -424,11 +424,11 @@ local function HandleEjectPlayer(session)
   if PC:IsValid() then
     ---@cast PC AMotorTownPlayerController
 
-    ExecuteInGameThreadSync(function()
+    ExecuteInGameThread(function()
       PC:ServerExitVehicle()
     end)
 
-    return json.stringify { status = "ok" }
+    return json.stringify { status = "ok" }, nil, 202
   end
 
   return json.stringify { error = "Invalid player ID" }, nil, 400

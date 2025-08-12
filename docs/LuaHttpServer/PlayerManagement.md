@@ -73,7 +73,9 @@ Teleport a player pawn to the desired location and optionally its rotation.
 <summary>Response data:</summary>
 
 ```json
-{"status":"Teleported player 76561198041602276 to {\"X\":-191656.25868804,\"Y\":-68211.974820721,\"Z\":-19425.726114405}"}
+{
+  "status": "Teleported player 76561198041602276 to {\"X\":-191656.25868804,\"Y\":-68211.974820721,\"Z\":-19425.726114405}"
+}
 ```
 
 </details>
@@ -115,6 +117,21 @@ Remove a specific amount from the gameplay effect stack. Useful for removing GAS
 ```json
 {
   "message": "Successfully removed gameplay effect"
+}
+```
+
+</details>
+
+#### POST `/players/<uniqueId>/eject`
+
+Forcefully eject a player from a vehicle.
+
+<details>
+<summary>Response data:</summary>
+
+```json
+{
+  "status": "ok"
 }
 ```
 
