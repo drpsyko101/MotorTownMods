@@ -1,0 +1,21 @@
+#pragma once
+
+#include <Unreal/UnrealCoreStructs.hpp>
+#include "webroute.h"
+#include "statics.h"
+#include <memory>
+
+using namespace RC;
+using namespace RC::Unreal;
+using namespace std;
+
+class PlayerManager : public Route
+{
+public:
+	PlayerManager();
+	virtual bool IsMatchingRequest(http::request<http::string_body> req) override;
+	virtual json::object GetResponseJson(http::request<http::string_body> req, http::status& statusCode) override;
+
+private:
+	boost::json::value GetPlayerStates() const;
+};

@@ -19,7 +19,7 @@ class Webserver
 {
 	int Port = 5000;
 	asio::io_context ioc;
-	boost::thread serverThread;
+	std::vector<boost::shared_ptr<boost::thread>> serverWorkers;
 	std::list<std::shared_ptr<Route>> responses;
 
 public:

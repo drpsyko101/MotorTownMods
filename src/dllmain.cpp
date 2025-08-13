@@ -6,6 +6,7 @@
 #include <Unreal/UFunction.hpp>
 #include <Unreal/UScriptStruct.hpp>
 #include <Unreal/Property/FStrProperty.hpp>
+#include <LuaMadeSimple/LuaMadeSimple.hpp>
 
 #include "webserver.h"
 #include "statics.h"

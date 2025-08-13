@@ -1,6 +1,14 @@
 #pragma once
 
+// Workaround against multiple check definitions
+#pragma push_macro("check")
+#undef check
+#include <boost/json.hpp>
+#pragma pop_macro("check")
+
 #include <string>
+#include <Unreal/FString.hpp>
+#include <Unreal/Transform.hpp>
 #include <DynamicOutput/Output.hpp>
 #include <Unreal/UnrealCoreStructs.hpp>
 #include <LuaMadeSimple/LuaMadeSimple.hpp>
@@ -13,8 +21,8 @@ static std::map<LogLevel::LogLevel, int> levels = {
 	{ LogLevel::Error, 0 },
 	{ LogLevel::Warning, 1 },
 	{ LogLevel::Normal, 2 },
-	{ LogLevel::Default, 3 },
-	{ LogLevel::Verbose, 4 }
+	{ LogLevel::Default, 2 },
+	{ LogLevel::Verbose, 3 }
 };
 
 constexpr std::wstring logLevelToString(LogLevel::LogLevel level)
@@ -43,6 +51,24 @@ enum PropertyType
 	Map,
 };
 
+struct FMTCharacterId
+{
+	FString UniqueNetId;
+	FGuid CharacterGuid;
+};
+
+struct FMTShadowedInt64
+{
+	int64 BaseValue = 0;
+	int64 ShadowedValue = 0;
+};
+
+struct FMTRoute
+{
+	FString RouteName;
+	TArray<FTransform> Waypoints;
+};
+
 class ModStatics
 {
 public:
@@ -56,6 +82,25 @@ public:
 	static std::wstring GetVersion() { return L"0.1.0"; }
 
 	static int GetLogLevel();
+
+	// Convert FGuid to hexadecimal string
+	static std::string GuidToString(const FGuid Guid);
+
+	static boost::json::object VectorToJson(const FVector vector);
+
+	static boost::json::object RotatorToJson(const FRotator rotation);
+
+	static boost::json::object QuatToJson(const FQuat rotation);
+
+	static boost::json::object TransformToJson(FTransform transform);
+
+	// Check if mod is running on wine
+	static bool IsRunningOnWine();
+
+	static int GetLogLevel();
+
+	// Convert string to FGuid
+	static FGuid StringToGuid(const std::string Guid);
 
 	// Get webhook URL for external callback
 	static const std::string GetWebhookUrl();
@@ -116,4 +161,12 @@ public:
 		Lua::Table& table,
 		const PropertyType propertyType = PropertyType::None,
 		const int32 depth = 0);
+
+	static boost::json::object ObjectToJson(UObject* Object, const std::wstring Field = L"", std::wstring ClassName = L"", const int depth = 1);
+	static boost::json::object StructToJson(UStruct* Object, void* Data);
+
+private:
+	static void PropertyToJson(FProperty* Property, void* Data, boost::json::object& Object, const int depth = 1);
+	static void PropertyToJson(FProperty* Property, void* Data, boost::json::value& Object, const int depth = 1);
+	static void PropertyToJson(FProperty* Property, void* Data, std::string& Object);
 };

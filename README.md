@@ -12,7 +12,8 @@ Download the latest releases [here](https://github.com/drpsyko101/MotorTownMods/
 
 ### Building from source
 
-1. Clone this repository into your `ue4ss/Mods` directory.
+1. Download RE-UE4SS from the [releases](https://github.com/UE4SS-RE/RE-UE4SS/releases) page. Using the `experimental-latest` branch is highly recommended. Follow the [full installation guide](https://docs.ue4ss.com/dev/installation-guide.html) for more in-depth steps.
+2. Clone this repository into your `ue4ss/Mods` directory.
 
    ```shell
    git -C <path/to/ue4ss/Mods> clone https://github.com/drpsyko101/MotorTownMods.git
