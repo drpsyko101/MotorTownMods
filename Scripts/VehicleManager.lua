@@ -152,6 +152,8 @@ local function SpawnGarage(location, rotation)
   ---@cast garageClass UClass
 
   if status and actor and actor:IsValid() and actor:IsA(garageClass) then
+    ---@cast actor AMTGarageActor
+    actor:SetReplicates(true)
     return true, assetTag
   end
   return false
