@@ -97,8 +97,6 @@ public:
 	// Check if mod is running on wine
 	static bool IsRunningOnWine();
 
-	static int GetLogLevel();
-
 	// Convert string to FGuid
 	static FGuid StringToGuid(const std::string Guid);
 

@@ -117,14 +117,6 @@ int ModStatics::GetLogLevel()
 	return 2;
 }
 
-int ModStatics::GetLogLevel()
-{
-	const auto lvl = std::getenv("MOD_SERVER_LOG_LEVEL");
-	if (lvl) return std::atoi(lvl);
-
-	return 2;
-}
-
 const std::string ModStatics::GetWebhookUrl()
 {
 	std::string test = getenv("MOD_WEBHOOK_URL");
