@@ -9,6 +9,7 @@
 #include <LuaMadeSimple/LuaMadeSimple.hpp>
 
 #include "webserver.h"
+#include "websocket.h"
 #include "statics.h"
 
 using namespace RC;
@@ -32,6 +33,7 @@ auto MotorTownMods::on_unreal_init() -> void
 {
 	// Init API server
 	auto server = Webserver::Get();
+	auto socket = Websocket::Get();
 }
 
 auto MotorTownMods::on_lua_start(

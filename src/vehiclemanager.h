@@ -13,6 +13,6 @@ class VehicleManager : public Route
 {
 public:
 	VehicleManager();
-	virtual bool IsMatchingRequest(http::request<http::string_body> req) override;
-	virtual json::object GetResponseJson(http::request<http::string_body> req, http::status& statusCode) override;
+	virtual bool IsMatchingRequest(const http::request<http::string_body>& req) const override;
+	virtual json::object GetResponseJson(const http::request<http::string_body>& req, http::status& statusCode) override;
 };

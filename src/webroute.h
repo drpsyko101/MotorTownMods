@@ -21,8 +21,10 @@ public:
 	Route();
 	virtual ~Route() {};
 
-	virtual bool IsMatchingRequest(http::request<http::string_body> req);
-	virtual json::object GetResponseJson(http::request<http::string_body> req, http::status& statusCode);
+	virtual bool IsMatchingRequest(const http::request<http::string_body>& req) const;
+	virtual bool IsMatchingRequest(const json::object& req) const;
+	virtual json::object GetResponseJson(const http::request<http::string_body>& req, http::status& statusCode) = 0;
+	virtual json::object GetResponseJson(const json::object& req);
 
 protected:
 	virtual void SendWebhookEvent(const json::object payload);

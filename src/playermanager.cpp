@@ -16,7 +16,7 @@ PlayerManager::PlayerManager()
 {
 }
 
-bool PlayerManager::IsMatchingRequest(http::request<http::string_body> req)
+bool PlayerManager::IsMatchingRequest(const http::request<http::string_body>& req) const
 {
 	if (req.method() == http::verb::get && req.target() == "/players")
 	{
@@ -25,7 +25,13 @@ bool PlayerManager::IsMatchingRequest(http::request<http::string_body> req)
 	return false;
 }
 
-json::object PlayerManager::GetResponseJson(http::request<http::string_body> req, http::status& statusCode)
+bool PlayerManager::IsMatchingRequest(const json::object& req) const
+{
+	if (req.contains("action") && req.at("action").as_string() == "getPlayerLocation") return true;
+	return false;
+}
+
+json::object PlayerManager::GetResponseJson(const http::request<http::string_body>& req, http::status& statusCode)
 {
 	json::object response_json;
 	if (req.method() == http::verb::get && req.target().starts_with("/players"))
@@ -40,6 +46,32 @@ json::object PlayerManager::GetResponseJson(http::request<http::string_body> req
 	}
 
 	return response_json;
+}
+
+json::object PlayerManager::GetResponseJson(const json::object& req)
+{
+	json::object obj;
+	if (req.contains("action") && req.at("action").as_string() == "getPlayerLocation")
+	{
+		json::array arr;
+		auto playerStates = GetPlayerStates();
+		if (playerStates.is_array())
+		{
+			for (auto& state : playerStates.as_array())
+			{
+				if (state.is_object())
+				{
+					json::object player;
+					player["Location"] = state.as_object().at("Location");
+					player["UniqueID"] = state.as_object().at("UniqueID");
+					arr.push_back(player);
+				}
+			}
+		}
+		obj["data"] = arr;
+	}
+	obj["status"] = "success";
+	return obj;
 }
 
 boost::json::value PlayerManager::GetPlayerStates() const

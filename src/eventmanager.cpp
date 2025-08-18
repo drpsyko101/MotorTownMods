@@ -138,7 +138,7 @@ EventManager::EventManager()
 	}
 }
 
-bool EventManager::IsMatchingRequest(http::request<http::string_body> req)
+bool EventManager::IsMatchingRequest(const http::request<http::string_body>& req) const
 {
 	if (req.target().starts_with("/events"))
 	{
@@ -148,7 +148,7 @@ bool EventManager::IsMatchingRequest(http::request<http::string_body> req)
 	return false;
 }
 
-json::object EventManager::GetResponseJson(http::request<http::string_body> req, http::status& statusCode)
+json::object EventManager::GetResponseJson(const http::request<http::string_body>& req, http::status& statusCode)
 {
 	json::object res;
 	std::regex reg("^/events/");

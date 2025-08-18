@@ -19,12 +19,17 @@ Route::Route()
 {
 }
 
-bool Route::IsMatchingRequest(http::request<http::string_body> req)
+bool Route::IsMatchingRequest(const http::request<http::string_body>& req) const
 {
 	return false;
 }
 
-json::object Route::GetResponseJson(http::request<http::string_body> req, http::status& statusCode)
+bool Route::IsMatchingRequest(const json::object& req) const
+{
+	return false;
+}
+
+json::object Route::GetResponseJson(const json::object& req)
 {
 	return json::object();
 }

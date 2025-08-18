@@ -14,12 +14,12 @@ VehicleManager::VehicleManager()
 {
 }
 
-bool VehicleManager::IsMatchingRequest(http::request<http::string_body> req)
+bool VehicleManager::IsMatchingRequest(const http::request<http::string_body>& req) const
 {
 	return req.method() == http::verb::get && req.target() == "/vehicles";
 }
 
-json::object VehicleManager::GetResponseJson(http::request<http::string_body> req, http::status& statusCode)
+json::object VehicleManager::GetResponseJson(const http::request<http::string_body>& req, http::status& statusCode)
 {
 	json::object data;
 	json::array arr;

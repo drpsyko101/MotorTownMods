@@ -13,7 +13,7 @@ ServerSettings::ServerSettings()
 {
 }
 
-bool ServerSettings::IsMatchingRequest(http::request<http::string_body> req)
+bool ServerSettings::IsMatchingRequest(const http::request<http::string_body>& req) const
 {
 	if (req.target().starts_with(vehicleConfigPath))
 	{
@@ -22,7 +22,7 @@ bool ServerSettings::IsMatchingRequest(http::request<http::string_body> req)
 	return false;
 }
 
-json::object ServerSettings::GetResponseJson(http::request<http::string_body> req, http::status& statusCode)
+json::object ServerSettings::GetResponseJson(const http::request<http::string_body>& req, http::status& statusCode)
 {
 	json::object obj;
 	if (req.target() == vehicleConfigPath)
