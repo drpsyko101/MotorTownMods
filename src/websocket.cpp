@@ -126,6 +126,7 @@ public:
 		}
 
 		const auto text = beast::buffers_to_string(buffer_.data());
+		std::string requestId;
 		json::object res;
 		
 		try
@@ -138,6 +139,10 @@ public:
 					{"code", 404},
 					{"message", "Request not found"}
 				};
+			}
+			if (req.is_object() && req.as_object().contains("id"))
+			{
+				res["correlation_id"] = req.at("id").as_string().c_str();
 			}
 		}
 		catch (const std::exception& e)
