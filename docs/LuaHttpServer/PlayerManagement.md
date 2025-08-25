@@ -90,7 +90,8 @@ Add a specific amount of money to a player.
 ```json
 {
   "Amount": 1000, // Optional amount. Defaults to 0.
-  "Message": "Here is some money" // Optional message to be displayed.
+  "Message": "Here is some money", // Optional message to be displayed.
+  "AllowNegative": false // Allow player to go into debt
 }
 ```
 
