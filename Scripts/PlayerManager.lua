@@ -234,10 +234,13 @@ local function HandleAddMoney(session)
     local amount = math.floor(tonumber(data.Amount) or 0)
     local message = data.Message or ""
     local PC = GetPlayerControllerFromUniqueId(playerId)
+    local allowNegative = data.AllowNegative or false
 
     if PC:IsValid() then
       ---@cast PC AMotorTownPlayerController
-      PC:ClientAddMoney(amount, "", FText(message), false, "", "")
+      ExecuteInGameThreadSync(function()
+        PC:ClientAddMoney(amount, "", FText(message), allowNegative, "", "")
+      end)
       return json.stringify { message = string.format("Added %d money to player %s", amount, playerId) }
     end
   end
