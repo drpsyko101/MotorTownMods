@@ -8,7 +8,32 @@ This mod uses a forked UE4SS release available [here](https://github.com/drpsyko
 
 ### Installation
 
-Download the latest releases [here](https://github.com/drpsyko101/MotorTownMods/releases). Extract its contents to `path/to/ue4ss/Mods/` directory. The Lua static modules are also available in the relase as `shared.zip`. Download and extract the contents into the `path/to/ue4ss/Mods/shared` directory.
+1. Download and extract the [UE4SS release](https://github.com/drpsyko101/RE-UE4SS/releases) into the game `Binaries/Win64` directory.
+2. Download the latest releases [here](https://github.com/drpsyko101/MotorTownMods/releases). Extract its contents to `path/to/ue4ss/Mods/` directory. The Lua static modules are also available in the relase as `shared.zip`. Download and extract the contents into the `path/to/ue4ss/Mods/shared` directory.
+3. Add these game-specific UE4SS signatures into the `path/to/ue4ss/UE4SS_Signatures`:
+
+   ```lua
+   -- FText_Constructor.lua
+   function Register()
+      return "40 53 57 48 83 EC 38 48 89 6C 24 58 48 8B FA"
+   end
+
+   function OnMatchFound(matchAddress)
+      return matchAddress
+   end
+   ```
+
+   ```lua
+   -- GUObjectArray.lua
+   function Register()
+      return "48 8D 0D ?? ?? ?? ?? 48 8B D7 89 5C 24 20 44 8D 4B ??"
+   end
+
+   function OnMatchFound(matchAddress)
+      local displacement = DerefToInt32(matchAddress + 0x3)
+      return matchAddress + 0x7 + displacement
+   end
+   ```
 
 ### Building from source
 
