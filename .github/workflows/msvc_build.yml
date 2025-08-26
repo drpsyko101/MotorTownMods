@@ -306,3 +306,8 @@ jobs:
           git config --global user.email "motortownrepomanager@users.noreply.github.com"
           git tag -f ${{ needs.create-release.outputs.majorminor-version }}
           git push -f origin ${{ needs.create-release.outputs.majorminor-version }}
+
+      - name: Delete current branch
+        if: ! contains(github.event.head_commit.message , '#block_deletion')
+        run: |
+          git push -d origin ${{ github.ref_name }}
