@@ -50,6 +50,22 @@ local function SpawnActor(assetPath, location, rotation, tag)
             Yaw = rotation and rotation.Yaw or 0
           }
         )
+
+        if actor:IsValid() then
+          -- Set spawned actor to always replicate
+          actor:SetReplicates(true)
+
+          if object:IsA(staticMeshClass) then
+            ---@cast actor AStaticMeshActor
+            ---@cast object UStaticMesh
+
+            -- Set actor to movable
+            actor:SetMobility(2)
+            if not actor.StaticMeshComponent:SetStaticMesh(object) then
+              error("Failed to set " .. object:GetFullName())
+            end
+          end
+        end
       end)
     end)
     if actor:IsValid() then
@@ -69,18 +85,6 @@ local function SpawnActor(assetPath, location, rotation, tag)
       actor.Tags[#actor.Tags + 1] = FName(assetTag)
       LogOutput("DEBUG", "Spawned actor tagged: %s", assetTag)
 
-      if actor:IsA(staticMeshActorClass) then
-        ---@cast actor AStaticMeshActor
-        ---@cast object UStaticMesh
-
-        -- Set actor to movable
-        actor:SetMobility(2)
-        if actor.StaticMeshComponent:SetStaticMesh(object) then
-          actor:SetReplicates(true)
-        else
-          error("Failed to set " .. object:GetFullName())
-        end
-      end
       return true, assetTag, actor
     end
   end
@@ -182,14 +186,16 @@ local function HandleDespawnActor(session)
   local content = json.parse(session.content)
 
   if content ~= nil and type(content) == "table" then
-    if #content.Tags > 0 then
+    if content.Tags and #content.Tags > 0 then
       for index, value in ipairs(content.Tags) do
         DestroyActor(value)
       end
-    else
+    elseif content.Tag and type(content.Tag) == "string" then
       DestroyActor(content.Tag)
+    else
+      return json.stringify { error = "No tag(s) provided" }, nil, 400
     end
-    return nil, nil, 204
+    return nil, nil, 202
   end
   return nil, nil, 400
 end

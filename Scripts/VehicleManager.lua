@@ -148,12 +148,8 @@ end
 ---@param rotation FRotator
 local function SpawnGarage(location, rotation)
   local status, assetTag, actor = assetManager.SpawnActor(garageSoftPath, location, rotation)
-  local garageClass = StaticFindObject("/Script/MotorTown.MTGarageActor")
-  ---@cast garageClass UClass
 
-  if status and actor and actor:IsValid() and actor:IsA(garageClass) then
-    ---@cast actor AMTGarageActor
-    actor:SetReplicates(true)
+  if status and actor and actor:IsValid() then
     return true, assetTag
   end
   return false
