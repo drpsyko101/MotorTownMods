@@ -153,11 +153,11 @@ local function HandleSpawnActor(session)
   local content = json.parse(session.content)
 
   if content ~= nil and type(content) == "table" then
-    if #content > 0 then
+    if next(content) ~= nil then
       local assetTags = {}
       for index, value in ipairs(content) do
         if value and value.AssetPath and value.Location then
-          local spawned, tag = SpawnActor(value.AssetPath, value.Location, value.Rotation, value.tag)
+          local spawned, tag = SpawnActor(value.AssetPath, value.Location, value.Rotation, value.Tag)
           if spawned then
             table.insert(assetTags, tag)
           else
@@ -168,7 +168,7 @@ local function HandleSpawnActor(session)
       return json.stringify { data = assetTags }
     else
       if content and content.AssetPath and content.Location then
-        local spawned, tag = SpawnActor(content.AssetPath, content.Location, content.Rotation, content.tag)
+        local spawned, tag = SpawnActor(content.AssetPath, content.Location, content.Rotation, content.Tag)
         if spawned then
           return json.stringify { data = { tag } }
         else
@@ -176,6 +176,7 @@ local function HandleSpawnActor(session)
         end
       end
     end
+    return json.stringify { error = "Invalid payload" }, nil, 400
   end
   return nil, nil, 400
 end
