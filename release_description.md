@@ -27,4 +27,4 @@ C++ object parser now supports larger data type and faster in normal operation m
 * Fix return code for some endpoints
 * Fix character and player filter query parameter not returning intended data
 * Fix game crash while trying to add/deduct money from the player
-* Fix asset spawner not using the given tag
+* Fix asset spawner not using and returning the given tag
