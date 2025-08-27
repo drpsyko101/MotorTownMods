@@ -17,27 +17,20 @@ local function SpawnActor(assetPath, location, rotation, tag)
     local staticMeshClass = StaticFindObject("/Script/Engine.StaticMesh")
     ---@cast staticMeshClass UClass
     local actor = CreateInvalidObject() ---@cast actor AActor
-    local object = StaticFindObject(assetPath)
 
     ExecuteInGameThreadSync(function()
-      pcall(function()
-        LoadAsset(assetPath)
-        local assetClass = {}
+      pcall(function(...)
+        local loadedAsset = LoadAsset(assetPath)
+        ---@cast loadedAsset UObject
 
-        if object:IsA(staticMeshClass) then
-          assetClass = staticMeshActorClass
-        else
-          assetClass = object
-        end
-
-        LogOutput("DEBUG", "Loaded and found asset %s", assetClass:GetFullName())
-        if not assetClass:IsValid() then
+        if not loadedAsset:IsValid() then
           error("Invalid asset loaded: " .. assetPath)
         end
+        LogOutput("DEBUG", "Loaded and found asset %s", loadedAsset:GetFullName())
 
         ---@type AActor
         actor = world:SpawnActor(
-          assetClass,
+          loadedAsset:IsA(staticMeshClass) and staticMeshActorClass or loadedAsset,
           {
             X = location and location.X or 0,
             Y = location and location.Y or 0,
@@ -54,15 +47,20 @@ local function SpawnActor(assetPath, location, rotation, tag)
           -- Set spawned actor to always replicate
           actor:SetReplicates(true)
 
-          if object:IsA(staticMeshClass) then
+          if loadedAsset:IsA(staticMeshClass) then
             ---@cast actor AStaticMeshActor
-            ---@cast object UStaticMesh
+            ---@cast loadedAsset UStaticMesh
+
+            local gameInstance = UEHelpers.GetGameInstance()
+            gameInstance.ReferencedObjects[#gameInstance.ReferencedObjects + 1] = loadedAsset
 
             -- Set actor to movable
             actor:SetMobility(2)
-            if not actor.StaticMeshComponent:SetStaticMesh(object) then
-              error("Failed to set " .. object:GetFullName())
+            if not actor.StaticMeshComponent:SetStaticMesh(loadedAsset) then
+              error("Failed to set " .. loadedAsset:GetFullName() .. " as static mesh")
             end
+
+            actor.StaticMeshComponent:SetBoundsScale(100.0)
           end
         end
       end)
