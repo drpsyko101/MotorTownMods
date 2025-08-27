@@ -19,7 +19,6 @@ local function SpawnActor(assetPath, location, rotation, tag)
     local actor = CreateInvalidObject() ---@cast actor AActor
     local object = StaticFindObject(assetPath)
 
-    local assetTag = tag
     ExecuteInGameThreadSync(function()
       pcall(function()
         LoadAsset(assetPath)
@@ -71,21 +70,21 @@ local function SpawnActor(assetPath, location, rotation, tag)
     if actor:IsValid() then
       LogOutput("DEBUG", "Spawned actor %s", actor:GetFullName())
 
-      if not assetTag then
+      if tag == nil then
         local str = SplitString(actor:GetFullName())
 
         if str and str[2] then
-          assetTag = str[2]
+          tag = str[2]
         else
           error("Invalid asset tag")
         end
       end
 
       -- Apply actor tag for easy retrieval later
-      actor.Tags[#actor.Tags + 1] = FName(assetTag)
-      LogOutput("DEBUG", "Spawned actor tagged: %s", assetTag)
+      actor.Tags[#actor.Tags + 1] = FName(tag)
+      LogOutput("DEBUG", "Spawned actor tagged: %s", tag)
 
-      return true, assetTag, actor
+      return true, tag, actor
     end
   end
   return false
@@ -153,7 +152,7 @@ local function HandleSpawnActor(session)
   local content = json.parse(session.content)
 
   if content ~= nil and type(content) == "table" then
-    if next(content) ~= nil then
+    if #content > 0 then
       local assetTags = {}
       for index, value in ipairs(content) do
         if value and value.AssetPath and value.Location then
