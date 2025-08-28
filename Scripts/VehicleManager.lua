@@ -451,9 +451,9 @@ local function HandleEjectPlayer(session)
   return json.stringify { error = "Invalid player ID" }, nil, 400
 end
 
----Handle request to set a vehicle setting
+---Handle request to set a vehicle fuel
 ---@type RequestPathHandler
-local function HandleSetVehicleSetting(session)
+local function HandleSetVehicleFuel(session)
   local id = tonumber(session.pathComponents[2])
   local data = json.parse(session.content)
 
@@ -462,23 +462,12 @@ local function HandleSetVehicleSetting(session)
     return json.stringify { error = "Invalid vehicle ID" }, nil, 400
   end
 
-  if data and data.SettingType and data.Value then
+  if data and data.InFuel then
     local vehicle = GetVehicleRaw(id)
 
     if vehicle:IsValid() then
-      if vehicle.Net_MovementOwnerPC and vehicle.Net_MovementOwnerPC:IsValid() then
-        local PC = vehicle.Net_MovementOwnerPC
-        ---@cast PC AMotorTownPlayerController
-
-        if PC:IsValid() then
-          ExecuteInGameThreadSync(function()
-            PC:ServerSetVehicleSetting(vehicle, data.SettingType, data.Value)
-          end)
-          return json.stringify { status = "ok" }, nil, 200
-        end
-        return json.stringify { error = "Invalid player controller" }, nil, 400
-      end
-      return json.stringify { error = "Vehicle is not player controlled" }, nil, 400
+      vehicle:MulticastSetFuel(data.InFuel)
+      return json.stringify { status = "ok" }, nil, 200
     end
     return json.stringify { error = string.format("Unable to get vehicle with ID %i", id) }, nil, 404
   end
@@ -499,19 +488,8 @@ local function HandleSetVehiclePartDamage(session)
     local vehicle = GetVehicleRaw(id)
 
     if vehicle:IsValid() then
-      if vehicle.Net_MovementOwnerPC and vehicle.Net_MovementOwnerPC:IsValid() then
-        local PC = vehicle.Net_MovementOwnerPC
-        ---@cast PC AMotorTownPlayerController
-
-        if PC:IsValid() then
-          ExecuteInGameThreadSync(function()
-            PC:ServerSetVehiclePartDamage(vehicle, data.PartSlot, data.NewDamage)
-          end)
-          return json.stringify { status = "ok" }, nil, 200
-        end
-        return json.stringify { error = "Invalid player controller" }, nil, 400
-      end
-      return json.stringify { error = "Vehicle is not player controlled" }, nil, 400
+      vehicle:MulticastSetPartDamage(data.PartSlot, data.NewDamage)
+      return json.stringify { status = "ok" }, nil, 200
     end
     return json.stringify { error = string.format("Unable to get vehicle with ID %i", id) }, nil, 404
   end
@@ -525,6 +503,6 @@ return {
   HandleSpawnGarage = HandleSpawnGarage,
   HandleSetVehicleParameter = HandleSetVehicleParameter,
   HandleEjectPlayer = HandleEjectPlayer,
-  HandleSetVehicleSetting = HandleSetVehicleSetting,
+  HandleSetVehicleFuel = HandleSetVehicleFuel,
   HandleSetVehiclePartDamage = HandleSetVehiclePartDamage,
 }
