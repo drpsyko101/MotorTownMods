@@ -52,6 +52,25 @@ local function GetVehicles(id, fields, limit, isControlled, depth)
   return arr
 end
 
+---Get the AMTVehicle object by ID
+---@param id integer Vehicle ID
+---@return AMTVehicle
+local function GetVehicleRaw(id)
+  local gameState = GetMotorTownGameState()
+  local vehicle = CreateInvalidObject() ---@cast vehicle AMTVehicle
+
+  if not gameState:IsValid() then return vehicle end
+
+  for i = 1, #gameState.Vehicles, 1 do
+    if gameState.Vehicles[i].Net_VehicleId == id then
+      vehicle = gameState.Vehicles[i]
+      break
+    end
+  end
+
+  return vehicle
+end
+
 ---Despawn selected vehicle
 ---@param id number Vehicle ID
 ---@param uniqueId string? Player unique net ID
@@ -432,6 +451,72 @@ local function HandleEjectPlayer(session)
   return json.stringify { error = "Invalid player ID" }, nil, 400
 end
 
+---Handle request to set a vehicle setting
+---@type RequestPathHandler
+local function HandleSetVehicleSetting(session)
+  local id = tonumber(session.pathComponents[2])
+  local data = json.parse(session.content)
+
+  -- Check for valid vehicle ID driven by a player
+  if type(id) ~= "number" or id <= 0 then
+    return json.stringify { error = "Invalid vehicle ID" }, nil, 400
+  end
+
+  if data and data.SettingType and data.Value then
+    local vehicle = GetVehicleRaw(id)
+
+    if vehicle:IsValid() then
+      if vehicle.Net_MovementOwnerPC and vehicle.Net_MovementOwnerPC:IsValid() then
+        local PC = vehicle.Net_MovementOwnerPC
+        ---@cast PC AMotorTownPlayerController
+
+        if PC:IsValid() then
+          ExecuteInGameThreadSync(function()
+            PC:ServerSetVehicleSetting(vehicle, data.SettingType, data.Value)
+          end)
+          return json.stringify { status = "ok" }, nil, 200
+        end
+        return json.stringify { error = "Invalid player controller" }, nil, 400
+      end
+      return json.stringify { error = "Vehicle is not player controlled" }, nil, 400
+    end
+    return json.stringify { error = string.format("Unable to get vehicle with ID %i", id) }, nil, 404
+  end
+  return json.stringify { error = "Invalid payload provided" }, nil, 400
+end
+
+---Handle request to set a vehicle part damage
+---@type RequestPathHandler
+local function HandleSetVehiclePartDamage(session)
+  local id = tonumber(session.pathComponents[2])
+  local data = json.parse(session.content)
+
+  if type(id) ~= "number" or id <= 0 then
+    return json.stringify { error = "Invalid vehicle ID" }, nil, 400
+  end
+
+  if data and data.PartSlot and data.NewDamage then
+    local vehicle = GetVehicleRaw(id)
+
+    if vehicle:IsValid() then
+      if vehicle.Net_MovementOwnerPC and vehicle.Net_MovementOwnerPC:IsValid() then
+        local PC = vehicle.Net_MovementOwnerPC
+        ---@cast PC AMotorTownPlayerController
+
+        if PC:IsValid() then
+          ExecuteInGameThreadSync(function()
+            PC:ServerSetVehiclePartDamage(vehicle, data.PartSlot, data.NewDamage)
+          end)
+          return json.stringify { status = "ok" }, nil, 200
+        end
+        return json.stringify { error = "Invalid player controller" }, nil, 400
+      end
+      return json.stringify { error = "Vehicle is not player controlled" }, nil, 400
+    end
+    return json.stringify { error = string.format("Unable to get vehicle with ID %i", id) }, nil, 404
+  end
+end
+
 return {
   HandleGetVehicles = HandleGetVehicles,
   HandleDespawnVehicle = HandleDespawnVehicle,
@@ -440,4 +525,6 @@ return {
   HandleSpawnGarage = HandleSpawnGarage,
   HandleSetVehicleParameter = HandleSetVehicleParameter,
   HandleEjectPlayer = HandleEjectPlayer,
+  HandleSetVehicleSetting = HandleSetVehicleSetting,
+  HandleSetVehiclePartDamage = HandleSetVehiclePartDamage,
 }
