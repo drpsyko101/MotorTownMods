@@ -11,11 +11,17 @@
 * `GET /companies/<guid>/depots` - Now returns a company depot list
 * `GET /companies/<guid>/depots/<guid>` - Now returns a company depot
 * `POST /players/<id>/money` - Because why not
+* `POST /vehicles/<id>/fuel` - Set vehicle fuel
+* `POST /vehicles/<id>/parts/<partId>/damage` - Set vehicle part damage
 
 ### New commands
 
 * `addmoney` - Add money to player. May trigger `bIsCheater` flag in the save game.
 * `teleporttodest` - Teleport to specified player waypoint.
+
+### Support for spawning static mesh
+
+Static mesh now can be spawned using the `POST /assets/spawn` endpoint! Be careful when spawning a large amount of assets as they have longer draw distance from the normal static mesh, which can cause performance hit.
 
 ### Minor performance upgrade
 
