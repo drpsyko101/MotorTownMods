@@ -478,17 +478,22 @@ end
 ---@type RequestPathHandler
 local function HandleSetVehiclePartDamage(session)
   local id = tonumber(session.pathComponents[2])
+  local partSlot = tonumber(session.pathComponents[4])
   local data = json.parse(session.content)
 
   if type(id) ~= "number" or id <= 0 then
     return json.stringify { error = "Invalid vehicle ID" }, nil, 400
   end
 
-  if data and data.PartSlot and data.NewDamage then
+  if type(partSlot) ~= "number" or partSlot < 1 or partSlot > 157 then
+    return json.stringify { error = "Invalid vehicle part slot" }, nil, 400
+  end
+
+  if data and data.NewDamage then
     local vehicle = GetVehicleRaw(id)
 
     if vehicle:IsValid() then
-      vehicle:MulticastSetPartDamage(data.PartSlot, data.NewDamage)
+      vehicle:MulticastSetPartDamage(partSlot, data.NewDamage)
       return json.stringify { status = "ok" }, nil, 200
     end
     return json.stringify { error = string.format("Unable to get vehicle with ID %i", id) }, nil, 404
