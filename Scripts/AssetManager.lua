@@ -18,8 +18,8 @@ local function SpawnActor(assetPath, location, rotation, tag)
     ---@cast staticMeshClass UClass
     local actor = CreateInvalidObject() ---@cast actor AActor
 
-    ExecuteInGameThreadSync(function()
-      pcall(function(...)
+    local status, err = pcall(function(...)
+      ExecuteInGameThreadSync(function()
         local loadedAsset = LoadAsset(assetPath)
         ---@cast loadedAsset UObject
 
@@ -51,6 +51,7 @@ local function SpawnActor(assetPath, location, rotation, tag)
             ---@cast actor AStaticMeshActor
             ---@cast loadedAsset UStaticMesh
 
+            -- Prevent garbage collection of the asset
             local gameInstance = UEHelpers.GetGameInstance()
             gameInstance.ReferencedObjects[#gameInstance.ReferencedObjects + 1] = loadedAsset
 
@@ -60,11 +61,20 @@ local function SpawnActor(assetPath, location, rotation, tag)
               error("Failed to set " .. loadedAsset:GetFullName() .. " as static mesh")
             end
 
+            LogOutput("DEBUG", "Set static mesh %s to actor %s", loadedAsset:GetFullName(), actor:GetFullName())
+
+            -- For some reason the static mesh bound scale is too small by default
             actor.StaticMeshComponent:SetBoundsScale(100.0)
+            actor.StaticMeshComponent:SetIsReplicated(true)
           end
         end
       end)
     end)
+
+    if not status then
+      error("Failed to spawn actor: " .. tostring(err))
+    end
+
     if actor:IsValid() then
       LogOutput("DEBUG", "Spawned actor %s", actor:GetFullName())
 
@@ -81,6 +91,11 @@ local function SpawnActor(assetPath, location, rotation, tag)
       -- Apply actor tag for easy retrieval later
       actor.Tags[#actor.Tags + 1] = FName(tag)
       LogOutput("DEBUG", "Spawned actor tagged: %s", tag)
+
+      -- Catch invalid tag, just in case
+      if not tag or type(tag) ~= "string" then
+        error("Invalid asset tag")
+      end
 
       return true, tag, actor
     end
@@ -110,8 +125,18 @@ local function DestroyActor(assetTag)
 
       actor:K2_DestroyActor()
       LogOutput("DEBUG", "Destroyed actor: %s", actorName)
+
+      -- Just in case, remove any references to the object from the game instance
+      local gameInstance = UEHelpers.GetGameInstance()
+      for j = #gameInstance.ReferencedObjects, 1, -1 do
+        if gameInstance.ReferencedObjects[j] == actor then
+          gameInstance.ReferencedObjects[j] = {}
+          LogOutput("DEBUG", "Removed reference to actor %s from game instance", actorName)
+        end
+      end
     end
   end)
+  return #actors
 end
 
 ---Offset a selected actor location
@@ -182,20 +207,21 @@ end
 ---@type RequestPathHandler
 local function HandleDespawnActor(session)
   local content = json.parse(session.content)
+  local numRemoved = 0
 
   if content ~= nil and type(content) == "table" then
     if content.Tags and #content.Tags > 0 then
-      for index, value in ipairs(content.Tags) do
-        DestroyActor(value)
+      for _, value in ipairs(content.Tags) do
+        numRemoved = DestroyActor(value)
       end
     elseif content.Tag and type(content.Tag) == "string" then
-      DestroyActor(content.Tag)
+      numRemoved = DestroyActor(content.Tag)
     else
       return json.stringify { error = "No tag(s) provided" }, nil, 400
     end
-    return nil, nil, 202
+    return json.stringify { message = string.format("%i object(s) flagged for removal", numRemoved) }, nil, 202
   end
-  return nil, nil, 400
+  return json.stringify { error = "Invalid payload" }, nil, 400
 end
 
 -- Register console commands
