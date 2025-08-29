@@ -308,6 +308,5 @@ jobs:
           git push -f origin ${{ needs.create-release.outputs.majorminor-version }}
 
       - name: Delete current branch
-        if: ! contains(github.event.head_commit.message , '#block_deletion')
         run: |
           git push -d origin ${{ github.ref_name }}
