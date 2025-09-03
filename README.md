@@ -85,7 +85,9 @@ Most of the server settings can be configured using environment variables:
 
 | Variable name               | Default value | Description                                                                                                                |
 | --------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `MOD_MANAGEMENT_ADDRESS`    | `0.0.0.0`     | Management listen address.                                                                                                 |
 | `MOD_MANAGEMENT_PORT`       | `5000`        | Management port. Used for managing mods in the dedicated server                                                            |
+| `MOD_SERVER_ADDRESS`        | `0.0.0.0`     | Lua HTTP listen address. This only applies if `luasocket` module is installed                                              |
 | `MOD_SERVER_PORT`           | `5001`        | Lua HTTP port. This only applies if `luasocket` module is installed                                                        |
 | `MOD_SERVER_PROCESS_AMOUNT` | 5             | The amount of cumulative connection to process. Higher number correspond to quicker response, in return slower event hook. |
 | `MOD_SERVER_LOG_LEVEL`      | 2             | The server log level. `0=ERROR`, `1=WARNING`, `2=INFO`, `3=VERBOSE`, `4=DEBUG`                                             |

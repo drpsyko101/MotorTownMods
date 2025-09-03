@@ -14,6 +14,7 @@ local usePartialSend = os.getenv("MOD_SERVER_SEND_PARTIAL")
 local bcrypt = RequireSafe("bcrypt")
 
 local enableDebug = statics.ModLogLevel > 2
+local address = os.getenv("MOD_SERVER_HOST") or "*"
 local port = tonumber(os.getenv("MOD_SERVER_PORT")) or 5001
 local isServerRunning = false
 local time = function()
@@ -162,7 +163,7 @@ local function findHandler(path, method)
         LogOutput("DEBUG", "Checking %s %s", h.path, h.method)
 
         local base = string.gsub(h.path, "%*", "[^/]+") -- Turn asterisks into Lua wild patterns
-        local pat = string.format("^%s$", base)      -- Add anchors to pattern
+        local pat = string.format("^%s$", base)         -- Add anchors to pattern
         if string.find(path, pat) == 1 then
             --if path == h.path then
             if method == nil or h.method == "*" or method == h.method then
@@ -612,7 +613,7 @@ end
 ---@param bindHost string? Host IP to bind to
 ---@param bindPort number? Port to bind to
 local function run(bindHost, bindPort)
-    bindHost = bindHost or "*"
+    bindHost = bindHost or address
     bindPort = bindPort or port
 
     -- Register core webserver command

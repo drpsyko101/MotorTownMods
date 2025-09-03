@@ -100,7 +100,7 @@ local function LoadWebserver()
     -- Character management
     server.registerHandler("/characters", "GET", characterManager.HandleGetCharacters)
 
-    server.run("*")
+    server.run()
     return nil
   end)
   if not status then

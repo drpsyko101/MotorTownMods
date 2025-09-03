@@ -22,17 +22,25 @@ using tcp = asio::ip::tcp;
 Webserver* _localServer = nullptr;
 
 Webserver::Webserver() {
+	const char* rawAddress = "0.0.0.0";
+	if (const char* val = getenv("MOD_MANAGEMENT_ADDRESS"))
+	{
+		rawAddress = val;
+	}
+	const auto address = asio::ip::make_address(rawAddress);
+
+	unsigned short port = 5000;
 	if (const char* val = getenv("MOD_MANAGEMENT_PORT"))
 	{
-		Port = atoi(val);
+		port = atoi(val);
 	}
 
 	responses.push_back(std::make_shared<ModsManager>());
 
-	serverThread = boost::thread(&Webserver::run_server, this, Port);
+	serverThread = boost::thread(&Webserver::run_server, this, address, port);
 	serverThread.detach();
 
-	ModStatics::LogOutput(L"API server listening at {}", Port);
+	ModStatics::LogOutput(L"API server listening at {}", port);
 }
 
 Webserver::~Webserver() {
@@ -55,10 +63,10 @@ bool Webserver::isServerRunning()
 }
 
 // HTTP Server function
-void Webserver::run_server(unsigned short port) {
+void Webserver::run_server(const asio::ip::address address, const unsigned short port) {
 	try
 	{
-		tcp::acceptor acceptor(ioc, tcp::endpoint(tcp::v4(), port));
+		tcp::acceptor acceptor(ioc, tcp::endpoint(address, port));
 
 		while (true) {
 			tcp::socket socket(ioc);

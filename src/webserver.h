@@ -17,7 +17,6 @@ class Route;
 // Simple HTTP server with threading
 class Webserver
 {
-	int Port = 5000;
 	asio::io_context ioc;
 	boost::thread serverThread;
 	std::list<std::shared_ptr<Route>> responses;
@@ -34,7 +33,7 @@ public:
 
 private:
 	// HTTP Server function
-	void run_server(unsigned short port);
+	void run_server(const asio::ip::address address, const unsigned short port);
 
 	// Function to handle incoming HTTP requests
 	std::string handle_request(http::request<http::string_body> req, http::response<http::string_body>& res);
