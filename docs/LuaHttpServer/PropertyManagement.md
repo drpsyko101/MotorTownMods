@@ -52,7 +52,7 @@ Returns a house with the givent GUID. Returns similar data as above.
 
 #### POST `/houses/spawn`
 
-Spawn a house plot for sale. Returns a `201` status if the plot successfully spawned. Can be despawned using POST `/assets/despawn` with the resulting GUID. The house can only be purchased if the corresponding house GUID and dataset exists in the `MotorTown/Content/DataAsset/Houses.uasset` data table.
+Spawn a house plot for sale. Returns a `201` status if the plot successfully spawned. Can be despawned using POST `/assets/despawn` with the resulting GUID.
 
 <details>
 <summary>Request body:</summary>
@@ -76,7 +76,9 @@ Spawn a house plot for sale. Returns a `201` status if the plot successfully spa
       "Z": 5000.0
     },
     "HouseKey": "KambingHouse",
-    "HouseGuid": "8BADB28B13C6345A9487E957D0D5D4D8"
+    "HouseGuid": "8BADB28B13C6345A9487E957D0D5D4D8",
+    "Cost": 10000,
+    "bAllowBuilding": false
   }
 }
 ```

@@ -41,10 +41,14 @@ end
 ---Create a house at specified location
 ---@param location FVector
 ---@param rotation FRotator
----@param houseParam { AreaSize: FVector, HouseKey: string, HouseGuid: string }
+---@param houseParam { AreaSize: FVector, HouseKey: string, HouseGuid: string, Cost: integer, bAllowBuilding: boolean }
 ---@return boolean Status
 ---@return string? HouseGuid
 local function SpawnHouse(location, rotation, houseParam)
+  if not houseParam or not houseParam.HouseKey then
+    error("Invalid house parameters")
+  end
+
   local housePath = "/Game/Objects/Housing/House.House_C"
   local gameState = GetMotorTownGameState()
   local status, assetTag, actor = assetManager.SpawnActor(housePath, location, rotation)
@@ -59,7 +63,21 @@ local function SpawnHouse(location, rotation, houseParam)
     local guid = GuidToString(actor.HouseGuid)
     actor.Tags[#actor.Tags + 1] = FName(guid)
 
-    LogOutput("INFO", "Spawned a new house: %s", actor:GetFullName())
+    ExecuteInGameThreadSync(function()
+      local houseDataTable = LoadAsset("/Game/DataAsset/Houses.Houses")
+      ---@cast houseDataTable UDataTable
+
+      if houseDataTable:IsValid() then
+        houseDataTable:AddRow(houseParam.HouseKey, {
+          Cost = houseParam.Cost or 10000,
+          bAllowBuilding = houseParam.bAllowBuilding or false
+        })
+      else
+        error("Invalid house data table")
+      end
+    end)
+
+    LogOutput("DEBUG", "Spawned a new house: %s", actor:GetFullName())
 
     return true, guid
   end
@@ -83,13 +101,15 @@ local function HandleSpawnHouse(session)
   local data = json.parse(session.content)
 
   if data ~= nil and data.Location and data.Rotation and data.HouseParam then
-    local status, guid = SpawnHouse(data.Location, data.Rotation, data.HouseParam)
-    if status and guid then
-      return json.stringify { data = { HouseGuid = guid } }, nil, 201
+    local status, output = SpawnHouse(data.Location, data.Rotation, data.HouseParam)
+    if status and output then
+      return json.stringify { data = { HouseGuid = output } }, nil, 201
     end
+
+    return json.stringify { error = output }, nil, 400
   end
 
-  return nil, nil, 400
+  return json.stringify { error = "Invalid payload" }, nil, 400
 end
 
 return {
