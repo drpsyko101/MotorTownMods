@@ -249,7 +249,9 @@ Change game server settings. Each field is optional and not mutually exclusive t
   "MaxHousingPlotRentalPerPlayer": 1, // Set the max plot a player can have at a given time
   "ServerMessage": "<Title>This is a new server message!</>", // Set server message for newly logged in player
   "HousingPlotRentalPriceRatio": 0.5, // Set the rental rate per days
-  "bAllowCompanyAIDriver": true // Allow AI driver in company
+  "bAllowCompanyAIDriver": true, // Allow AI driver in company
+  "bAllowPoliceVehicleByPlayerRole": false, // Allow usage of police vehicles by players with specific role
+  "bAllowAdminToRemoveAdmin": false // Allow an admin to remove another admin
 }
 ```
 
@@ -270,7 +272,9 @@ Change game server settings. Each field is optional and not mutually exclusive t
       "bAllowPlayerToJoinWithCompanyVehicles": false,
       "MaxVehiclePerPlayer": 9,
       "MaxHousingPlotRentalDays": 7,
-      "ServerMessage": "<Title>This is a new server message!</>"
+      "ServerMessage": "<Title>This is a new server message!</>",
+      "bAllowPoliceVehicleByPlayerRole": false,
+      "bAllowAdminToRemoveAdmin": false
     }
   }
 }

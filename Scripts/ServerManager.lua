@@ -258,6 +258,14 @@ local function HandleSetServerSettings(session)
                 liveConfig.bAllowCompanyAIDriver = data.bAllowCompanyAIDriver
             end
 
+            if data.bAllowPoliceVehicleByPlayerRole and type(data.bAllowPoliceVehicleByPlayerRole) == "boolean" then
+                liveConfig.bAllowPoliceVehicleByPlayerRole = data.bAllowPoliceVehicleByPlayerRole
+            end
+
+            if data.bAllowAdminToRemoveAdmin and type(data.bAllowAdminToRemoveAdmin) == "boolean" then
+                liveConfig.bAllowAdminToRemoveAdmin = data.bAllowAdminToRemoveAdmin
+            end
+
             -- return current server config
             local field = "Net_ServerConfig"
             local config = GetObjectAsTable(gameState, field)[field] or {}
